@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>어휘 사전(Vocab) — 세상에서 제일 쉽게</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel2:#273449;
+    --ink:#e2e8f0; --sub:#94a3b8; --line:#334155;
+    --brand:#38bdf8; --brand2:#818cf8; --accent:#fbbf24;
+    --good:#34d399; --warn:#f472b6; --code:#0b1220;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:"Segoe UI","Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif;
+    line-height:1.8;font-size:17px}
+  a{color:var(--brand)}
+  .wrap{max-width:900px;margin:0 auto;padding:0 20px 120px}
+
+  header{background:radial-gradient(1200px 500px at 20% -10%,rgba(56,189,248,.25),transparent 60%),
+    radial-gradient(1000px 500px at 90% 0%,rgba(129,140,248,.22),transparent 55%),var(--bg);
+    border-bottom:1px solid var(--line);padding:64px 20px 48px}
+  header .wrap{padding-bottom:0}
+  .kicker{color:var(--brand);font-weight:700;letter-spacing:.14em;font-size:13px;text-transform:uppercase}
+  h1{font-size:clamp(28px,5vw,44px);line-height:1.22;margin:.35em 0 .3em;font-weight:800}
+  h1 .hl{background:linear-gradient(90deg,var(--brand),var(--brand2));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .lead{font-size:19px;color:var(--sub);max-width:720px}
+
+  section{margin-top:60px}
+  h2{font-size:clamp(23px,3.4vw,29px);margin:0 0 8px;font-weight:800;display:flex;align-items:center;gap:12px}
+  h2 .num{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:12px;
+    background:linear-gradient(135deg,var(--brand),var(--brand2));color:#06121f;font-size:18px;font-weight:900;flex:0 0 auto}
+  h3{font-size:19px;margin:26px 0 6px}
+  p{margin:.6em 0}
+  .muted{color:var(--sub)}
+  b.hlt{color:#fff}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px 24px;margin:18px 0}
+  .card.tight{padding:16px 18px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:720px){.grid2{grid-template-columns:1fr}}
+
+  .callout{border-left:4px solid var(--brand);background:var(--panel2);border-radius:0 12px 12px 0;padding:14px 18px;margin:16px 0}
+  .callout.good{border-color:var(--good)} .callout.warn{border-color:var(--warn)}
+  .callout b{color:#fff}
+  .emoji{font-size:20px;margin-right:6px}
+  .big-idea{background:linear-gradient(135deg,rgba(56,189,248,.16),rgba(129,140,248,.16));
+    border:1px solid var(--line);border-radius:18px;padding:24px 26px;margin:18px 0;font-size:19px;text-align:center;font-weight:700}
+  .big-idea span{color:var(--accent)}
+
+  .inline{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:1px 7px;
+    font-family:"Consolas","D2Coding",monospace;font-size:14px;color:#fde68a}
+
+  /* words / chips */
+  .chips{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0}
+  .chip{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 14px;font-weight:600;text-align:center}
+  .chip small{display:block;color:var(--sub);font-weight:400;font-size:12px;margin-top:2px}
+
+  /* token & id badges */
+  .toks{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:14px 0}
+  .tok{display:inline-flex;flex-direction:column;align-items:center;gap:6px}
+  .tok .word{background:var(--panel2);border:1px solid var(--line);border-radius:10px;
+    padding:8px 12px;font-weight:700;min-width:44px;text-align:center}
+  .tok .id{background:linear-gradient(135deg,var(--brand),var(--brand2));color:#06121f;
+    border-radius:9px;padding:3px 0;font-weight:900;font-size:15px;width:100%;text-align:center}
+  .tok.sp .word{color:#fde68a;border-color:#5b4a1e;background:#2a2410}
+  .tok.unk .word{color:#fca5a5;border-color:#5b1e1e;background:#2a1010}
+  .arrow{color:var(--sub);font-size:22px;font-weight:800;padding:0 2px}
+
+  /* vocab table look */
+  .voc{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin:14px 0}
+  .vcell{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;display:flex;align-items:center;gap:10px}
+  .vcell .n{display:inline-flex;align-items:center;justify-content:center;min-width:30px;height:30px;border-radius:8px;
+    background:var(--code);color:var(--accent);font-weight:900;font-size:14px;border:1px solid var(--line)}
+  .vcell .w{font-weight:700}
+  .vcell.sp{border-color:#5b4a1e}.vcell.sp .w{color:#fde68a}
+  .vcell.sp .n{color:#fde68a}
+
+  input[type=text],select{width:100%;background:var(--code);color:var(--ink);border:1px solid var(--line);
+    border-radius:10px;padding:11px 13px;font-size:16px;font-family:inherit}
+  select{cursor:pointer}
+  .controls{margin:10px 0}
+  .controls label{font-size:14px;color:var(--sub);display:block;margin-bottom:6px}
+  .switch{display:inline-flex;align-items:center;gap:8px;cursor:pointer;user-select:none;font-size:14px;color:var(--sub)}
+  .switch input{accent-color:var(--brand);width:16px;height:16px}
+
+  pre{background:var(--code);border:1px solid var(--line);border-radius:14px;padding:18px;overflow:auto;font-size:14px;line-height:1.7;margin:14px 0}
+  code{font-family:"Consolas","D2Coding",monospace}
+  pre code{color:#cbd5e1}
+  .cmt{color:#64748b}.kw{color:#f472b6}.fn{color:#38bdf8}.num2{color:#fbbf24}.str{color:#34d399}
+
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:15px}
+  th,td{border:1px solid var(--line);padding:9px 12px;text-align:left}
+  th{background:var(--panel2);color:#fff}
+
+  footer{margin-top:80px;border-top:1px solid var(--line);padding-top:24px;color:var(--sub);font-size:14px}
+  .toc{position:sticky;top:0;z-index:5;background:rgba(15,23,42,.85);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+  .toc .wrap{display:flex;gap:6px;flex-wrap:wrap;padding:10px 20px;overflow-x:auto}
+  .toc a{color:var(--sub);text-decoration:none;font-size:13px;padding:6px 10px;border-radius:8px;white-space:nowrap}
+  .toc a:hover{background:var(--panel);color:#fff}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="kicker">Mini-Transformer · 어휘 사전 다시 쉽게</div>
+    <h1>어휘 사전은<br><span class="hl">"단어 ↔ 번호 전화번호부"</span> 입니다</h1>
+    <p class="lead">컴퓨터는 글자를 못 읽습니다. 그래서 모든 단어에 <b>번호표</b>를 붙여 줍니다 —
+    딱 이거예요. 사람 이름을 전화번호로 찾듯, 단어를 번호로 바꾸고(encode) 번호를 단어로 되돌리는(decode)
+    작은 사전. 아래에서 문장을 직접 넣어 번호로 바뀌는 걸 눈으로 봅시다.</p>
+  </div>
+</header>
+
+<nav class="toc"><div class="wrap">
+  <a href="#p1">1. 문제 (30초)</a>
+  <a href="#p2">2. 토큰화</a>
+  <a href="#p3">3. 사전 만들기</a>
+  <a href="#p4">4. 특수 토큰 4종</a>
+  <a href="#p5">5. 양방향 사전</a>
+  <a href="#p6">6. encode / decode</a>
+  <a href="#p7">7. 코드</a>
+  <a href="#p8">8. 요약</a>
+</div></nav>
+
+<div class="wrap">
+
+<!-- 1 -->
+<section id="p1">
+  <h2><span class="num">1</span> 문제는 딱 하나 (30초)</h2>
+  <p>모델(신경망)은 <b class="hlt">숫자만</b> 계산할 수 있습니다. "먹구름이" 같은 <b>글자</b>는
+  그대로는 곱하기·더하기를 할 수 없어요. 그래서 계산을 시작하기 <b class="hlt">전에</b>
+  단어를 숫자로 바꿔 줘야 합니다.</p>
+
+  <div class="big-idea">🔢 모든 단어에 <span>고유 번호</span>를 붙이자<br>= 그게 바로 <span>어휘 사전(Vocab)</span></div>
+
+  <div class="grid2">
+    <div class="card tight">
+      <b>🙅 컴퓨터가 못 하는 것</b>
+      <p class="muted" style="margin:.4em 0 0">"먹구름이" × 3 = ?<br>글자는 계산 불가</p>
+    </div>
+    <div class="card tight">
+      <b>🙆 사전을 거치면</b>
+      <p class="muted" style="margin:.4em 0 0">"먹구름이" → <b style="color:var(--accent)">6</b><br>이제 숫자라 계산 가능</p>
+    </div>
+  </div>
+  <div class="callout"><span class="emoji">📖</span>어휘 사전이 하는 일은 딱 두 가지 —
+  <b>① 단어 → 번호</b> (모델에 넣기 전) / <b>② 번호 → 단어</b> (모델이 뱉은 답 읽기).
+  전화번호부처럼 양쪽으로 찾을 수 있어야 합니다.</div>
+</section>
+
+<!-- 2 -->
+<section id="p2">
+  <h2><span class="num">2</span> 첫 단계: 문장을 단어로 쪼개기 (토큰화)</h2>
+  <p>번호를 붙이려면 먼저 <b class="hlt">'단어'라는 단위</b>가 있어야겠죠. 문장을 낱개로 자르는 걸
+  <b>토큰화(tokenize)</b>라고 합니다. 이 실습에선 가장 단순하게 <b>공백(스페이스)으로만</b> 자릅니다.</p>
+
+  <pre><code><span class="kw">def</span> <span class="fn">tokenize</span>(s):
+    <span class="kw">return</span> s.<span class="fn">strip</span>().<span class="fn">split</span>()    <span class="cmt"># 공백 단위로 자르기</span></code></pre>
+
+  <div class="card">
+    <div class="controls">
+      <label>문장을 입력하면 → 토큰(단어)으로 쪼개집니다</label>
+      <input type="text" id="tkIn" value="하늘에 먹구름이 보이면 뭐가 생각나">
+    </div>
+    <div class="chips" id="tkOut"></div>
+    <p class="muted" style="margin:6px 0 0" id="tkCount"></p>
+  </div>
+
+  <div class="callout warn"><span class="emoji">⚠️</span>공백으로만 자르므로 "먹구름이"는 통째로 한 단어입니다
+  ("먹구름"+"이"로 안 나뉨). 실제 대형 모델은 더 똑똑한 토크나이저(BPE 등)를 쓰지만,
+  <b>원리는 똑같아요 — 문장을 조각으로 나눈다.</b></div>
+</section>
+
+<!-- 3 -->
+<section id="p3">
+  <h2><span class="num">3</span> 사전 만들기: 중복 제거 → 정렬 → 번호 붙이기</h2>
+  <p>데이터에 나온 모든 단어를 모아 사전을 만듭니다. 순서는 이렇습니다 👇</p>
+
+  <table>
+    <tr><th>단계</th><th>하는 일</th><th>이유</th></tr>
+    <tr><td>① 모으기</td><td>모든 문장의 모든 단어를 한 곳에</td><td>어떤 단어가 있는지 파악</td></tr>
+    <tr><td>② 중복 제거 (<span class="inline">set</span>)</td><td>같은 단어는 한 번만</td><td>번호는 단어당 딱 하나</td></tr>
+    <tr><td>③ 정렬 (<span class="inline">sorted</span>)</td><td>가나다 순으로 줄 세우기</td><td>실행할 때마다 번호가 같도록(재현성)</td></tr>
+    <tr><td>④ 번호 붙이기</td><td>앞에서부터 0,1,2,…</td><td>단어마다 고유 번호 부여</td></tr>
+  </table>
+
+  <p>아래는 실습 데이터(질문 6개)로 <b>실제로</b> 사전을 만드는 과정입니다.</p>
+  <div class="card">
+    <h3 style="margin-top:0">질문 6개 (원본 데이터)</h3>
+    <div class="chips" id="dataChips"></div>
+    <h3>→ 중복 제거 후 정렬된 단어들</h3>
+    <div class="chips" id="uniqChips"></div>
+    <p class="muted" style="margin:6px 0 0" id="uniqNote"></p>
+  </div>
+
+  <div class="callout good"><span class="emoji">✨</span>
+    <b>왜 정렬(sorted)을 할까?</b> set은 매번 순서가 뒤죽박죽일 수 있어요. 정렬하면
+    <b>언제 돌려도 "먹구름이=6"으로 번호가 고정</b>됩니다. 저장한 모델을 다시 불러올 때 번호가
+    어긋나지 않게 하는 안전장치예요.</div>
+</section>
+
+<!-- 4 -->
+<section id="p4">
+  <h2><span class="num">4</span> 맨 앞자리는 예약석: 특수 토큰 4종</h2>
+  <p>실제 단어에 번호를 주기 <b class="hlt">전에</b>, 0~3번은 <b>특수 토큰</b>이 먼저 차지합니다.
+  이들은 진짜 단어가 아니라 <b>신호(기호)</b>예요.</p>
+
+  <div class="grid2">
+    <div class="card tight"><b>0 · <span class="inline">&lt;pad&gt;</span></b><br>
+      <span class="muted">길이 맞춤용 <b>빈칸</b>. 짧은 문장을 긴 문장에 맞춰 채울 때.</span></div>
+    <div class="card tight"><b>1 · <span class="inline">&lt;sos&gt;</span></b><br>
+      <span class="muted">문장 <b>시작</b> 신호(Start Of Sentence). "여기부터 답 시작".</span></div>
+    <div class="card tight"><b>2 · <span class="inline">&lt;eos&gt;</span></b><br>
+      <span class="muted">문장 <b>끝</b> 신호(End Of Sentence). "답 끝. 그만 만들어".</span></div>
+    <div class="card tight"><b>3 · <span class="inline">&lt;unk&gt;</span></b><br>
+      <span class="muted">사전에 <b>없는</b> 낯선 단어(Unknown)를 대신 받는 자리.</span></div>
+  </div>
+
+  <div class="callout"><span class="emoji">📌</span><b>왜 맨 앞(0~3)에 고정할까?</b>
+  이 신호들은 어떤 데이터를 쓰든 <b>항상 같은 번호</b>여야 코드가 편합니다
+  (예: "패딩 자리(=0)는 계산에서 빼라"). 그래서 리스트 맨 앞에 <b class="hlt">예약석</b>으로 둡니다.</div>
+
+  <div class="big-idea">특수 토큰 4개 <span>+</span> 실제 단어들 <span>=</span> 완성된 어휘 사전</div>
+</section>
+
+<!-- 5 -->
+<section id="p5">
+  <h2><span class="num">5</span> 양방향 사전: itos ↔ stoi</h2>
+  <p>전화번호부를 이름→번호, 번호→이름 양쪽으로 찾듯, 사전도 <b>두 개</b>를 함께 만듭니다.</p>
+
+  <div class="grid2">
+    <div class="card tight"><b><span class="inline">itos</span> = index → string</b><br>
+      <span class="muted">번호로 단어 찾기. <b>리스트</b>(순서 = 번호).<br>모델의 답(번호)을 사람이 읽을 때.</span></div>
+    <div class="card tight"><b><span class="inline">stoi</span> = string → index</b><br>
+      <span class="muted">단어로 번호 찾기. <b>딕셔너리</b>.<br>사람 문장을 모델에 넣을 때.</span></div>
+  </div>
+
+  <h3>실제로 만들어진 질문 사전 (itos)</h3>
+  <p class="muted">아래가 <span class="inline">src_vocab.itos</span> — 왼쪽 노란 번호가 그 단어의 ID입니다.
+  0~3은 특수 토큰(예약석), 4번부터 실제 단어예요.</p>
+  <div class="voc" id="vocList"></div>
+  <p class="muted" style="margin:6px 0 0" id="vocNote"></p>
+
+  <div class="callout"><span class="emoji">🔁</span><b>stoi는 그냥 itos를 뒤집은 것</b>입니다.
+  <span class="inline">stoi = {단어: 번호 for 번호, 단어 in enumerate(itos)}</span> — 같은 정보를
+  반대 방향으로 빠르게 찾으려고 하나 더 만들어 둘 뿐이에요.</div>
+</section>
+
+<!-- 6 -->
+<section id="p6">
+  <h2><span class="num">6</span> 직접 해보기: encode / decode</h2>
+  <p>이제 사전을 <b class="hlt">써 봅시다.</b> 문장을 고르면 → 토큰으로 쪼개고 → 각 단어를 사전에서 찾아
+  번호로 바꿉니다(<b>encode</b>). 그리고 번호를 다시 단어로 되돌립니다(<b>decode</b>).</p>
+
+  <div class="card">
+    <div class="controls">
+      <label>질문 문장 선택 (또는 직접 입력)</label>
+      <select id="encSel"></select>
+    </div>
+    <div class="controls">
+      <input type="text" id="encIn" value="하늘에 먹구름이 보이면 뭐가 생각나">
+    </div>
+    <label class="switch"><input type="checkbox" id="addSp"> <span><span class="inline">add_special</span> — 앞뒤에 &lt;sos&gt;…&lt;eos&gt; 붙이기</span></label>
+
+    <h3>① encode : 단어 → 번호</h3>
+    <div class="toks" id="encToks"></div>
+    <p class="muted" style="margin:2px 0 0">모델에 들어가는 최종 번호 리스트:
+      <span class="inline" id="encIds" style="font-size:15px"></span></p>
+
+    <h3>② decode : 번호 → 단어 (되돌리기)</h3>
+    <p class="muted" style="margin:2px 0 6px" id="decOut"></p>
+  </div>
+
+  <div class="callout good"><span class="emoji">🧪</span>
+    <b>실험해 보세요.</b> 사전에 <b>없는 단어</b>(예: "번개가")를 넣으면 → <span class="inline">&lt;unk&gt;</span>(3번)으로
+    바뀝니다. 그리고 <b>decode 결과</b>를 보면 <span class="inline">&lt;sos&gt;/&lt;eos&gt;/&lt;pad&gt;</span>는
+    사람이 읽을 땐 안 보이게 <b>걸러냅니다</b>(신호일 뿐 진짜 단어가 아니니까).</div>
+</section>
+
+<!-- 7 -->
+<section id="p7">
+  <h2><span class="num">7</span> 코드는 이 한 클래스가 전부</h2>
+  <p>노트북 <span class="inline">example-detailed.ipynb</span>의 <b>부품 ② 토큰화 &amp; 단어장</b> 부분입니다.</p>
+<pre><code><span class="cmt"># 특수 토큰 4종을 항상 0~3번에 고정</span>
+PAD, SOS, EOS, UNK = <span class="str">"&lt;pad&gt;"</span>, <span class="str">"&lt;sos&gt;"</span>, <span class="str">"&lt;eos&gt;"</span>, <span class="str">"&lt;unk&gt;"</span>
+SPECIALS = [PAD, SOS, EOS, UNK]
+
+<span class="kw">class</span> <span class="fn">Vocab</span>:
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, sentences):
+        <span class="cmt"># ① 모든 단어 모으기 → ② set으로 중복 제거 → ③ 가나다 정렬</span>
+        toks = <span class="fn">sorted</span>({t <span class="kw">for</span> s <span class="kw">in</span> sentences <span class="kw">for</span> t <span class="kw">in</span> <span class="fn">tokenize</span>(s)})
+        <span class="cmt"># itos: 번호→단어 (특수토큰 뒤에 실제 단어를 이어 붙임)</span>
+        self.itos = SPECIALS + toks
+        <span class="cmt"># stoi: 단어→번호 (itos를 뒤집은 딕셔너리)</span>
+        self.stoi = {t: i <span class="kw">for</span> i, t <span class="kw">in</span> <span class="fn">enumerate</span>(self.itos)}
+
+    <span class="kw">def</span> <span class="fn">encode</span>(self, s, add_special=<span class="kw">True</span>):
+        <span class="cmt"># 단어를 번호로. 사전에 없으면 &lt;unk&gt; 번호로 대체</span>
+        ids = [self.stoi.<span class="fn">get</span>(t, self.stoi[UNK]) <span class="kw">for</span> t <span class="kw">in</span> <span class="fn">tokenize</span>(s)]
+        <span class="cmt"># 필요하면 앞뒤에 &lt;sos&gt;…&lt;eos&gt;를 붙여 시작/끝을 알림</span>
+        <span class="kw">return</span> [self.sos_id] + ids + [self.eos_id] <span class="kw">if</span> add_special <span class="kw">else</span> ids
+
+    <span class="kw">def</span> <span class="fn">decode</span>(self, ids):
+        <span class="cmt"># 번호를 단어로. 특수토큰은 안 보이게 걸러서 이어 붙임</span>
+        <span class="kw">return</span> <span class="str">" "</span>.<span class="fn">join</span>(self.itos[i] <span class="kw">for</span> i <span class="kw">in</span> ids <span class="kw">if</span> self.itos[i] <span class="kw">not in</span> (PAD, SOS, EOS))</code></pre>
+  <div class="callout"><span class="emoji">💡</span><b>질문과 답은 사전을 따로 만듭니다.</b>
+  <span class="inline">src_vocab</span>(질문용)과 <span class="inline">tgt_vocab</span>(답용) — 쓰는 단어가 다르니까요.
+  그래서 노트북에서 <b>질문 단어 14개, 답 단어 18개</b>로 크기가 다릅니다.</div>
+</section>
+
+<!-- 8 -->
+<section id="p8">
+  <h2><span class="num">8</span> 30초 요약</h2>
+  <div class="card" style="text-align:center;padding:30px">
+    <p style="font-size:21px;font-weight:800;margin:0;line-height:1.7">
+      "모델은 숫자만 안다.<br>
+      그래서 문장을 <span style="color:var(--brand)">토큰(단어)</span>으로 쪼개고<br>
+      <span style="color:var(--accent)">단어↔번호 사전</span>을 만들어<br>
+      넣을 땐 <span style="color:var(--good)">encode</span>, 읽을 땐 <span style="color:var(--good)">decode</span> 한다."
+    </p>
+  </div>
+  <div class="grid2" style="margin-top:18px">
+    <div class="card tight"><b>📖 비유</b><br><span class="muted">단어↔번호 전화번호부</span></div>
+    <div class="card tight"><b>✂️ 토큰화</b><br><span class="muted">문장을 공백으로 쪼개기</span></div>
+    <div class="card tight"><b>🔢 사전</b><br><span class="muted">중복 제거+정렬+특수토큰 4종</span></div>
+    <div class="card tight"><b>🔁 사용</b><br><span class="muted">encode(넣기) / decode(읽기)</span></div>
+  </div>
+</section>
+
+<footer>
+  <p>Mini-Transformer 실습 교재 · 어휘 사전 쉬운 설명판<br>
+  코드 출처: <span class="inline">example-detailed.ipynb</span> — 부품 ② 토큰화 &amp; 단어장 ·
+  함께 보기: <a href="positional-encoding.html">위치 인코딩 설명</a></p>
+</footer>
+
+</div>
+
+<script>
+/* ---------- 노트북과 동일한 데이터 & 로직 ---------- */
+const QUESTIONS = [
+  "하늘에 먹구름이 보이면 뭐가 생각나",
+  "하늘에 별이 보이면 뭐가 생각나",
+  "하늘에 해가 보이면 뭐가 생각나",
+  "하늘에 무지개가 보이면 뭐가 생각나",
+  "하늘에 눈송이가 보이면 뭐가 생각나",
+  "하늘에 노을이 보이면 뭐가 생각나",
+];
+const PAD="<pad>",SOS="<sos>",EOS="<eos>",UNK="<unk>";
+const SPECIALS=[PAD,SOS,EOS,UNK];
+
+function tokenize(s){return s.trim().split(/\s+/).filter(Boolean);}
+function buildVocab(sentences){
+  const set=new Set();
+  sentences.forEach(s=>tokenize(s).forEach(t=>set.add(t)));
+  const toks=[...set].sort();               // JS 기본 정렬 = 유니코드 순 (파이썬 sorted와 동일)
+  const itos=SPECIALS.concat(toks);
+  const stoi={}; itos.forEach((t,i)=>stoi[t]=i);
+  return {itos,stoi,toks};
+}
+const VOC=buildVocab(QUESTIONS);
+function encode(s,addSpecial){
+  const ids=tokenize(s).map(t=> (t in VOC.stoi)?VOC.stoi[t]:VOC.stoi[UNK]);
+  return addSpecial?[VOC.stoi[SOS],...ids,VOC.stoi[EOS]]:ids;
+}
+function decode(ids){
+  return ids.map(i=>VOC.itos[i]).filter(w=>![PAD,SOS,EOS].includes(w)).join(" ");
+}
+const esc=s=>s.replace(/</g,"&lt;").replace(/>/g,"&gt;");
+
+/* ---------- 2. 토큰화 데모 ---------- */
+const tkIn=document.getElementById('tkIn'),tkOut=document.getElementById('tkOut'),tkCount=document.getElementById('tkCount');
+function drawTokenize(){
+  const toks=tokenize(tkIn.value);
+  tkOut.innerHTML=toks.map((t,i)=>`<div class="chip">${esc(t)}<small>토큰 ${i}</small></div>`).join("")
+    || `<span class="muted">문장을 입력해 보세요</span>`;
+  tkCount.textContent=`→ 총 ${toks.length}개 토큰으로 쪼개졌습니다.`;
+}
+tkIn.oninput=drawTokenize; drawTokenize();
+
+/* ---------- 3. 사전 만들기 과정 ---------- */
+document.getElementById('dataChips').innerHTML=
+  QUESTIONS.map((q,i)=>`<div class="chip" style="font-weight:500">${esc(q)}<small>질문 ${i+1}</small></div>`).join("");
+document.getElementById('uniqChips').innerHTML=
+  VOC.toks.map((t,i)=>`<div class="chip">${esc(t)}<small>#${i+4}</small></div>`).join("");
+document.getElementById('uniqNote').textContent=
+  `중복을 빼면 실제 단어는 ${VOC.toks.length}개 → 특수토큰 4개를 더해 사전 크기 = ${VOC.itos.length}.`;
+
+/* ---------- 5. 양방향 사전 (itos) ---------- */
+document.getElementById('vocList').innerHTML=
+  VOC.itos.map((t,i)=>`<div class="vcell ${i<4?'sp':''}"><span class="n">${i}</span><span class="w">${esc(t)}</span></div>`).join("");
+document.getElementById('vocNote').textContent=
+  `len(src_vocab) = ${VOC.itos.length}  (특수토큰 4 + 실제 단어 ${VOC.toks.length})`;
+
+/* ---------- 6. encode / decode 인터랙티브 ---------- */
+const encSel=document.getElementById('encSel'),encIn=document.getElementById('encIn'),
+      addSp=document.getElementById('addSp'),encToks=document.getElementById('encToks'),
+      encIds=document.getElementById('encIds'),decOut=document.getElementById('decOut');
+encSel.innerHTML=QUESTIONS.map(q=>`<option>${esc(q)}</option>`).join("")
+  +`<option value="__unk">하늘에 번개가 보이면 뭐가 생각나  (없는 단어 실험)</option>`;
+encSel.onchange=()=>{
+  encIn.value = encSel.value==="__unk" ? "하늘에 번개가 보이면 뭐가 생각나" : encSel.value;
+  drawEnc();
+};
+function drawEnc(){
+  const s=encIn.value, add=addSp.checked;
+  const ids=encode(s,add);
+  // 뱃지: 각 번호 위치가 무슨 단어인지 (특수토큰/unk 색 구분)
+  let html="";
+  ids.forEach((id,i)=>{
+    const w=VOC.itos[id];
+    const isSp=id<4 && w!==UNK, isUnk=(w===UNK);
+    const cls=isUnk?"unk":(isSp?"sp":"");
+    html+=`<div class="tok ${cls}"><div class="word">${esc(w)}</div><div class="id">${id}</div></div>`;
+    if(i<ids.length-1) html+=`<span class="arrow">·</span>`;
+  });
+  encToks.innerHTML=html || `<span class="muted">문장을 입력해 보세요</span>`;
+  encIds.textContent="["+ids.join(", ")+"]";
+  decOut.innerHTML=`위 번호를 decode하면 → <b class="hlt">"${esc(decode(ids))}"</b>
+    <span class="muted">(특수토큰은 걸러짐)</span>`;
+}
+encIn.oninput=drawEnc; addSp.onchange=drawEnc; drawEnc();
+</script>
+</body>
+</html>

@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>디코더(Decoder) — 세상에서 제일 쉽게</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel2:#273449;
+    --ink:#e2e8f0; --sub:#94a3b8; --line:#334155;
+    --brand:#38bdf8; --brand2:#818cf8; --accent:#fbbf24;
+    --good:#34d399; --warn:#f472b6; --code:#0b1220;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:"Segoe UI","Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif;
+    line-height:1.8;font-size:17px}
+  a{color:var(--brand)}
+  .wrap{max-width:900px;margin:0 auto;padding:0 20px 120px}
+
+  header{background:radial-gradient(1200px 500px at 20% -10%,rgba(56,189,248,.25),transparent 60%),
+    radial-gradient(1000px 500px at 90% 0%,rgba(129,140,248,.22),transparent 55%),var(--bg);
+    border-bottom:1px solid var(--line);padding:64px 20px 48px}
+  header .wrap{padding-bottom:0}
+  .kicker{color:var(--brand);font-weight:700;letter-spacing:.14em;font-size:13px;text-transform:uppercase}
+  h1{font-size:clamp(28px,5vw,44px);line-height:1.22;margin:.35em 0 .3em;font-weight:800}
+  h1 .hl{background:linear-gradient(90deg,var(--brand),var(--brand2));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .lead{font-size:19px;color:var(--sub);max-width:720px}
+
+  section{margin-top:60px}
+  h2{font-size:clamp(23px,3.4vw,29px);margin:0 0 8px;font-weight:800;display:flex;align-items:center;gap:12px}
+  h2 .num{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:12px;
+    background:linear-gradient(135deg,var(--brand),var(--brand2));color:#06121f;font-size:18px;font-weight:900;flex:0 0 auto}
+  h3{font-size:19px;margin:26px 0 6px}
+  p{margin:.6em 0}
+  .muted{color:var(--sub)}
+  b.hlt{color:#fff}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px 24px;margin:18px 0}
+  .card.tight{padding:16px 18px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+  @media(max-width:720px){.grid2,.grid3{grid-template-columns:1fr}}
+
+  .callout{border-left:4px solid var(--brand);background:var(--panel2);border-radius:0 12px 12px 0;padding:14px 18px;margin:16px 0}
+  .callout.good{border-color:var(--good)} .callout.warn{border-color:var(--warn)}
+  .callout b{color:#fff}
+  .emoji{font-size:20px;margin-right:6px}
+  .big-idea{background:linear-gradient(135deg,rgba(56,189,248,.16),rgba(129,140,248,.16));
+    border:1px solid var(--line);border-radius:18px;padding:24px 26px;margin:18px 0;font-size:19px;text-align:center;font-weight:700}
+  .big-idea span{color:var(--accent)}
+
+  .inline{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:1px 7px;
+    font-family:"Consolas","D2Coding",monospace;font-size:14px;color:#fde68a}
+
+  /* 3단계 파이프라인 카드 */
+  .role{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+  .role .tag{display:inline-block;font-weight:900;font-size:13px;letter-spacing:.06em;padding:3px 10px;border-radius:8px;margin-bottom:8px}
+  .role.q .tag{background:rgba(56,189,248,.2);color:var(--brand)}
+  .role.k .tag{background:rgba(129,140,248,.2);color:var(--brand2)}
+  .role.v .tag{background:rgba(52,211,153,.2);color:var(--good)}
+  .role h4{margin:0 0 4px;font-size:17px}
+
+  /* 층 선택 버튼 (encoder.html과 동일) */
+  .headbtns{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+  .headbtn{background:var(--panel2);border:2px solid var(--line);border-radius:10px;padding:8px 16px;font-weight:700;cursor:pointer;font-size:15px}
+  .headbtn:hover{border-color:var(--brand)}
+  .headbtn.sel{background:linear-gradient(135deg,var(--brand),var(--brand2));color:#06121f;border-color:transparent}
+
+  /* 단어 선택 토큰 */
+  .tokrow{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0}
+  .tok{background:var(--panel2);border:2px solid var(--line);border-radius:12px;padding:10px 16px;font-weight:700;cursor:pointer;transition:all .12s;font-size:16px}
+  .tok:hover{border-color:var(--brand)}
+  .tok.sel{background:linear-gradient(135deg,var(--brand),var(--brand2));color:#06121f;border-color:transparent;box-shadow:0 0 16px rgba(56,189,248,.45)}
+
+  /* 어텐션 바 */
+  .attn-row{display:flex;align-items:center;gap:12px;margin:9px 0}
+  .attn-row .name{width:70px;text-align:right;font-weight:700;flex:0 0 auto}
+  .attn-row .track{flex:1;background:var(--code);border:1px solid var(--line);border-radius:8px;height:28px;position:relative;overflow:hidden}
+  .attn-row .barfill{height:100%;border-radius:6px 0 0 6px;background:linear-gradient(90deg,var(--brand),var(--brand2));transition:width .35s}
+  .attn-row .pct{width:52px;text-align:right;font-variant-numeric:tabular-nums;color:var(--accent);font-weight:700;flex:0 0 auto}
+
+  .steps{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;margin:10px 0}
+  .step{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:13px;font-weight:700}
+  .step .arw{color:var(--sub);margin:0 2px}
+
+  pre{background:var(--code);border:1px solid var(--line);border-radius:14px;padding:18px;overflow:auto;font-size:14px;line-height:1.7;margin:14px 0}
+  code{font-family:"Consolas","D2Coding",monospace}
+  pre code{color:#cbd5e1}
+  .cmt{color:#64748b}.kw{color:#f472b6}.fn{color:#38bdf8}.num2{color:#fbbf24}.str{color:#34d399}
+
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:15px}
+  th,td{border:1px solid var(--line);padding:9px 12px;text-align:left}
+  th{background:var(--panel2);color:#fff}
+
+  footer{margin-top:80px;border-top:1px solid var(--line);padding-top:24px;color:var(--sub);font-size:14px}
+  .toc{position:sticky;top:0;z-index:5;background:rgba(15,23,42,.85);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+  .toc .wrap{display:flex;gap:6px;flex-wrap:wrap;padding:10px 20px;overflow-x:auto}
+  .toc a{color:var(--sub);text-decoration:none;font-size:13px;padding:6px 10px;border-radius:8px;white-space:nowrap}
+  .toc a:hover{background:var(--panel);color:#fff}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="kicker">Mini-Transformer · 디코더 다시 쉽게</div>
+    <h1>Decoder는<br><span class="hl">"곁눈질하며 쓰기를 여러 겹 반복하는 것"</span> 입니다</h1>
+    <p class="lead"><a href="decoder-block.html">디코더 블록(DecoderLayer)</a>이 "미래는 못 보고, 질문은 곁눈질하는" 한 겹의 계산이었다면,
+    <span class="inline">Decoder</span>는 그 한 겹을 <b>num_layers번(이 노트북은 2번) 쌓아</b> 답을 만들 최종 표현으로 다듬는 조립체입니다.
+    <a href="encoder.html">인코더</a>와 뼈대는 같지만, 매 층마다 인코딩된 질문을 함께 참고한다는 점이 다릅니다.</p>
+  </div>
+</header>
+
+<nav class="toc"><div class="wrap">
+  <a href="#p1">1. 무슨 문제</a>
+  <a href="#p2">2. 비유: 초안을 겹겹이 다듬기</a>
+  <a href="#p3">3. Decoder 3단계</a>
+  <a href="#p4">4. 코드: Decoder</a>
+  <a href="#p5">5. Encoder와 뭐가 다를까</a>
+  <a href="#p6">6. 직접 해보기</a>
+  <a href="#p7">7. 헷갈리기 쉬운 점</a>
+  <a href="#p8">8. 요약</a>
+</div></nav>
+
+<div class="wrap">
+
+<!-- 1 -->
+<section id="p1">
+  <h2><span class="num">1</span> 왜 Decoder가 필요할까? (30초)</h2>
+  <p><a href="decoder-block.html">디코더 블록</a> 하나는 "지금까지 쓴 답 돌아보기 → 질문 곁눈질하기 → 혼자 정리하기"를
+  <b>딱 한 번</b> 수행합니다. 그런데 한 번의 곁눈질만으로 <b class="hlt">"먹구름이"</b>와 <b class="hlt">"비가"</b> 사이의
+  관계를 충분히 다듬을 수 있을까요? 발표 원고를 한 번 고쳐 쓰고 끝내는 사람은 없죠. <b>여러 번 다시 다듬어야</b> 표현이 정교해집니다.</p>
+
+  <div class="big-idea">디코더 블록 <span>한 겹</span>만으로는 부족하다<br>→ 같은 곁눈질 과정을 <span>여러 겹(num_layers) 쌓아</span> 답의 표현을 다듬어야 한다</div>
+
+  <div class="callout"><span class="emoji">📖</span><b>노트북 코드 주석 그대로:</b>
+  "인코더와 뼈대는 같지만, 각 층에서 <b>인코딩된 질문(enc)을 참고</b>해 답을 만들 표현으로 바꿉니다."
+  이렇게 층을 다 통과한 최종 표현을, 부품⑨ 출력층이 다음 단어 점수(logit)로 바꿔 줍니다.</div>
+</section>
+
+<!-- 2 -->
+<section id="p2">
+  <h2><span class="num">2</span> 비유: 초안을 쓰고 또 쓰며 겹겹이 다듬기</h2>
+  <p><a href="decoder-block.html">디코더 블록 문서</a>의 수험생 비유를 이어가 봅시다. 수험생은 답을 <b>한 번 쓱 쓰고 끝내지 않습니다.</b>
+  1차 초안을 쓴 뒤, <b>다시 한번</b> 자기 답과 문제지를 번갈아 보며 표현을 다듬죠. Decoder가 하는 일이 정확히 이겁니다 —
+  <b>같은 디코더 블록을 num_layers번(이 노트북은 2번) 반복 통과</b>시키며, 매번 "지금까지 쓴 답"과 "질문"을 다시 참고합니다.</p>
+
+  <div class="grid3">
+    <div class="role q">
+      <span class="tag">① 1차 초안</span>
+      <h4>✏️ 단어 뜻 + 위치</h4>
+      <p class="muted" style="margin:0">임베딩 직후 상태. 답 단어들이 <b>아직 서로도, 질문도 깊이 참고하지 못한</b> 상태입니다.</p>
+    </div>
+    <div class="role k">
+      <span class="tag">② DecoderLayer 통과</span>
+      <h4>👀 곁눈질하며 고쳐쓰기</h4>
+      <p class="muted" style="margin:0">마스크드 셀프어텐션으로 <b>내가 쓴 답</b>을, 크로스어텐션으로 <b>질문</b>을 다시 참고합니다.</p>
+    </div>
+    <div class="role v">
+      <span class="tag">③ N겹 반복</span>
+      <h4>🎯 최종 표현 완성</h4>
+      <p class="muted" style="margin:0">같은 과정을 <b>층 수만큼</b> 반복해, 출력층이 다음 단어를 고를 <b>최종 표현</b>을 만듭니다.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 3 -->
+<section id="p3">
+  <h2><span class="num">3</span> Decoder가 하는 일, 딱 3단계</h2>
+  <p><span class="inline">Decoder.forward</span> 도 <a href="encoder.html">Encoder</a>처럼 단순합니다. 다만 <b>인자가 하나 더</b> 있어요.</p>
+  <div class="steps">
+    <span class="step">답 단어번호 → 임베딩<br>(× √d_model)</span><span class="arw">→</span>
+    <span class="step">+ 위치인코딩<br>(순서 정보)</span><span class="arw">→</span>
+    <span class="step" style="border-color:var(--good);color:var(--good)">DecoderLayer × num_layers<br>(enc·tgt_mask·src_mask 함께)</span>
+  </div>
+  <div class="callout good"><span class="emoji">🏭</span><b>실제 학습에 쓰는 값</b> (부품⑨ <span class="inline">Transformer</span> 기본 하이퍼파라미터):
+  <span class="inline">d_model=64, num_heads=4, num_layers=2, d_ff=256</span>. <a href="encoder.html">Encoder</a>와 똑같이
+  <b>DecoderLayer를 딱 2겹</b> 쌓습니다.</div>
+</section>
+
+<!-- 4 -->
+<section id="p4">
+  <h2><span class="num">4</span> 코드: Decoder 클래스</h2>
+  <p>노트북 <span class="inline">example-detailed.ipynb</span> 부품 ⑧ (셀 20)의 실제 코드입니다.</p>
+<pre><code><span class="kw">class</span> <span class="fn">Decoder</span>(nn.Module):
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, vocab, d_model, num_heads, num_layers, d_ff, dropout, max_len):
+        super().<span class="fn">__init__</span>()
+        self.d_model = d_model
+        self.emb = nn.<span class="fn">Embedding</span>(vocab, d_model)                    <span class="cmt"># 답 단어장 기준 임베딩</span>
+        self.pos = <span class="fn">PositionalEncoding</span>(d_model, max_len, dropout)
+        self.layers = nn.<span class="fn">ModuleList</span>([<span class="fn">DecoderLayer</span>(d_model, num_heads, d_ff, dropout)
+                                     <span class="kw">for</span> _ <span class="kw">in</span> <span class="fn">range</span>(num_layers)])         <span class="cmt"># 디코더 블록 여러 겹</span>
+
+    <span class="kw">def</span> <span class="fn">forward</span>(self, tgt, enc, tgt_mask, src_mask):
+        x = self.<span class="fn">pos</span>(self.<span class="fn">emb</span>(tgt) * math.<span class="fn">sqrt</span>(self.d_model))   <span class="cmt"># 임베딩×√d_model + 위치</span>
+        <span class="kw">for</span> l <span class="kw">in</span> self.layers:
+            x = <span class="fn">l</span>(x, enc, tgt_mask, src_mask)                     <span class="cmt"># 매 층에 enc·마스크 둘 다 전달</span>
+        <span class="kw">return</span> x</code></pre>
+
+  <table>
+    <tr><th>코드</th><th>쉬운 말</th></tr>
+    <tr><td><span class="inline">self.emb(tgt)</span></td><td>답 단어 번호를 d_model 차원 벡터로</td></tr>
+    <tr><td><span class="inline">* math.sqrt(self.d_model)</span></td><td><a href="encoder.html">Encoder</a>와 동일한 이유로 위치인코딩에 묻히지 않게 크기 조정</td></tr>
+    <tr><td><span class="inline">self.pos(...)</span></td><td><a href="positional-encoding.html">위치 인코딩</a>을 더해 순서 정보 주입</td></tr>
+    <tr><td><span class="inline">l(x, enc, tgt_mask, src_mask)</span></td><td><a href="decoder-block.html">DecoderLayer</a>를 num_layers번 통과, 매번 enc(질문 인코딩)를 함께 넘김</td></tr>
+  </table>
+</section>
+
+<!-- 5 -->
+<section id="p5">
+  <h2><span class="num">5</span> Encoder와 뭐가 다를까</h2>
+  <p><a href="encoder.html">Encoder</a>와 <span class="inline">Decoder</span>는 겉모습(임베딩+위치인코딩+층쌓기)이 거의 같습니다.
+  하지만 셋이 다릅니다 — <b>넘기는 인자</b>, <b>안에 쌓는 블록</b>, 그리고 <b>출력층과의 관계</b>.</p>
+  <table>
+    <tr><th>구분</th><th>Encoder (부품⑦, 셀19)</th><th>Decoder (부품⑧, 셀20, 지금 배우는 것)</th></tr>
+    <tr><td>단어장</td><td>src_vocab (질문)</td><td>tgt_vocab (답)</td></tr>
+    <tr><td>쌓는 블록</td><td><a href="encoder-layer.html">EncoderLayer</a> × num_layers</td><td><a href="decoder-block.html">DecoderLayer</a> × num_layers</td></tr>
+    <tr><td>forward 인자</td><td><span class="inline">(src, mask)</span> — 마스크 1개</td><td><span class="inline">(tgt, enc, tgt_mask, src_mask)</span> — enc + 마스크 2개</td></tr>
+    <tr><td>각 층에 넘기는 것</td><td>mask만</td><td>enc, tgt_mask, src_mask 모두</td></tr>
+    <tr><td>출력층과의 관계</td><td>없음</td><td><b class="hlt">weight tying</b> (아래에서 설명)</td></tr>
+  </table>
+  <div class="callout good"><span class="emoji">🔗</span><b>Decoder만의 특별한 점 — weight tying</b><br>
+  부품⑨ <span class="inline">Transformer.__init__</span> 을 보면
+  <span class="inline">self.out.weight = self.decoder.emb.weight</span> 라는 줄이 있습니다.
+  답을 만드는 <b>입력 임베딩(Decoder.emb)</b> 과 <b>출력 예측(다음 단어 점수)</b> 이 <b>같은 단어공간(같은 텐서)</b> 을 쓰게 묶어,
+  파라미터를 줄이고 일반화를 돕습니다. <a href="encoder.html">Encoder</a>의 임베딩은 출력과 무관하므로 이런 공유가 없어요.</div>
+</section>
+
+<!-- 6 -->
+<section id="p6">
+  <h2><span class="num">6</span> 직접 해보기 — 층이 깊어질수록 크로스어텐션이 달라진다</h2>
+  <p><a href="decoder-block.html">디코더 블록 문서</a>는 <b>한 겹</b>의 크로스어텐션만 보여줬습니다. 하지만 실제로는
+  1층의 마스크드 셀프어텐션+잔차를 거치며 답 단어의 표현(x) 자체가 바뀌고, 그 <b>바뀐 x</b>가 2층에서 <b>다시</b> 질문을 곁눈질(크로스어텐션)합니다.
+  즉 <b class="hlt">층을 쌓을수록 "질문의 어디를 볼지"가 계속 다시 계산</b>되는 거예요. 답 단어를 고르고 층을 바꿔가며 확인해 보세요.
+  (질문·답 벡터는 <a href="attention.html">어텐션</a>·<a href="decoder-block.html">디코더 블록</a> 문서와 <b>동일한 실제 예시 데이터</b>입니다.)</p>
+
+  <div class="card">
+    <p class="muted" style="margin:0 0 8px">① 어느 층의 크로스어텐션을 볼까요?</p>
+    <div class="headbtns" id="layerBtns"></div>
+    <p class="muted" style="margin:14px 0 4px">② 어느 답 단어(Query)를 볼까요?</p>
+    <div class="tokrow" id="tokrow"></div>
+    <p class="muted" style="margin:14px 0 4px"><b id="wName" style="color:var(--brand)">비가</b> 가(이)
+    <b id="layerName" style="color:var(--accent)">1층</b> 에서 질문의 각 단어에 주목(곁눈질)하는 비율</p>
+    <div id="attnBars"></div>
+  </div>
+
+  <div class="callout good"><span class="emoji">👀</span>
+  <b>"비가"</b> 는 1층에서 이미 <b>"먹구름이"</b> 에 강하게 주목하고, 자기 정체성이 뚜렷해 2층에서도 그 주목이 <b>더 굳어집니다</b>.
+  반면 <b>"올"·"것"·"같아"</b> 처럼 마스크드 셀프어텐션으로 <b>앞 단어("비가")를 많이 참고하게 된</b> 단어는,
+  2층에서 크로스어텐션 분포가 1층과 <b>살짝 달라집니다</b> — 셀프어텐션이 x를 바꿔 놓았기 때문이에요.</div>
+  <p class="muted" style="font-size:14px">* 실제 코드는 잔차 다음에 LayerNorm으로 정규화하고 FFN도 거치지만, 이 데모는
+  "셀프어텐션이 바꾼 x로 크로스어텐션을 다시 계산한다"는 핵심 원리만 보여주기 위해 LayerNorm·FFN은 생략했습니다.</p>
+</section>
+
+<!-- 7 -->
+<section id="p7">
+  <h2><span class="num">7</span> 헷갈리기 쉬운 점</h2>
+  <div class="callout"><span class="emoji">🎯</span><b>학습 때와 추론 때, Decoder를 부르는 방식이 다릅니다.</b>
+  학습(<a href="training-loop.html">셀 26</a>)에서는 정답 전체 <span class="inline">dec_in</span> 을 <b>한 번에</b> 넣어(티처 포싱) Decoder를 딱 한 번 호출합니다.
+  반면 추론(<a href="greedy-decoding.html">셀 29 answer 함수</a>)에서는 <span class="inline">model.decode_step</span> 을 통해
+  Decoder를 <b>매 스텝마다 다시</b> 호출하되, 인코더 결과 <span class="inline">enc</span> 는 한 번만 계산해 재사용합니다.</div>
+  <div class="callout good"><span class="emoji">📊</span><b>히트맵의 재료는 어디서 나올까?</b>
+  <span class="inline">Decoder</span>가 <span class="inline">self.layers</span> 라는 <span class="inline">ModuleList</span> 로 DecoderLayer들을 들고 있기 때문에,
+  <span class="inline">model.decoder.layers[-1].cross_attn.last_attn_weights</span> 처럼 <b>맨 마지막 층의 크로스어텐션 가중치를 직접 꺼낼</b> 수 있습니다.
+  이것이 바로 <a href="attention.html">어텐션 히트맵</a>을 그리는 재료예요 — Decoder가 "층들의 리스트"이기에 가능한 접근입니다.</div>
+  <div class="callout warn"><span class="emoji">🧪</span><b>이 부품만의 체크포인트 셀은 없습니다.</b>
+  <a href="encoder.html">Encoder</a>와 마찬가지로 별도 assert 셀은 없고, 대신 <a href="training-loop.html">4단계 학습 셀의 "최종 loss &lt; 0.5"</a> 와
+  <a href="greedy-decoding.html">5단계 답 생성 성공</a> 에서 <b>간접적으로</b> 정상 동작이 확인됩니다.</div>
+</section>
+
+<!-- 8 -->
+<section id="p8">
+  <h2><span class="num">8</span> 30초 요약</h2>
+  <div class="card" style="text-align:center;padding:30px">
+    <p style="font-size:21px;font-weight:800;margin:0;line-height:1.7">
+      "답 임베딩에 <span style="color:var(--brand)">√d_model을 곱하고 위치인코딩을 더한 뒤</span>,<br>
+      <span style="color:var(--accent)">마스크드 셀프어텐션 + 크로스어텐션 + FFN</span>으로 이루어진 DecoderLayer를<br>
+      <span style="color:var(--good)">num_layers번(2번) 쌓아</span> 매번 질문(enc)을 참고하면,<br>
+      출력층이 다음 단어를 고를 <span style="color:var(--brand2)">최종 표현</span>이 완성된다.<br>
+      (이 임베딩은 <span style="color:var(--warn)">출력층과 weight tying</span>으로 공유된다.)"
+    </p>
+  </div>
+  <div class="grid2" style="margin-top:18px">
+    <div class="card tight"><b>✏️ 비유</b><br><span class="muted">초안을 쓰고 또 쓰며 겹겹이 다듬기</span></div>
+    <div class="card tight"><b>🏭 구성</b><br><span class="muted">임베딩×√d_model + 위치인코딩 → DecoderLayer × N</span></div>
+    <div class="card tight"><b>🔗 Encoder와 차이</b><br><span class="muted">enc + 마스크 2개 전달, weight tying</span></div>
+    <div class="card tight"><b>📊 히트맵 재료</b><br><span class="muted">decoder.layers[-1].cross_attn.last_attn_weights</span></div>
+  </div>
+</section>
+
+<footer>
+  <p>Mini-Transformer 실습 교재 · 디코더 쉬운 설명판<br>
+  코드 출처: <span class="inline">example-detailed.ipynb</span> — 부품 ⑧ Decoder (셀 20, 관련: 부품⑥ DecoderLayer 셀18 · 부품⑨ Transformer weight tying 셀21 · 부품⑦ Encoder 셀19)<br>
+  함께 보기: <a href="decoder-block.html">디코더 블록(부품⑥)</a> · <a href="encoder.html">인코더(부품⑦)</a> ·
+  <a href="attention.html">어텐션(부품②)</a> · <a href="multi-head-attention.html">멀티헤드 어텐션(부품③)</a> ·
+  <a href="greedy-decoding.html">답 생성(자기회귀 디코딩)</a> · <a href="vocab.html">어휘 사전</a></p>
+</footer>
+
+</div>
+
+<script>
+function dot(a,b){let s=0;for(let i=0;i<a.length;i++)s+=a[i]*b[i];return s;}
+function softmax(arr){const m=Math.max(...arr);const e=arr.map(v=>Math.exp(v-m));const s=e.reduce((a,b)=>a+b,0);return e.map(v=>v/s);}
+
+/* ================= 6. 층을 쌓을수록 크로스어텐션이 달라지는 데모 ================= */
+// 질문(인코더 출력 enc) = K = V, attention.html·decoder-block.html과 동일 데이터
+const QUESTION=['하늘에','먹구름이','보이면','뭐가','생각나'];
+const ENC=[
+ [0.10,0.90,0.00,0.00],  // 하늘에
+ [0.95,0.30,0.00,0.00],  // 먹구름이
+ [0.20,0.30,0.50,0.00],  // 보이면
+ [0.00,0.00,0.90,0.10],  // 뭐가
+ [0.00,0.00,0.60,0.40],  // 생각나
+];
+// 답(디코더) 토큰의 "1층 진입 전" 표현, attention.html·decoder-block.html의 Q 벡터와 동일 데이터
+const ANSWER=['비가','올','것','같아'];
+const X0=[
+ [0.95,0.10,0.00,0.00],  // 비가 → 날씨현상 우세
+ [0.30,0.20,0.20,0.40],  // 올
+ [0.10,0.10,0.40,0.30],  // 것
+ [0.20,0.10,0.50,0.40],  // 같아
+];
+const DK=4;
+
+function causalOpen(i,j){ return j<=i; }   // torch.tril과 동일한 인과 마스크
+
+function selfAttnLayer(X){
+  const S=X.length, out=[];
+  for(let i=0;i<S;i++){
+    const scores=X.map((xj,j)=>causalOpen(i,j) ? dot(X[i],xj)/Math.sqrt(DK) : -Infinity);
+    const w=softmax(scores);
+    const ctx=new Array(X[0].length).fill(0);
+    for(let j=0;j<=i;j++) for(let d=0; d<ctx.length; d++) ctx[d]+=w[j]*X[j][d];
+    out.push(ctx);
+  }
+  return out; // self-attn 결과(잔차 더하기 전)
+}
+function crossAttnLayer(X, K){
+  const S=X.length, T=K.length, weights=[], out=[];
+  for(let i=0;i<S;i++){
+    const scores=K.map(kj=>dot(X[i],kj)/Math.sqrt(DK));
+    const w=softmax(scores);
+    weights.push(w);
+    const ctx=new Array(X[0].length).fill(0);
+    for(let j=0;j<T;j++) for(let d=0; d<ctx.length; d++) ctx[d]+=w[j]*K[j][d];
+    out.push(ctx);
+  }
+  return {out, weights};
+}
+function decoderLayerForward(X, K){
+  const selfCtx=selfAttnLayer(X);
+  const xAfterSelf=X.map((xi,i)=>xi.map((v,d)=>v+selfCtx[i][d]));   // 잔차(x + self_attn 결과), LN·FFN은 데모에서 생략
+  const {out:crossCtx, weights:crossW}=crossAttnLayer(xAfterSelf, K);
+  const xAfterCross=xAfterSelf.map((xi,i)=>xi.map((v,d)=>v+crossCtx[i][d]));  // 잔차(x + cross_attn 결과)
+  return {newX:xAfterCross, crossW};
+}
+
+const L1=decoderLayerForward(X0, ENC);       // L1.crossW = 1층 크로스어텐션(1층 입력 X0 기준)
+const L2=decoderLayerForward(L1.newX, ENC);  // L2.crossW = 2층 크로스어텐션(1층 출력 기준)
+const LAYER_CROSS_WEIGHTS=[L1.crossW, L2.crossW];
+
+let curLayer=0, curWord=0; // 기본: 1층, "비가"
+const layerBtns=document.getElementById('layerBtns'), tokrow=document.getElementById('tokrow');
+const attnBars=document.getElementById('attnBars'), wName=document.getElementById('wName'), layerName=document.getElementById('layerName');
+
+function renderLayerBtns(){
+  layerBtns.innerHTML=['1층','2층'].map((t,i)=>`<div class="headbtn ${i===curLayer?'sel':''}" data-i="${i}">${t}</div>`).join('');
+  layerBtns.querySelectorAll('.headbtn').forEach(el=>el.onclick=()=>{curLayer=+el.dataset.i;renderLayerBtns();renderAttn();});
+}
+function renderToks(){
+  tokrow.innerHTML=ANSWER.map((t,i)=>`<div class="tok ${i===curWord?'sel':''}" data-i="${i}">${t}</div>`).join('');
+  tokrow.querySelectorAll('.tok').forEach(el=>el.onclick=()=>{curWord=+el.dataset.i;renderToks();renderAttn();});
+}
+function renderAttn(){
+  wName.textContent=ANSWER[curWord];
+  layerName.textContent=(curLayer+1)+'층';
+  const w=LAYER_CROSS_WEIGHTS[curLayer][curWord];
+  const mx=Math.max(...w);
+  let h='';
+  for(let j=0;j<QUESTION.length;j++){
+    const pct=w[j]*100;
+    h+=`<div class="attn-row">
+      <div class="name" style="width:80px">${QUESTION[j]}</div>
+      <div class="track"><div class="barfill" style="width:${pct.toFixed(1)}%;${w[j]>=mx-1e-9?'background:linear-gradient(90deg,#34d399,#38bdf8)':''}"></div></div>
+      <div class="pct">${pct.toFixed(0)}%</div></div>`;
+  }
+  attnBars.innerHTML=h;
+}
+renderLayerBtns(); renderToks(); renderAttn();
+</script>
+</body>
+</html>

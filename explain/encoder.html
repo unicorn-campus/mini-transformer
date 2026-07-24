@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>인코더(Encoder) — 세상에서 제일 쉽게</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel2:#273449;
+    --ink:#e2e8f0; --sub:#94a3b8; --line:#334155;
+    --brand:#38bdf8; --brand2:#818cf8; --accent:#fbbf24;
+    --good:#34d399; --warn:#f472b6; --code:#0b1220;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:"Segoe UI","Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif;
+    line-height:1.8;font-size:17px}
+  a{color:var(--brand)}
+  .wrap{max-width:900px;margin:0 auto;padding:0 20px 120px}
+
+  header{background:radial-gradient(1200px 500px at 20% -10%,rgba(56,189,248,.25),transparent 60%),
+    radial-gradient(1000px 500px at 90% 0%,rgba(129,140,248,.22),transparent 55%),var(--bg);
+    border-bottom:1px solid var(--line);padding:64px 20px 48px}
+  header .wrap{padding-bottom:0}
+  .kicker{color:var(--brand);font-weight:700;letter-spacing:.14em;font-size:13px;text-transform:uppercase}
+  h1{font-size:clamp(28px,5vw,44px);line-height:1.22;margin:.35em 0 .3em;font-weight:800}
+  h1 .hl{background:linear-gradient(90deg,var(--brand),var(--brand2));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .lead{font-size:19px;color:var(--sub);max-width:720px}
+
+  section{margin-top:60px}
+  h2{font-size:clamp(23px,3.4vw,29px);margin:0 0 8px;font-weight:800;display:flex;align-items:center;gap:12px}
+  h2 .num{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:12px;
+    background:linear-gradient(135deg,var(--brand),var(--brand2));color:#06121f;font-size:18px;font-weight:900;flex:0 0 auto}
+  h3{font-size:19px;margin:26px 0 6px}
+  p{margin:.6em 0}
+  .muted{color:var(--sub)}
+  b.hlt{color:#fff}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px 24px;margin:18px 0}
+  .card.tight{padding:16px 18px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+  @media(max-width:720px){.grid2,.grid3{grid-template-columns:1fr}}
+
+  .callout{border-left:4px solid var(--brand);background:var(--panel2);border-radius:0 12px 12px 0;padding:14px 18px;margin:16px 0}
+  .callout.good{border-color:var(--good)} .callout.warn{border-color:var(--warn)}
+  .callout b{color:#fff}
+  .emoji{font-size:20px;margin-right:6px}
+  .big-idea{background:linear-gradient(135deg,rgba(56,189,248,.16),rgba(129,140,248,.16));
+    border:1px solid var(--line);border-radius:18px;padding:24px 26px;margin:18px 0;font-size:19px;text-align:center;font-weight:700}
+  .big-idea span{color:var(--accent)}
+
+  .inline{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:1px 7px;
+    font-family:"Consolas","D2Coding",monospace;font-size:14px;color:#fde68a}
+
+  /* 3단계 파이프라인 카드 */
+  .role{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+  .role .tag{display:inline-block;font-weight:900;font-size:13px;letter-spacing:.06em;padding:3px 10px;border-radius:8px;margin-bottom:8px}
+  .role.q .tag{background:rgba(56,189,248,.2);color:var(--brand)}
+  .role.k .tag{background:rgba(129,140,248,.2);color:var(--brand2)}
+  .role.v .tag{background:rgba(52,211,153,.2);color:var(--good)}
+  .role h4{margin:0 0 4px;font-size:17px}
+
+  /* 층 선택 버튼 (multi-head-attention.html의 headbtn 재사용) */
+  .headbtns{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+  .headbtn{background:var(--panel2);border:2px solid var(--line);border-radius:10px;padding:8px 16px;font-weight:700;cursor:pointer;font-size:15px}
+  .headbtn:hover{border-color:var(--brand)}
+  .headbtn.sel{background:linear-gradient(135deg,var(--brand),var(--brand2));color:#06121f;border-color:transparent}
+
+  /* 단어 선택 토큰 */
+  .tokrow{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0}
+  .tok{background:var(--panel2);border:2px solid var(--line);border-radius:12px;padding:10px 16px;font-weight:700;cursor:pointer;transition:all .12s;font-size:16px}
+  .tok:hover{border-color:var(--brand)}
+  .tok.sel{background:linear-gradient(135deg,var(--brand),var(--brand2));color:#06121f;border-color:transparent;box-shadow:0 0 16px rgba(56,189,248,.45)}
+
+  /* 어텐션 바 */
+  .attn-row{display:flex;align-items:center;gap:12px;margin:9px 0}
+  .attn-row .name{width:70px;text-align:right;font-weight:700;flex:0 0 auto}
+  .attn-row .track{flex:1;background:var(--code);border:1px solid var(--line);border-radius:8px;height:28px;position:relative;overflow:hidden}
+  .attn-row .barfill{height:100%;border-radius:6px 0 0 6px;background:linear-gradient(90deg,var(--brand),var(--brand2));transition:width .35s}
+  .attn-row .pct{width:52px;text-align:right;font-variant-numeric:tabular-nums;color:var(--accent);font-weight:700;flex:0 0 auto}
+
+  .steps{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;margin:10px 0}
+  .step{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:13px;font-weight:700}
+  .step .arw{color:var(--sub);margin:0 2px}
+
+  pre{background:var(--code);border:1px solid var(--line);border-radius:14px;padding:18px;overflow:auto;font-size:14px;line-height:1.7;margin:14px 0}
+  code{font-family:"Consolas","D2Coding",monospace}
+  pre code{color:#cbd5e1}
+  .cmt{color:#64748b}.kw{color:#f472b6}.fn{color:#38bdf8}.num2{color:#fbbf24}.str{color:#34d399}
+
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:15px}
+  th,td{border:1px solid var(--line);padding:9px 12px;text-align:left}
+  th{background:var(--panel2);color:#fff}
+
+  footer{margin-top:80px;border-top:1px solid var(--line);padding-top:24px;color:var(--sub);font-size:14px}
+  .toc{position:sticky;top:0;z-index:5;background:rgba(15,23,42,.85);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+  .toc .wrap{display:flex;gap:6px;flex-wrap:wrap;padding:10px 20px;overflow-x:auto}
+  .toc a{color:var(--sub);text-decoration:none;font-size:13px;padding:6px 10px;border-radius:8px;white-space:nowrap}
+  .toc a:hover{background:var(--panel);color:#fff}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="kicker">Mini-Transformer · 인코더 다시 쉽게</div>
+    <h1>인코더는<br><span class="hl">"질문을 여러 번 다시 읽으며 이해를 쌓는 것"</span> 입니다</h1>
+    <p class="lead"><a href="attention.html">어텐션</a>과 <a href="multi-head-attention.html">멀티헤드 어텐션</a>은
+    "단어끼리 서로 참조하는 한 번의 계산"이었죠. 인코더는 그 계산을 <b>여러 겹(layer) 쌓아서</b>,
+    질문 문장을 "답을 만들 때 참고할 수 있는 문맥 벡터"로 바꿔주는 조립체입니다.
+    아래에서 층을 쌓을수록 이해가 어떻게 달라지는지 직접 눌러 봅시다.</p>
+  </div>
+</header>
+
+<nav class="toc"><div class="wrap">
+  <a href="#p1">1. 무슨 문제</a>
+  <a href="#p2">2. 비유: 여러 번 다시 읽기</a>
+  <a href="#p3">3. 인코더 3단계</a>
+  <a href="#p4">4. 코드: Encoder</a>
+  <a href="#p5">5. 안을 들여다보면</a>
+  <a href="#p6">6. 직접 해보기</a>
+  <a href="#p7">7. 헷갈리기 쉬운 점</a>
+  <a href="#p8">8. 요약</a>
+</div></nav>
+
+<div class="wrap">
+
+<!-- 1 -->
+<section id="p1">
+  <h2><span class="num">1</span> 왜 인코더가 필요할까? (30초)</h2>
+  <p>질문 <b class="hlt">"하늘에 먹구름이 보이면 뭐가 생각나"</b> 를 단어 임베딩으로만 바꾸면,
+  각 단어는 <b>사전적인 뜻</b>만 가진 채 뿔뿔이 흩어져 있습니다. "먹구름이"라는 벡터 혼자서는
+  "하늘에"와 붙어 있을 때의 맥락(하늘 이야기 중이라는 것)을 전혀 모릅니다.</p>
+
+  <div class="big-idea">단어 각각의 <span>사전적 의미</span>만으로는 부족하다<br>→ 문장 안에서 <span>서로 참조하며 다듬은 "문맥 벡터"</span>가 필요하다</div>
+
+  <div class="callout"><span class="emoji">📖</span><b>노트북 코드 주석 그대로:</b>
+  "임베딩 + 위치인코딩으로 질문을 벡터열로 바꾼 뒤, <b>인코더 블록을 여러 겹 통과</b>시켜 질문을 이해합니다."
+  그 결과물(문맥 벡터열)을 나중에 디코더가 <a href="attention.html">크로스어텐션</a>으로 참고합니다.</div>
+</section>
+
+<!-- 2 -->
+<section id="p2">
+  <h2><span class="num">2</span> 비유: 발표 준비하며 원고를 여러 번 다시 읽기</h2>
+  <p>발표 준비를 할 때를 떠올려 보세요. 원고를 <b>딱 한 번만</b> 읽으면 단어 뜻 정도만 남습니다.
+  그런데 <b>두 번, 세 번</b> 다시 읽으면 "아, 이 문장이 앞 문장이랑 이어지는구나" 하고
+  문맥이 점점 또렷해지죠. 인코더가 하는 일이 정확히 이겁니다 — <b>같은 문장을 num_layers번(이 노트북은 2번) 다시 훑으며</b>
+  단어들끼리 서로 참조(셀프어텐션)해 이해를 갱신합니다.</p>
+
+  <div class="grid3">
+    <div class="role q">
+      <span class="tag">① 1차 정독</span>
+      <h4>👀 단어 뜻 파악</h4>
+      <p class="muted" style="margin:0">임베딩 직후 상태. 각 단어가 <b>거의 자기 자신 위주</b>로만 의미를 갖고 있습니다.</p>
+    </div>
+    <div class="role k">
+      <span class="tag">② EncoderLayer 통과</span>
+      <h4>🔗 이웃과 연결</h4>
+      <p class="muted" style="margin:0">셀프어텐션으로 <b>주변 단어를 참조</b>하고, FFN으로 <b>혼자 한 번 더 곱씹습니다</b>.</p>
+    </div>
+    <div class="role v">
+      <span class="tag">③ N겹 반복</span>
+      <h4>🧠 문맥 벡터 완성</h4>
+      <p class="muted" style="margin:0">같은 과정을 <b>층 수만큼</b> 반복해, 디코더가 참고할 <b>최종 이해</b>를 만듭니다.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 3 -->
+<section id="p3">
+  <h2><span class="num">3</span> 인코더가 하는 일, 딱 3단계</h2>
+  <p><span class="inline">Encoder.forward</span> 는 아주 단순합니다. 아래 순서를 그대로 따라갑니다.</p>
+  <div class="steps">
+    <span class="step">단어번호 → 임베딩<br>(× √d_model)</span><span class="arw">→</span>
+    <span class="step">+ 위치인코딩<br>(순서 정보)</span><span class="arw">→</span>
+    <span class="step" style="border-color:var(--good);color:var(--good)">EncoderLayer × num_layers<br>(문맥 다듬기)</span>
+  </div>
+  <div class="callout good"><span class="emoji">🏭</span><b>실제 학습에 쓰는 값</b> (부품⑨ <span class="inline">Transformer</span> 기본 하이퍼파라미터):
+  <span class="inline">d_model=64, num_heads=4, num_layers=2, d_ff=256</span>. 즉 이 노트북의 인코더는
+  <b>EncoderLayer를 딱 2겹</b> 쌓습니다.</div>
+</section>
+
+<!-- 4 -->
+<section id="p4">
+  <h2><span class="num">4</span> 코드: Encoder 클래스</h2>
+  <p>노트북 <span class="inline">example-detailed.ipynb</span> 부품 ⑦ 의 실제 코드입니다.</p>
+<pre><code><span class="kw">class</span> <span class="fn">Encoder</span>(nn.Module):
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, vocab, d_model, num_heads, num_layers, d_ff, dropout, max_len):
+        super().<span class="fn">__init__</span>()
+        self.d_model = d_model
+        self.emb = nn.<span class="fn">Embedding</span>(vocab, d_model)                    <span class="cmt"># 단어번호 → 벡터</span>
+        self.pos = <span class="fn">PositionalEncoding</span>(d_model, max_len, dropout)   <span class="cmt"># 순서 정보</span>
+        self.layers = nn.<span class="fn">ModuleList</span>([<span class="fn">EncoderLayer</span>(d_model, num_heads, d_ff, dropout)
+                                     <span class="kw">for</span> _ <span class="kw">in</span> <span class="fn">range</span>(num_layers)])         <span class="cmt"># 여러 겹 쌓기</span>
+
+    <span class="kw">def</span> <span class="fn">forward</span>(self, src, mask):
+        x = self.<span class="fn">pos</span>(self.<span class="fn">emb</span>(src) * math.<span class="fn">sqrt</span>(self.d_model))   <span class="cmt"># 임베딩×√d_model + 위치</span>
+        <span class="kw">for</span> l <span class="kw">in</span> self.layers:
+            x = <span class="fn">l</span>(x, mask)                                      <span class="cmt"># 층을 하나씩 통과</span>
+        <span class="kw">return</span> x</code></pre>
+
+  <table>
+    <tr><th>코드</th><th>쉬운 말</th></tr>
+    <tr><td><span class="inline">self.emb(src)</span></td><td>단어 번호를 d_model 차원 벡터로 (뜻 꺼내기)</td></tr>
+    <tr><td><span class="inline">* math.sqrt(self.d_model)</span></td><td>임베딩 크기를 키워, 이어 더할 위치인코딩에 묻히지 않게 함</td></tr>
+    <tr><td><span class="inline">self.pos(...)</span></td><td><a href="positional-encoding.html">위치 인코딩</a>을 더해 순서 정보 주입</td></tr>
+    <tr><td><span class="inline">for l in self.layers</span></td><td>EncoderLayer를 num_layers번 순서대로 통과</td></tr>
+  </table>
+
+  <div class="callout"><span class="emoji">⚖️</span><b>왜 √d_model을 곱할까?</b>
+  임베딩 표는 학습 초기엔 값이 작게 초기화되는데, 위치인코딩(sin/cos)은 진폭이 항상 ~1입니다.
+  그냥 더하면 <b>위치 정보가 단어 뜻을 덮어써 버릴</b> 수 있어요. 그래서 임베딩에 √d_model(=√64=8)을 곱해
+  두 신호의 크기를 비슷하게 맞춰 준 뒤 더합니다.</div>
+</section>
+
+<!-- 5 -->
+<section id="p5">
+  <h2><span class="num">5</span> 안을 들여다보면: EncoderLayer 한 겹</h2>
+  <p><span class="inline">Encoder</span>가 반복해서 통과시키는 <span class="inline">EncoderLayer</span>(부품 ⑤) 하나는
+  이미 배운 부품 둘로만 이루어져 있습니다 — <a href="multi-head-attention.html">멀티헤드 셀프어텐션</a>과 FFN.</p>
+
+<pre><code><span class="kw">class</span> <span class="fn">EncoderLayer</span>(nn.Module):
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, d_model, num_heads, d_ff, dropout=<span class="num2">0.1</span>):
+        super().<span class="fn">__init__</span>()
+        self.attn = <span class="fn">MultiHeadAttention</span>(d_model, num_heads, dropout)   <span class="cmt"># 셀프어텐션</span>
+        self.ffn = <span class="fn">PositionwiseFeedForward</span>(d_model, d_ff, dropout)
+        self.n1 = nn.<span class="fn">LayerNorm</span>(d_model); self.n2 = nn.<span class="fn">LayerNorm</span>(d_model)
+        self.drop = nn.<span class="fn">Dropout</span>(dropout)
+
+    <span class="kw">def</span> <span class="fn">forward</span>(self, x, mask):
+        x = self.n1(x + self.<span class="fn">drop</span>(self.<span class="fn">attn</span>(x, x, x, mask)))   <span class="cmt"># 잔차 + 정규화 ①</span>
+        x = self.n2(x + self.<span class="fn">drop</span>(self.<span class="fn">ffn</span>(x)))               <span class="cmt"># 잔차 + 정규화 ②</span>
+        <span class="kw">return</span> x</code></pre>
+
+  <div class="steps">
+    <span class="step">x (현재 이해)</span><span class="arw">→</span>
+    <span class="step">셀프어텐션<br>attn(x,x,x)</span><span class="arw">→</span>
+    <span class="step">잔차+정규화<br>n1(x+…)</span><span class="arw">→</span>
+    <span class="step">FFN<br>(혼자 곱씹기)</span><span class="arw">→</span>
+    <span class="step" style="border-color:var(--good);color:var(--good)">잔차+정규화<br>n2(x+…) → 다음 층으로</span>
+  </div>
+
+  <div class="callout good"><span class="emoji">🔎</span><b>여기서 Q=K=V=x — 셀프어텐션</b>입니다.
+  <a href="attention.html">어텐션 문서 8번</a>에서 본 표 그대로, "질문 문장이 자기 자신을 둘러보는" 경우예요.
+  같은 <span class="inline">scaled_dot_product_attention</span> 공식을 그대로 재사용하되,
+  Q·K·V 모두 <b>지금 인코딩 중인 질문 문장 x</b> 라는 점만 다릅니다.</div>
+  <div class="callout"><span class="emoji">➕</span><b>잔차 연결(x + …)</b>은 "원본을 그대로 더해두는" 안전장치입니다.
+  층이 깊어져도 원래 정보가 사라지지 않고, 학습 초반엔 "거의 아무것도 안 바꾸기"부터 시작할 수 있어 안정적입니다.</div>
+</section>
+
+<!-- 6 -->
+<section id="p6">
+  <h2><span class="num">6</span> 직접 해보기 — 층이 깊어질수록 셀프어텐션이 달라진다</h2>
+  <p>질문 <b class="hlt">"하늘에·먹구름이·보이면·뭐가·생각나"</b> 를 <a href="attention.html">어텐션 문서</a>와 같은
+  4개 의미 축(날씨현상·하늘배경·질문구조·서술)으로 나타낸, <b>아직 인코더에 들어가기 전(층 통과 전)</b> 의 예시 벡터를 준비했습니다.
+  단어를 고르고, <b>1층 / 2층(실제 num_layers=2)</b> 버튼을 눌러 그 단어의 셀프어텐션(자기 자신 포함, 질문 속 다섯 단어를 보는 비율)이
+  층을 통과할수록 어떻게 바뀌는지 실제 <span class="inline">scaled_dot_product_attention</span> 공식으로 계산해 봅니다.</p>
+
+  <div class="card">
+    <p class="muted" style="margin:0 0 8px">① 어느 층의 셀프어텐션을 볼까요?</p>
+    <div class="headbtns" id="layerBtns"></div>
+    <p class="muted" style="margin:14px 0 4px">② 어느 단어의 셀프어텐션을 볼까요?</p>
+    <div class="tokrow" id="tokrow"></div>
+    <p class="muted" style="margin:14px 0 4px"><b id="wName" style="color:var(--brand)">먹구름이</b> 가(이)
+    <b id="layerName" style="color:var(--accent)">1층</b> 에서 질문의 각 단어(자기 자신 포함)에 주목하는 비율</p>
+    <div id="attnBars"></div>
+  </div>
+
+  <div class="callout good"><span class="emoji">👀</span>
+  <b>"하늘에"·"먹구름이"·"생각나"</b> 처럼 이미 뜻이 뚜렷한 단어는 1층에서부터 <b>자기 자신에 90% 이상</b> 주목하고,
+  2층에서는 <b>거의 100%</b> 로 더 굳어집니다 — 잔차 연결 덕분에 원래 정체성이 층을 거칠수록 더 단단해지는 거예요.
+  반면 <b>"보이면"·"뭐가"</b> 처럼 같은 "질문 구조" 역할을 공유하는 단어끼리는 <b>서로 30~50%씩 주목을 나눠 갖습니다</b> —
+  비슷한 역할의 이웃을 셀프어텐션이 실제로 참조한다는 뜻이죠.</div>
+  <p class="muted" style="font-size:14px">* 실제 코드는 잔차 다음에 LayerNorm으로 정규화하지만, 이 데모는 "잔차로 이전 정보를 유지한 채 셀프어텐션 결과를 더한다"는
+  핵심 원리만 보여주기 위해 정규화 단계는 생략했습니다.</p>
+</section>
+
+<!-- 7 -->
+<section id="p7">
+  <h2><span class="num">7</span> 헷갈리기 쉬운 점</h2>
+  <div class="callout"><span class="emoji">🎭</span><b>인코더는 왜 마스크를 하나만 받을까?</b>
+  <span class="inline">forward(self, src, mask)</span> 를 보면 <a href="attention.html">디코더와 달리</a> 마스크가 하나뿐이에요.
+  질문 문장은 <b>전체가 한 번에 다 보여도 되는 정보</b>라 "미래를 가리는" 인과 마스크가 필요 없고,
+  <span class="inline">make_padding_mask</span> 로 <b>&lt;pad&gt; 자리만</b> 가리면 충분합니다.</div>
+  <div class="callout good"><span class="emoji">🔗</span><b>이 출력, 어디에 쓰이나요?</b>
+  부품⑨ <span class="inline">Transformer.forward</span> 를 보면
+  <span class="inline">self.decoder(tgt, self.encoder(src, src_mask), tgt_mask, src_mask)</span> 로 호출됩니다.
+  즉 <b class="hlt">Encoder의 출력(문맥 벡터열)이 디코더의 크로스어텐션에서 K·V로 재사용</b>됩니다.
+  <a href="attention.html">어텐션 문서 6번 데모</a>에서 "먹구름이"가 답 "비가"의 주목을 받을 수 있었던 것도,
+  바로 이 인코더가 미리 그 벡터를 준비해 뒀기 때문이에요.</div>
+  <div class="callout warn"><span class="emoji">🧪</span><b>이 부품만의 체크포인트 셀은 없습니다.</b>
+  다른 부품과 달리 Encoder/EncoderLayer는 별도 assert 셀이 없고, 대신 부품⑨ 전체 조립과
+  4단계 학습 셀의 "최종 loss &lt; 0.5" 체크포인트에서 <b>간접적으로</b> 정상 동작이 확인됩니다.</div>
+</section>
+
+<!-- 8 -->
+<section id="p8">
+  <h2><span class="num">8</span> 30초 요약</h2>
+  <div class="card" style="text-align:center;padding:30px">
+    <p style="font-size:21px;font-weight:800;margin:0;line-height:1.7">
+      "임베딩에 <span style="color:var(--brand)">√d_model을 곱하고 위치인코딩을 더한 뒤</span>,<br>
+      <span style="color:var(--accent)">셀프어텐션 + FFN</span>으로 이루어진 EncoderLayer를<br>
+      <span style="color:var(--good)">num_layers번(2번) 쌓아</span> 통과시키면,<br>
+      디코더가 참고할 <span style="color:var(--brand2)">문맥 벡터열</span>이 완성된다."
+    </p>
+  </div>
+  <div class="grid2" style="margin-top:18px">
+    <div class="card tight"><b>📖 비유</b><br><span class="muted">원고를 여러 번 다시 읽으며 이해 쌓기</span></div>
+    <div class="card tight"><b>🏭 구성</b><br><span class="muted">임베딩×√d_model + 위치인코딩 → EncoderLayer × N</span></div>
+    <div class="card tight"><b>🔁 EncoderLayer</b><br><span class="muted">셀프어텐션(잔차+LN) → FFN(잔차+LN)</span></div>
+    <div class="card tight"><b>🔗 출력의 쓰임</b><br><span class="muted">디코더 크로스어텐션의 K·V로 재사용</span></div>
+  </div>
+</section>
+
+<footer>
+  <p>Mini-Transformer 실습 교재 · 인코더 쉬운 설명판<br>
+  코드 출처: <span class="inline">example-detailed.ipynb</span> — 부품 ⑦ Encoder (셀 19) · 부품 ⑤ EncoderLayer (셀 17)<br>
+  함께 보기: <a href="positional-encoding.html">위치 인코딩</a> · <a href="attention.html">어텐션(부품②)</a> ·
+  <a href="multi-head-attention.html">멀티헤드 어텐션(부품③)</a> · <a href="vocab.html">어휘 사전</a></p>
+</footer>
+
+</div>
+
+<script>
+function dot(a,b){let s=0;for(let i=0;i<a.length;i++)s+=a[i]*b[i];return s;}
+function softmax(arr){const m=Math.max(...arr);const e=arr.map(v=>Math.exp(v-m));const s=e.reduce((a,b)=>a+b,0);return e.map(v=>v/s);}
+
+/* ================= 6. 층을 쌓을수록 셀프어텐션이 달라지는 데모 ================= */
+const WORDS=['하늘에','먹구름이','보이면','뭐가','생각나'];
+// attention.html과 같은 4개 의미 축[날씨현상,하늘배경,질문구조,서술] 기준, "인코더 통과 전" 예시 벡터
+const X0=[
+ [0.3,3.0,0.2,0.0],  // 하늘에   → 하늘배경 우세
+ [3.0,0.5,0.0,0.1],  // 먹구름이 → 날씨현상 우세
+ [0.4,0.3,2.8,0.2],  // 보이면   → 질문구조 우세
+ [0.2,0.0,2.6,0.4],  // 뭐가     → 질문구조 우세
+ [0.0,0.1,0.5,2.7],  // 생각나   → 서술 우세
+];
+const DK=4;
+
+function selfAttnOnce(X){
+  const S=X.length, allw=[], out=[];
+  for(let i=0;i<S;i++){
+    const scores=X.map(xj=>dot(X[i],xj)/Math.sqrt(DK));
+    const w=softmax(scores);
+    allw.push(w);
+    const ctx=new Array(X[0].length).fill(0);
+    for(let j=0;j<S;j++) for(let d=0; d<ctx.length; d++) ctx[d]+=w[j]*X[j][d];
+    out.push(ctx);
+  }
+  return {out, allw};
+}
+function nextLayer(X){
+  const {out, allw}=selfAttnOnce(X);
+  const newX=X.map((xi,i)=>xi.map((v,d)=>v+out[i][d]));   // 잔차(x + attn 결과), LayerNorm은 데모에서 생략
+  return {newX, allw};
+}
+
+const L1=nextLayer(X0);      // L1.allw = 1층 셀프어텐션(입력 x0 기준)
+const L2=nextLayer(L1.newX); // L2.allw = 2층 셀프어텐션(입력 x1 기준)
+const LAYER_WEIGHTS=[L1.allw, L2.allw];
+
+let curLayer=0, curWord=1; // 기본: 1층, "먹구름이"
+const layerBtns=document.getElementById('layerBtns'), tokrow=document.getElementById('tokrow');
+const attnBars=document.getElementById('attnBars'), wName=document.getElementById('wName'), layerName=document.getElementById('layerName');
+
+function renderLayerBtns(){
+  layerBtns.innerHTML=['1층','2층'].map((t,i)=>`<div class="headbtn ${i===curLayer?'sel':''}" data-i="${i}">${t}</div>`).join('');
+  layerBtns.querySelectorAll('.headbtn').forEach(el=>el.onclick=()=>{curLayer=+el.dataset.i;renderLayerBtns();renderAttn();});
+}
+function renderToks(){
+  tokrow.innerHTML=WORDS.map((t,i)=>`<div class="tok ${i===curWord?'sel':''}" data-i="${i}">${t}</div>`).join('');
+  tokrow.querySelectorAll('.tok').forEach(el=>el.onclick=()=>{curWord=+el.dataset.i;renderToks();renderAttn();});
+}
+function renderAttn(){
+  wName.textContent=WORDS[curWord];
+  layerName.textContent=(curLayer+1)+'층';
+  const w=LAYER_WEIGHTS[curLayer][curWord];
+  const mx=Math.max(...w);
+  let h='';
+  for(let j=0;j<WORDS.length;j++){
+    const pct=w[j]*100;
+    h+=`<div class="attn-row">
+      <div class="name">${WORDS[j]}</div>
+      <div class="track"><div class="barfill" style="width:${pct.toFixed(1)}%;${w[j]>=mx-1e-9?'background:linear-gradient(90deg,#34d399,#38bdf8)':''}"></div></div>
+      <div class="pct">${pct.toFixed(0)}%</div></div>`;
+  }
+  attnBars.innerHTML=h;
+}
+renderLayerBtns(); renderToks(); renderAttn();
+</script>
+</body>
+</html>

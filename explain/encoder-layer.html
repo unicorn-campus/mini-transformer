@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>인코더 블록(EncoderLayer) — 세상에서 제일 쉽게</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel2:#273449;
+    --ink:#e2e8f0; --sub:#94a3b8; --line:#334155;
+    --brand:#38bdf8; --brand2:#818cf8; --accent:#fbbf24;
+    --good:#34d399; --warn:#f472b6; --code:#0b1220;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:"Segoe UI","Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif;
+    line-height:1.8;font-size:17px}
+  a{color:var(--brand)}
+  .wrap{max-width:900px;margin:0 auto;padding:0 20px 120px}
+
+  header{background:radial-gradient(1200px 500px at 20% -10%,rgba(56,189,248,.25),transparent 60%),
+    radial-gradient(1000px 500px at 90% 0%,rgba(129,140,248,.22),transparent 55%),var(--bg);
+    border-bottom:1px solid var(--line);padding:64px 20px 48px}
+  header .wrap{padding-bottom:0}
+  .kicker{color:var(--brand);font-weight:700;letter-spacing:.14em;font-size:13px;text-transform:uppercase}
+  h1{font-size:clamp(28px,5vw,44px);line-height:1.22;margin:.35em 0 .3em;font-weight:800}
+  h1 .hl{background:linear-gradient(90deg,var(--brand),var(--brand2));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .lead{font-size:19px;color:var(--sub);max-width:720px}
+
+  section{margin-top:60px}
+  h2{font-size:clamp(23px,3.4vw,29px);margin:0 0 8px;font-weight:800;display:flex;align-items:center;gap:12px}
+  h2 .num{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:12px;
+    background:linear-gradient(135deg,var(--brand),var(--brand2));color:#06121f;font-size:18px;font-weight:900;flex:0 0 auto}
+  h3{font-size:19px;margin:26px 0 6px}
+  p{margin:.6em 0}
+  .muted{color:var(--sub)}
+  b.hlt{color:#fff}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px 24px;margin:18px 0}
+  .card.tight{padding:16px 18px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+  @media(max-width:720px){.grid2,.grid3{grid-template-columns:1fr}}
+
+  .callout{border-left:4px solid var(--brand);background:var(--panel2);border-radius:0 12px 12px 0;padding:14px 18px;margin:16px 0}
+  .callout.good{border-color:var(--good)} .callout.warn{border-color:var(--warn)}
+  .callout b{color:#fff}
+  .emoji{font-size:20px;margin-right:6px}
+  .big-idea{background:linear-gradient(135deg,rgba(56,189,248,.16),rgba(129,140,248,.16));
+    border:1px solid var(--line);border-radius:18px;padding:24px 26px;margin:18px 0;font-size:19px;text-align:center;font-weight:700}
+  .big-idea span{color:var(--accent)}
+
+  .inline{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:1px 7px;
+    font-family:"Consolas","D2Coding",monospace;font-size:14px;color:#fde68a}
+
+  /* sublayer role cards */
+  .role{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+  .role .tag{display:inline-block;font-weight:900;font-size:13px;letter-spacing:.06em;padding:3px 10px;border-radius:8px;margin-bottom:8px}
+  .role.q .tag{background:rgba(56,189,248,.2);color:var(--brand)}
+  .role.k .tag{background:rgba(129,140,248,.2);color:var(--brand2)}
+  .role.v .tag{background:rgba(52,211,153,.2);color:var(--good)}
+  .role h4{margin:0 0 4px;font-size:17px}
+
+  /* toggle / head buttons (attention.html·multi-head-attention.html과 동일) */
+  .headbtns{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+  .headbtn{background:var(--panel2);border:2px solid var(--line);border-radius:10px;padding:8px 16px;font-weight:700;cursor:pointer;font-size:15px}
+  .headbtn:hover{border-color:var(--brand)}
+  .headbtn.sel{background:linear-gradient(135deg,var(--brand),var(--brand2));color:#06121f;border-color:transparent}
+
+  /* token buttons */
+  .tokrow{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0}
+  .tok{background:var(--panel2);border:2px solid var(--line);border-radius:12px;padding:10px 16px;font-weight:700;cursor:pointer;transition:all .12s;font-size:16px}
+  .tok:hover{border-color:var(--brand)}
+  .tok.sel{background:linear-gradient(135deg,var(--brand),var(--brand2));color:#06121f;border-color:transparent;box-shadow:0 0 16px rgba(56,189,248,.45)}
+
+  /* attention / similarity bars */
+  .attn-row{display:flex;align-items:center;gap:12px;margin:9px 0}
+  .attn-row .name{width:70px;text-align:right;font-weight:700;flex:0 0 auto}
+  .attn-row .track{flex:1;background:var(--code);border:1px solid var(--line);border-radius:8px;height:28px;position:relative;overflow:hidden}
+  .attn-row .barfill{height:100%;border-radius:6px 0 0 6px;background:linear-gradient(90deg,var(--brand),var(--brand2));transition:width .35s}
+  .attn-row .barfill.headb{background:linear-gradient(90deg,var(--good),var(--accent))}
+  .attn-row .barfill.warnb{background:linear-gradient(90deg,var(--warn),#fb7185)}
+  .attn-row .pct{width:52px;text-align:right;font-variant-numeric:tabular-nums;color:var(--accent);font-weight:700;flex:0 0 auto}
+
+  .steps{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;margin:10px 0}
+  .step{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:13px;font-weight:700}
+  .step .arw{color:var(--sub);margin:0 2px}
+
+  pre{background:var(--code);border:1px solid var(--line);border-radius:14px;padding:18px;overflow:auto;font-size:14px;line-height:1.7;margin:14px 0}
+  code{font-family:"Consolas","D2Coding",monospace}
+  pre code{color:#cbd5e1}
+  .cmt{color:#64748b}.kw{color:#f472b6}.fn{color:#38bdf8}.num2{color:#fbbf24}.str{color:#34d399}
+
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:15px}
+  th,td{border:1px solid var(--line);padding:9px 12px;text-align:left}
+  th{background:var(--panel2);color:#fff}
+
+  footer{margin-top:80px;border-top:1px solid var(--line);padding-top:24px;color:var(--sub);font-size:14px}
+  .toc{position:sticky;top:0;z-index:5;background:rgba(15,23,42,.85);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+  .toc .wrap{display:flex;gap:6px;flex-wrap:wrap;padding:10px 20px;overflow-x:auto}
+  .toc a{color:var(--sub);text-decoration:none;font-size:13px;padding:6px 10px;border-radius:8px;white-space:nowrap}
+  .toc a:hover{background:var(--panel);color:#fff}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="kicker">Mini-Transformer · 인코더 블록 쉽게 이해하기</div>
+    <h1>인코더 블록은<br><span class="hl">"밑줄 긋고 → 혼자 곱씹고 → 원본은 안 버리는 복습 한 장"</span> 입니다</h1>
+    <p class="lead">부품③ 멀티헤드 어텐션과 부품④ FFN을 그냥 순서대로 이어붙이기만 하면, 여러 겹 쌓았을 때 원본 정보가 옅어지고 학습이 흔들립니다.
+    <b class="hlt">EncoderLayer</b>는 이 둘을 <b>잔차 연결(residual) + LayerNorm</b>이라는 안전장치로 감싸서, 안정적으로 여러 겹 쌓을 수 있는 "한 장"으로 만든 조립 단위예요.</p>
+  </div>
+</header>
+
+<nav class="toc"><div class="wrap">
+  <a href="#p1">1. 무슨 문제</a>
+  <a href="#p2">2. 복습 한 장 비유</a>
+  <a href="#p3">3. 코드</a>
+  <a href="#p4">4. 잔차가 하는 일</a>
+  <a href="#p5">5. 직접 해보기</a>
+  <a href="#p6">6. 겹겹이 쌓기</a>
+  <a href="#p7">7. 헷갈리기 쉬운 점</a>
+  <a href="#p8">8. 요약</a>
+</div></nav>
+
+<div class="wrap">
+
+<!-- 1 -->
+<section id="p1">
+  <h2><span class="num">1</span> 그냥 이어붙이면 안 되나요? (30초)</h2>
+  <p>지금까지 만든 부품들 — <a href="multi-head-attention.html">멀티헤드 어텐션</a>(부품③), FFN(부품④) — 은 각각
+  <b class="hlt">"한 번의 계산"</b>만 합니다. 그런데 실제 인코더(부품⑦)는 이 계산을 <span class="inline">num_layers</span>번
+  (기본값 2) <b>반복해서 겹겹이 쌓아야</b> 문장을 깊이 이해할 수 있어요.</p>
+  <p>문제는, 어텐션 → FFN을 단순히 순서대로만 이어붙이면 층이 깊어질수록 <b>원본 정보가 점점 옅어지고</b>,
+  출력 분포가 흔들려 <b>학습(역전파)이 잘 안 됩니다.</b> 그래서 "한 겹"을 안전하게 설계한 게 바로 이 문서의 주인공,
+  <span class="inline">EncoderLayer</span> 입니다.</p>
+
+  <div class="callout"><span class="emoji">📝</span><b>노트북 코드 주석 그대로:</b>
+  "구조: 셀프어텐션 → (원본 더하기+정규화) → FFN → (더하기+정규화). <b>질문을 '이해'하는 한 겹.</b>"</div>
+</section>
+
+<!-- 2 -->
+<section id="p2">
+  <h2><span class="num">2</span> 비유: 원본을 지키며 복습하는 한 장</h2>
+  <p>EncoderLayer 한 겹은 딱 두 가지 하위층(sublayer)으로 이루어져 있고, 각 하위층 뒤에 <b>같은 패턴</b>이 반복됩니다:
+  "<b>원본에 더하고(잔차) → 깔끔하게 정돈한다(정규화)</b>".</p>
+  <div class="grid2">
+    <div class="role q">
+      <span class="tag">① 셀프어텐션</span>
+      <h4>✏️ 밑줄 긋기</h4>
+      <p class="muted" style="margin:0">문장 속 단어들이 서로 훑어보며 <b>관련 있는 곳에 밑줄</b>을 긋습니다(부품③ 재사용, q=k=v=x).</p>
+    </div>
+    <div class="role k">
+      <span class="tag">② 잔차+정규화</span>
+      <h4>📌 원본 지키며 정리</h4>
+      <p class="muted" style="margin:0">밑줄 내용을 <b>원래 메모(x)에 더하고</b>, 값이 안 튀도록 다시 <b>깔끔하게 정돈</b>합니다(LayerNorm).</p>
+    </div>
+    <div class="role v">
+      <span class="tag">③ FFN</span>
+      <h4>🤔 혼자 곱씹기</h4>
+      <p class="muted" style="margin:0">각 단어가 밑줄 내용을 바탕으로 <b>혼자 더 깊게</b> 생각합니다(부품④ 재사용).</p>
+    </div>
+    <div class="role" style="border-color:var(--brand2)">
+      <span class="tag" style="background:rgba(251,191,36,.2);color:var(--accent)">④ 잔차+정규화</span>
+      <h4>📌 다시 원본 지키며 정리</h4>
+      <p class="muted" style="margin:0">곱씹은 내용도 <b>원본(①②의 결과)에 더하고</b> 다시 정돈합니다. 이번 겹은 여기서 끝!</p>
+    </div>
+  </div>
+  <div class="big-idea">매 하위층마다 <span>"원본 메모를 버리지 않고(잔차)"</span> + <span>"다시 깔끔하게(정규화)"</span> 가 반복된다</div>
+</section>
+
+<!-- 3 -->
+<section id="p3">
+  <h2><span class="num">3</span> 코드 그대로 보기</h2>
+  <p>실습 노트북 셀 17, 부품⑤ <span class="inline">EncoderLayer</span> 전체 코드입니다. 부품이 4줄(어텐션·FFN·정규화 2개·드롭아웃)뿐이라
+  간단해 보이지만, <span class="inline">forward</span>의 딱 두 줄에 안정적인 학습의 비밀이 담겨 있어요.</p>
+
+<pre><code><span class="kw">class</span> <span class="fn">EncoderLayer</span>(nn.Module):
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, d_model, num_heads, d_ff, dropout=<span class="num2">0.1</span>):
+        super().<span class="fn">__init__</span>()
+        <span class="cmt"># 셀프어텐션: 문장 안의 단어들끼리 서로 참조합니다.</span>
+        self.attn = <span class="fn">MultiHeadAttention</span>(d_model, num_heads, dropout)
+        self.ffn = <span class="fn">PositionwiseFeedForward</span>(d_model, d_ff, dropout)
+        <span class="cmt"># LayerNorm 2개: 각 하위층 뒤에서 출력 분포를 정규화해 깊은 망의 학습을 안정화합니다.</span>
+        self.n1 = nn.<span class="fn">LayerNorm</span>(d_model); self.n2 = nn.<span class="fn">LayerNorm</span>(d_model)
+        self.drop = nn.<span class="fn">Dropout</span>(dropout)
+
+    <span class="kw">def</span> <span class="fn">forward</span>(self, x, mask):
+        <span class="cmt"># 잔차 연결(x + …): 원본 입력을 그대로 더해 주어, 층이 깊어져도 기울기가 잘 흐르고</span>
+        <span class="cmt"># '아무것도 안 바꾸기'가 쉬워 학습이 안정됩니다. 그 합을 LayerNorm으로 정규화(Post-LN 방식).</span>
+        x = self.<span class="fn">n1</span>(x + self.<span class="fn">drop</span>(self.<span class="fn">attn</span>(x, x, x, mask)))   <span class="cmt"># 잔차 + 정규화</span>
+        <span class="cmt"># 두 번째 하위층: FFN에도 동일한 (잔차 + 정규화) 패턴을 적용.</span>
+        x = self.<span class="fn">n2</span>(x + self.<span class="fn">drop</span>(self.<span class="fn">ffn</span>(x)))
+        <span class="kw">return</span> x</code></pre>
+
+  <table>
+    <tr><th>코드</th><th>단계</th><th>쉬운 말</th></tr>
+    <tr><td><span class="inline">self.attn(x, x, x, mask)</span></td><td>①</td><td>셀프어텐션 — q=k=v=x, 자기 문장끼리 밑줄 긋기</td></tr>
+    <tr><td><span class="inline">x + self.drop(...)</span></td><td>②-잔차</td><td>밑줄 결과를 원본 x에 더하기(원본 보존)</td></tr>
+    <tr><td><span class="inline">self.n1(...)</span></td><td>②-정규화</td><td>더한 값을 LayerNorm으로 다시 정돈</td></tr>
+    <tr><td><span class="inline">self.ffn(x)</span></td><td>③</td><td>각 단어가 혼자 곱씹기(position-wise)</td></tr>
+    <tr><td><span class="inline">x + self.drop(...) → self.n2(...)</span></td><td>④</td><td>①②와 동일한 (잔차+정규화) 패턴 반복</td></tr>
+  </table>
+</section>
+
+<!-- 4 -->
+<section id="p4">
+  <h2><span class="num">4</span> 잔차 연결(<span class="inline">x + …</span>)이 하는 일</h2>
+  <p>코드에서 <span class="inline">self.attn(x,x,x,mask)</span> 결과를 그냥 쓰지 않고, 굳이
+  <span class="inline">x + self.drop(self.attn(...))</span> 처럼 <b>원본 x를 다시 더합니다.</b> 왜일까요?</p>
+  <div class="callout good"><span class="emoji">🧵</span><b>기울기(gradient)가 지나가는 지름길:</b>
+  덧셈은 역전파에서 기울기를 <b>그대로 통과</b>시킵니다. 층을 아무리 깊게 쌓아도 "+x" 지름길 덕분에
+  맨 앞 층까지 기울기가 옅어지지 않고 잘 전달돼요.</div>
+  <div class="callout"><span class="emoji">🪞</span><b>"아무것도 안 바꾸기"가 쉬워짐:</b>
+  만약 셀프어텐션이 이 위치에서 딱히 배울 게 없다면, <span class="inline">attn(x)≈0</span>이 되도록만 학습하면
+  출력이 <span class="inline">x</span> 그대로 됩니다(항등함수). 잔차가 없으면 매번 <b>완벽한 복제</b>를 처음부터 다시 배워야 해서 훨씬 어려워요.</div>
+  <p class="muted">아래 5번에서는 이 "원본을 지킨다"는 게 숫자로 어떻게 드러나는지, 실제 공식으로 직접 계산해 보여드립니다.</p>
+</section>
+
+<!-- 5 -->
+<section id="p5">
+  <h2><span class="num">5</span> 직접 해보기 — 잔차를 끄면 원본이 얼마나 사라질까?</h2>
+  <p><a href="attention.html">이전 문서</a>·<a href="multi-head-attention.html">멀티헤드 문서</a>에서 쓴 질문
+  <b class="hlt">"하늘에·먹구름이·보이면·뭐가·생각나"</b>의 4차원 예시 벡터(K)를 그대로 <b>인코더 입력 x</b>로 재사용합니다.
+  EncoderLayer의 셀프어텐션은 <span class="inline">q=k=v=x</span>이므로, 이 5개 벡터끼리 서로 어텐션합니다.</p>
+
+  <div class="card">
+    <p class="muted" style="margin:0 0 8px">① 지금 살펴볼 단어(x) 고르기</p>
+    <div class="tokrow" id="tokrow"></div>
+
+    <p class="muted" style="margin:14px 0 4px">② <b id="qName" style="color:var(--brand)">먹구름이</b> 의 셀프어텐션 가중치 — <span class="inline">softmax(QKᵀ/√d_k)</span></p>
+    <div id="attnBars"></div>
+
+    <p class="muted" style="margin:14px 0 4px">③ 잔차 연결</p>
+    <div class="headbtns" id="residBtns"></div>
+
+    <p class="muted" style="margin:14px 0 4px">④ 원본 <span class="inline">x</span> 와의 코사인 유사도 — <b>"원본이 얼마나 남아 있나"</b></p>
+    <div id="simBar"></div>
+
+    <div style="margin-top:12px;font-size:14px" id="vecTable"></div>
+  </div>
+
+  <div class="callout good"><span class="emoji">👀</span>
+  <b>잔차 OFF</b>로 두면 셀프어텐션 결과(다른 단어들의 가중 평균)만 남아 원본 <span class="inline">x</span>와의 유사도가 뚝 떨어집니다.
+  <b>잔차 ON</b>으로 바꾸면 <span class="inline">x</span>를 그대로 더했으니 유사도가 다시 90%대로 뛰어오릅니다 —
+  이게 바로 코드 한 줄 <span class="inline">x + self.drop(self.attn(...))</span>이 실제로 하는 일이에요.
+  (LayerNorm은 평균 0·표준편차 1로 <b>크기만</b> 정돈할 뿐, 이 방향 유사도 자체를 만드는 건 잔차입니다.)</div>
+</section>
+
+<!-- 6 -->
+<section id="p6">
+  <h2><span class="num">6</span> 이 "한 겹"을 겹겹이 쌓기 — Encoder</h2>
+  <p>EncoderLayer는 딱 한 겹만 정의합니다. 여러 겹을 쌓는 건 부품⑦ <span class="inline">Encoder</span>가 담당해요.
+  <span class="inline">nn.ModuleList</span>에 EncoderLayer를 <span class="inline">num_layers</span>개 담아 두고,
+  <span class="inline">forward</span>에서 <b>순서대로 통과</b>시킵니다.</p>
+
+<pre><code><span class="kw">class</span> <span class="fn">Encoder</span>(nn.Module):
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, vocab, d_model, num_heads, num_layers, d_ff, dropout, max_len):
+        super().<span class="fn">__init__</span>()
+        self.emb = nn.<span class="fn">Embedding</span>(vocab, d_model)
+        self.pos = <span class="fn">PositionalEncoding</span>(d_model, max_len, dropout)
+        <span class="cmt"># 같은 구조의 인코더 블록을 num_layers개 쌓습니다.</span>
+        self.layers = nn.<span class="fn">ModuleList</span>([<span class="fn">EncoderLayer</span>(d_model, num_heads, d_ff, dropout)
+                                     <span class="kw">for</span> _ <span class="kw">in</span> <span class="fn">range</span>(num_layers)])
+    <span class="kw">def</span> <span class="fn">forward</span>(self, src, mask):
+        x = self.pos(self.emb(src) * math.<span class="fn">sqrt</span>(self.d_model))
+        <span class="kw">for</span> l <span class="kw">in</span> self.layers:
+            x = <span class="fn">l</span>(x, mask)   <span class="cmt"># EncoderLayer를 한 겹씩 통과</span>
+        <span class="kw">return</span> x</code></pre>
+
+  <div class="steps">
+    <span class="step">임베딩+위치인코딩</span><span class="arw">→</span>
+    <span class="step">EncoderLayer #1</span><span class="arw">→</span>
+    <span class="step" style="border-color:var(--good);color:var(--good)">EncoderLayer #2</span><span class="arw">→</span>
+    <span class="step">인코더 출력 (enc)</span>
+  </div>
+  <div class="callout"><span class="emoji">🏭</span><b>실제 학습에 쓰는 값</b>(부품⑨ <span class="inline">Transformer</span> 기본 하이퍼파라미터):
+  <span class="inline">d_model=64, num_heads=4, num_layers=2, d_ff=256</span>. 즉 실전 인코더는 EncoderLayer를
+  <b>딱 2겹</b> 쌓습니다 — 이 문서의 forward 코드가 정확히 2번 실행되는 셈이에요.</div>
+</section>
+
+<!-- 7 -->
+<section id="p7">
+  <h2><span class="num">7</span> 헷갈리기 쉬운 점</h2>
+  <div class="callout warn"><span class="emoji">🆚</span><b>EncoderLayer vs DecoderLayer, 뭐가 다른가요?</b>
+  EncoderLayer는 하위층이 <b>2개</b>(셀프어텐션, FFN) → LayerNorm도 2개(n1, n2).
+  반면 <a href="decoder-block.html">DecoderLayer</a>는 하위층이 <b>3개</b>(마스크드 셀프어텐션, 크로스어텐션, FFN) → LayerNorm 3개(n1,n2,n3).
+  구조 패턴(잔차+정규화 반복)은 완전히 똑같고, <b>하위층 개수만</b> 다릅니다.</div>
+  <div class="callout"><span class="emoji">🎭</span><b>마스크 종류도 다릅니다.</b>
+  EncoderLayer의 <span class="inline">mask</span>는 <b>패딩 마스크</b> 하나뿐이에요(질문 문장은 이미 다 갖고 있으니 미래를 가릴 필요가 없음).
+  DecoderLayer의 셀프어텐션은 패딩+<b>인과(causal) 마스크</b>를 함께 써서 미래 단어를 가립니다.</div>
+  <div class="callout good"><span class="emoji">📐</span><b>Post-LN 방식임에 주의:</b>
+  이 코드는 <span class="inline">LayerNorm(x + sublayer(x))</span> 순서(잔차를 먼저 더하고 정규화)라 <b>Post-LN</b>이라 부릅니다.
+  최신 대형 모델 다수는 <span class="inline">x + sublayer(LayerNorm(x))</span> 순서인 <b>Pre-LN</b>을 씁니다.
+  둘 다 "잔차+정규화" 큰 틀은 같고, 순서만 다릅니다.</div>
+</section>
+
+<!-- 8 -->
+<section id="p8">
+  <h2><span class="num">8</span> 30초 요약</h2>
+  <div class="card" style="text-align:center;padding:30px">
+    <p style="font-size:21px;font-weight:800;margin:0;line-height:1.7">
+      "EncoderLayer = <span style="color:var(--brand)">셀프어텐션</span>으로 밑줄 긋고,<br>
+      <span style="color:var(--accent)">잔차(+x)</span>로 원본을 지키며,<br>
+      <span style="color:var(--good)">LayerNorm</span>으로 다시 정돈하고,<br>
+      <span style="color:var(--brand2)">FFN</span>으로 혼자 곱씹은 뒤 한 번 더 지키고 정돈하는 — <b>안전한 한 겹</b>."
+    </p>
+  </div>
+  <div class="grid2" style="margin-top:18px">
+    <div class="card tight"><b>✏️ 비유</b><br><span class="muted">원본을 지키며 복습하는 한 장</span></div>
+    <div class="card tight"><b>📐 구조</b><br><span class="muted">(셀프어텐션 → 잔차+정규화) → (FFN → 잔차+정규화)</span></div>
+    <div class="card tight"><b>🧵 잔차 역할</b><br><span class="muted">기울기 지름길 + "아무것도 안 바꾸기" 쉽게</span></div>
+    <div class="card tight"><b>🏭 실전 값</b><br><span class="muted">num_layers=2겹, d_model=64</span></div>
+  </div>
+</section>
+
+<footer>
+  <p>Mini-Transformer 실습 교재 · 인코더 블록 쉬운 설명판<br>
+  코드 출처: <span class="inline">example-detailed.ipynb</span> — 부품 ⑤ EncoderLayer (셀 17), 관련: 셀 10(섹션 소개) · 셀 14(MultiHeadAttention) · 셀 16(FFN) · 셀 19(Encoder 겹쌓기)<br>
+  함께 보기: <a href="attention.html">어텐션(부품②)</a> · <a href="multi-head-attention.html">멀티헤드 어텐션(부품③)</a> · <a href="positional-encoding.html">위치 인코딩(부품①)</a> · <a href="vocab.html">어휘 사전</a></p>
+</footer>
+
+</div>
+
+<script>
+function dot(a,b){let s=0;for(let i=0;i<a.length;i++)s+=a[i]*b[i];return s;}
+function softmax(arr){const m=Math.max(...arr);const e=arr.map(v=>Math.exp(v-m));const s=e.reduce((a,b)=>a+b,0);return e.map(v=>v/s);}
+function addVec(a,b){return a.map((v,i)=>v+b[i]);}
+function layerNorm(v){
+  const mean=v.reduce((a,b)=>a+b,0)/v.length;
+  const variance=v.reduce((a,b)=>a+(b-mean)*(b-mean),0)/v.length;
+  const std=Math.sqrt(variance+1e-5);
+  return v.map(x=>(x-mean)/std);
+}
+function cos(a,b){
+  const d=dot(a,b), na=Math.sqrt(dot(a,a)), nb=Math.sqrt(dot(b,b));
+  return d/(na*nb);
+}
+
+/* ================= 5. 셀프어텐션 + 잔차 데모 (attention.html의 K 벡터 = 인코더 입력 x로 재사용) ================= */
+const QUESTION=['하늘에','먹구름이','보이면','뭐가','생각나'];
+// attention.html·multi-head-attention.html과 동일한 4차원 벡터. [날씨현상, 하늘배경, 질문구조, 서술]
+const X=[
+ [0.10,0.90,0.00,0.00],
+ [0.95,0.30,0.00,0.00],
+ [0.20,0.30,0.50,0.00],
+ [0.00,0.00,0.90,0.10],
+ [0.00,0.00,0.60,0.40],
+];
+const D_K=4;
+let selIdx=1;      // 기본값: '먹구름이'
+let residualOn=true;
+
+const tokrow=document.getElementById('tokrow'),qName=document.getElementById('qName'),attnBars=document.getElementById('attnBars');
+const residBtns=document.getElementById('residBtns'),simBar=document.getElementById('simBar'),vecTable=document.getElementById('vecTable');
+
+function renderToks(){
+  tokrow.innerHTML=QUESTION.map((t,i)=>`<div class="tok ${i===selIdx?'sel':''}" data-i="${i}">${t}</div>`).join('');
+  tokrow.querySelectorAll('.tok').forEach(el=>el.onclick=()=>{selIdx=+el.dataset.i;renderToks();renderAll();});
+}
+function renderResidBtns(){
+  residBtns.innerHTML=`
+    <div class="headbtn ${residualOn?'sel':''}" data-v="1">잔차 ON (실제 코드)</div>
+    <div class="headbtn ${!residualOn?'sel':''}" data-v="0">잔차 OFF (실험)</div>`;
+  residBtns.querySelectorAll('.headbtn').forEach(el=>el.onclick=()=>{residualOn=(el.dataset.v==='1');renderResidBtns();renderAll();});
+}
+function vecChip(v){return v.map(n=>`<span class="inline">${n.toFixed(2)}</span>`).join(' ');}
+
+function renderAll(){
+  qName.textContent=QUESTION[selIdx];
+
+  // ① 셀프어텐션: q=k=v=x, scaled_dot_product_attention과 동일한 공식
+  const q=X[selIdx];
+  const scores=X.map(k=>dot(q,k)/Math.sqrt(D_K));
+  const w=softmax(scores);
+  let barsHtml='';
+  const mx=Math.max(...w);
+  for(let j=0;j<QUESTION.length;j++){
+    const pct=w[j]*100;
+    barsHtml+=`<div class="attn-row">
+      <div class="name">${QUESTION[j]}</div>
+      <div class="track"><div class="barfill" style="width:${pct.toFixed(1)}%;${w[j]>=mx-1e-9?'background:linear-gradient(90deg,#34d399,#38bdf8)':''}"></div></div>
+      <div class="pct">${pct.toFixed(0)}%</div></div>`;
+  }
+  attnBars.innerHTML=barsHtml;
+
+  const attnOut=[0,0,0,0];
+  for(let j=0;j<X.length;j++) for(let d=0;d<4;d++) attnOut[d]+=w[j]*X[j][d];
+
+  // ② 잔차 ON/OFF
+  const preNorm = residualOn ? addVec(q, attnOut) : attnOut;
+  const ln = layerNorm(preNorm);
+
+  // ③ 원본과의 코사인 유사도
+  const simPct = cos(q, preNorm) * 100;
+  simBar.innerHTML = `<div class="attn-row">
+    <div class="name" style="width:110px">${residualOn?'x + attn(x)':'attn(x) 만'}</div>
+    <div class="track"><div class="barfill ${residualOn?'headb':'warnb'}" style="width:${Math.max(simPct,0).toFixed(1)}%"></div></div>
+    <div class="pct">${simPct.toFixed(0)}%</div></div>`;
+
+  // ④ 벡터 표
+  vecTable.innerHTML = `
+    <div style="margin:4px 0"><span class="muted" style="display:inline-block;width:150px">원본 x</span>${vecChip(q)}</div>
+    <div style="margin:4px 0"><span class="muted" style="display:inline-block;width:150px">셀프어텐션 결과</span>${vecChip(attnOut)}</div>
+    <div style="margin:4px 0"><span class="muted" style="display:inline-block;width:150px">${residualOn?'x + 어텐션결과':'어텐션결과 그대로'}</span>${vecChip(preNorm)}</div>
+    <div style="margin:4px 0"><span class="muted" style="display:inline-block;width:150px">LayerNorm 이후</span>${vecChip(ln)}</div>`;
+}
+
+renderToks(); renderResidBtns(); renderAll();
+</script>
+</body>
+</html>

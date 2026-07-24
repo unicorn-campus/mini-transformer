@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>멀티헤드 어텐션(Multi-Head Attention) — 세상에서 제일 쉽게</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel2:#273449;
+    --ink:#e2e8f0; --sub:#94a3b8; --line:#334155;
+    --brand:#38bdf8; --brand2:#818cf8; --accent:#fbbf24;
+    --good:#34d399; --warn:#f472b6; --code:#0b1220;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:"Segoe UI","Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif;
+    line-height:1.8;font-size:17px}
+  a{color:var(--brand)}
+  .wrap{max-width:900px;margin:0 auto;padding:0 20px 120px}
+
+  header{background:radial-gradient(1200px 500px at 20% -10%,rgba(56,189,248,.25),transparent 60%),
+    radial-gradient(1000px 500px at 90% 0%,rgba(129,140,248,.22),transparent 55%),var(--bg);
+    border-bottom:1px solid var(--line);padding:64px 20px 48px}
+  header .wrap{padding-bottom:0}
+  .kicker{color:var(--brand);font-weight:700;letter-spacing:.14em;font-size:13px;text-transform:uppercase}
+  h1{font-size:clamp(28px,5vw,44px);line-height:1.22;margin:.35em 0 .3em;font-weight:800}
+  h1 .hl{background:linear-gradient(90deg,var(--brand),var(--brand2));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .lead{font-size:19px;color:var(--sub);max-width:720px}
+
+  section{margin-top:60px}
+  h2{font-size:clamp(23px,3.4vw,29px);margin:0 0 8px;font-weight:800;display:flex;align-items:center;gap:12px}
+  h2 .num{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:12px;
+    background:linear-gradient(135deg,var(--brand),var(--brand2));color:#06121f;font-size:18px;font-weight:900;flex:0 0 auto}
+  h3{font-size:19px;margin:26px 0 6px}
+  p{margin:.6em 0}
+  .muted{color:var(--sub)}
+  b.hlt{color:#fff}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px 24px;margin:18px 0}
+  .card.tight{padding:16px 18px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+  @media(max-width:720px){.grid2,.grid3{grid-template-columns:1fr}}
+
+  .callout{border-left:4px solid var(--brand);background:var(--panel2);border-radius:0 12px 12px 0;padding:14px 18px;margin:16px 0}
+  .callout.good{border-color:var(--good)} .callout.warn{border-color:var(--warn)}
+  .callout b{color:#fff}
+  .emoji{font-size:20px;margin-right:6px}
+  .big-idea{background:linear-gradient(135deg,rgba(56,189,248,.16),rgba(129,140,248,.16));
+    border:1px solid var(--line);border-radius:18px;padding:24px 26px;margin:18px 0;font-size:19px;text-align:center;font-weight:700}
+  .big-idea span{color:var(--accent)}
+
+  .inline{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:1px 7px;
+    font-family:"Consolas","D2Coding",monospace;font-size:14px;color:#fde68a}
+
+  /* head role cards */
+  .role{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+  .role .tag{display:inline-block;font-weight:900;font-size:13px;letter-spacing:.06em;padding:3px 10px;border-radius:8px;margin-bottom:8px}
+  .role.q .tag{background:rgba(56,189,248,.2);color:var(--brand)}
+  .role.k .tag{background:rgba(129,140,248,.2);color:var(--brand2)}
+  .role.v .tag{background:rgba(52,211,153,.2);color:var(--good)}
+  .role h4{margin:0 0 4px;font-size:17px}
+
+  /* head split bar */
+  .headbtns{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+  .headbtn{background:var(--panel2);border:2px solid var(--line);border-radius:10px;padding:8px 16px;font-weight:700;cursor:pointer;font-size:15px}
+  .headbtn:hover{border-color:var(--brand)}
+  .headbtn.sel{background:linear-gradient(135deg,var(--brand),var(--brand2));color:#06121f;border-color:transparent}
+  .splitbar{display:flex;height:56px;border-radius:12px;overflow:hidden;border:1px solid var(--line);margin:14px 0}
+  .splitseg{display:flex;align-items:center;justify-content:center;color:#06121f;font-weight:800;font-size:13px;
+    border-right:2px solid rgba(15,23,42,.55)}
+  .splitseg:last-child{border-right:none}
+  .splitlabel{display:flex;justify-content:space-between;font-size:12px;color:var(--sub);margin-top:4px}
+
+  /* token buttons (reuse attention.html look) */
+  .tokrow{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0}
+  .tok{background:var(--panel2);border:2px solid var(--line);border-radius:12px;padding:10px 16px;font-weight:700;cursor:pointer;transition:all .12s;font-size:16px}
+  .tok:hover{border-color:var(--brand)}
+  .tok.sel{background:linear-gradient(135deg,var(--brand),var(--brand2));color:#06121f;border-color:transparent;box-shadow:0 0 16px rgba(56,189,248,.45)}
+
+  /* attention bars */
+  .attn-row{display:flex;align-items:center;gap:12px;margin:9px 0}
+  .attn-row .name{width:70px;text-align:right;font-weight:700;flex:0 0 auto}
+  .attn-row .track{flex:1;background:var(--code);border:1px solid var(--line);border-radius:8px;height:28px;position:relative;overflow:hidden}
+  .attn-row .barfill{height:100%;border-radius:6px 0 0 6px;background:linear-gradient(90deg,var(--brand),var(--brand2));transition:width .35s}
+  .attn-row .barfill.headb{background:linear-gradient(90deg,var(--good),var(--accent))}
+  .attn-row .pct{width:52px;text-align:right;font-variant-numeric:tabular-nums;color:var(--accent);font-weight:700;flex:0 0 auto}
+
+  .steps{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;margin:10px 0}
+  .step{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:13px;font-weight:700}
+  .step .arw{color:var(--sub);margin:0 2px}
+
+  pre{background:var(--code);border:1px solid var(--line);border-radius:14px;padding:18px;overflow:auto;font-size:14px;line-height:1.7;margin:14px 0}
+  code{font-family:"Consolas","D2Coding",monospace}
+  pre code{color:#cbd5e1}
+  .cmt{color:#64748b}.kw{color:#f472b6}.fn{color:#38bdf8}.num2{color:#fbbf24}.str{color:#34d399}
+
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:15px}
+  th,td{border:1px solid var(--line);padding:9px 12px;text-align:left}
+  th{background:var(--panel2);color:#fff}
+
+  footer{margin-top:80px;border-top:1px solid var(--line);padding-top:24px;color:var(--sub);font-size:14px}
+  .toc{position:sticky;top:0;z-index:5;background:rgba(15,23,42,.85);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+  .toc .wrap{display:flex;gap:6px;flex-wrap:wrap;padding:10px 20px;overflow-x:auto}
+  .toc a{color:var(--sub);text-decoration:none;font-size:13px;padding:6px 10px;border-radius:8px;white-space:nowrap}
+  .toc a:hover{background:var(--panel);color:#fff}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="kicker">Mini-Transformer · 멀티헤드 어텐션 다시 쉽게</div>
+    <h1>멀티헤드 어텐션은<br><span class="hl">"카메라 여러 대로 한 장면 찍기"</span> 입니다</h1>
+    <p class="lead">어텐션(<a href="attention.html">Scaled Dot-Product Attention</a>) 하나만 쓰면 <b>한 가지 관점</b>만 보게 됩니다.
+    멀티헤드는 같은 문장을 <b>여러 대의 카메라(헤드)</b>로 동시에 찍어 각기 다른 관점(의미·구조·위치 등)을 모은 뒤 <b>한 장으로 합치는</b> 장치예요.
+    아래에서 헤드 수를 직접 바꿔 보며 확인해 봅시다.</p>
+  </div>
+</header>
+
+<nav class="toc"><div class="wrap">
+  <a href="#p1">1. 무슨 문제</a>
+  <a href="#p2">2. 카메라 여러 대 비유</a>
+  <a href="#p3">3. 쪼개기(split)</a>
+  <a href="#p4">4. 왜 헤드마다 다르게 볼까</a>
+  <a href="#p5">5. 직접 해보기</a>
+  <a href="#p6">6. 합치기 & 코드</a>
+  <a href="#p7">7. 헷갈리기 쉬운 점</a>
+  <a href="#p8">8. 요약</a>
+</div></nav>
+
+<div class="wrap">
+
+<!-- 1 -->
+<section id="p1">
+  <h2><span class="num">1</span> 어텐션 한 벌로는 부족한 이유 (30초)</h2>
+  <p><a href="attention.html">이전 문서</a>에서 배운 어텐션(Q·K·V)은 <b class="hlt">딱 한 번</b> 계산됩니다.
+  질문 <b class="hlt">"먹구름이"</b> 와 답 <b class="hlt">"비가"</b> 의 <b>의미 관련성</b>은 잘 잡아내지만,
+  동시에 <b>"몇 번째 단어인가"</b>, <b>"문장 구조상 무슨 역할인가"</b> 같은 <b>다른 관점</b>은 한 번의 계산에 다 담기 어려워요.</p>
+
+  <div class="big-idea">카메라 <span>한 대</span>로는 <span>한 각도</span>만 찍힌다<br>→ 카메라를 <span>여러 대</span> 두고 각자 찍은 뒤 <span>합치자</span></div>
+
+  <div class="callout"><span class="emoji">🎥</span><b>노트북 코드 주석 그대로:</b>
+  "한 번에 한 관점만 보지 말고, 여러 <b>'헤드'</b>로 나눠 서로 다른 관점(문법/의미/위치 등)에서
+  동시에 주목한 뒤 합칩니다. <b>카메라 여러 대로 같은 장면을 다른 각도에서 찍는 셈.</b>"</div>
+</section>
+
+<!-- 2 -->
+<section id="p2">
+  <h2><span class="num">2</span> 비유: 카메라 여러 대, 나중에 한 장으로</h2>
+  <p>멀티헤드 어텐션이 하는 일은 딱 세 단계입니다. 이전 문서의 도서관 비유(Q=검색어·K=색인·V=내용)에
+  <b>"카메라 대수"</b> 하나만 추가하면 됩니다.</p>
+  <div class="grid3">
+    <div class="role q">
+      <span class="tag">① 쪼개기</span>
+      <h4>📷 카메라 배치</h4>
+      <p class="muted" style="margin:0">Q·K·V 전체를 <b>헤드 수(h)</b>만큼 나눠, 각 카메라가 담당할 <b>부분(dₖ차원)</b>을 정합니다.</p>
+    </div>
+    <div class="role k">
+      <span class="tag">② 각자 촬영</span>
+      <h4>🔎 헤드별 어텐션</h4>
+      <p class="muted" style="margin:0">각 헤드가 <b>독립적으로</b> 이전 문서의 어텐션 공식을 그대로 계산합니다. 서로 간섭하지 않아요.</p>
+    </div>
+    <div class="role v">
+      <span class="tag">③ 합치기</span>
+      <h4>🖼️ 한 장으로</h4>
+      <p class="muted" style="margin:0">헤드별 결과를 <b>이어붙이고(merge)</b>, 선형변환(wo)으로 한 번 더 섞어 최종 결과를 냅니다.</p>
+    </div>
+  </div>
+  <div class="callout good"><span class="emoji">💡</span>핵심 제약: <b class="inline">d_model = h × dₖ</b>.
+  전체 폭(d_model)은 그대로 두고 <b>카메라 대수(h)를 늘리면 카메라 한 대당 담당 폭(dₖ)은 줄어듭니다.</b> 폭을 나눠 쓰는 거예요.</div>
+</section>
+
+<!-- 3 -->
+<section id="p3">
+  <h2><span class="num">3</span> 쪼개기(split) — d_model을 헤드로 나누기</h2>
+  <p>실습 노트북의 체크포인트는 <span class="inline">d_model=8</span> 로 테스트합니다.
+  아래에서 <b>헤드 수(h)</b>를 눌러 바꾸면, 헤드 한 개당 차원 <span class="inline">dₖ = d_model / h</span> 이 어떻게 달라지는지 보세요.</p>
+
+  <div class="card">
+    <p class="muted" style="margin:0 0 8px">d_model = 8 (체크포인트 셀과 동일) · 헤드 수 선택</p>
+    <div class="headbtns" id="headBtns"></div>
+    <div class="splitbar" id="splitBar"></div>
+    <div class="splitlabel"><span>d_model = 8 (전체 폭, 안 바뀜)</span><span id="dkLabel">dₖ = 8 / 4 = 2</span></div>
+  </div>
+
+  <div class="callout"><span class="emoji">📐</span>
+  텐서 모양으로 보면 <span class="inline">(B, S, d_model)</span> → <b>view+transpose</b> →
+  <span class="inline">(B, h, S, dₖ)</span>. 헤드 축을 앞으로 빼서 <b>헤드별로 완전히 따로</b> 어텐션을 계산할 수 있게 만드는 것뿐,
+  값 자체는 그대로 재배열됩니다(정보가 사라지지 않음).</div>
+
+  <div class="callout good"><span class="emoji">🏭</span><b>실제 학습에 쓰는 진짜 값</b> (부품⑨ <span class="inline">Transformer</span> 기본 하이퍼파라미터, 실제 학습 셀에서도 그대로 사용):
+  <span class="inline">d_model=64, num_heads=4</span> → <b>dₖ = 64 / 4 = 16</b>. 체크포인트(8→4→2)와 똑같은 공식, 숫자만 실전 크기예요.</div>
+
+<pre><code><span class="cmt"># split: (B, S, d_model) → (B, h, S, dk)</span>
+<span class="kw">def</span> <span class="fn">split</span>(self, x):
+    b, s, _ = x.shape
+    <span class="kw">return</span> x.<span class="fn">view</span>(b, s, self.h, self.dk).<span class="fn">transpose</span>(<span class="num2">1</span>, <span class="num2">2</span>)   <span class="cmt"># (B, 헤드, 길이, dk)</span></code></pre>
+</section>
+
+<!-- 4 -->
+<section id="p4">
+  <h2><span class="num">4</span> 헤드마다 왜 다르게 볼까?</h2>
+  <p>코드를 보면 <span class="inline">wq, wk, wv</span> 는 각각 <b>d_model → d_model 한 덩어리</b> 선형변환입니다.
+  헤드별로 <b>따로 만든 작은 Linear가 있는 게 아니에요.</b> 대신 이 큰 변환의 출력을 <span class="inline">split</span> 으로 조각냅니다.</p>
+  <div class="callout"><span class="emoji">🧩</span>
+  그런데 학습이 진행되면, <span class="inline">wq</span>(과 wk, wv)의 <b>각 조각(헤드 몫)</b>은 서로 다른 방향으로 값이 조정됩니다.
+  그 결과 헤드 1은 우연히 "의미 관련성"에 민감해지고, 헤드 2는 "문장 위치"에 민감해지는 식으로 <b class="hlt">자연히 역할이 나뉘는 경향</b>이 생깁니다.
+  누가 정해준 게 아니라 <b>학습이 알아서</b> 다른 관점을 만들어내는 거예요.</div>
+  <p class="muted">아래 5번에서는 이 "관점이 다르다"는 게 실제로 어떤 모습인지, 같은 예시 벡터를 두 헤드로 쪼개 직접 계산해 보여드립니다.</p>
+</section>
+
+<!-- 5 -->
+<section id="p5">
+  <h2><span class="num">5</span> 직접 해보기 — 헤드 2개, 서로 다른 관점</h2>
+  <p><a href="attention.html">이전 문서 6번 데모</a>에서 쓴 질문 <b class="hlt">"하늘에·먹구름이·보이면·뭐가·생각나"</b> /
+  답 <b class="hlt">"비가·올·것·같아"</b> 의 4차원 예시 벡터를 그대로 가져와, <b>앞 2차원 = 헤드 A</b>(날씨현상·하늘배경),
+  <b>뒤 2차원 = 헤드 B</b>(질문구조·서술) 로 쪼갠 뒤, 진짜 <span class="inline">scaled_dot_product_attention</span> 공식으로
+  헤드별 어텐션을 각각 계산합니다.</p>
+
+  <div class="card">
+    <p class="muted" style="margin:0 0 4px">① 지금 만들 답 단어(Query) 고르기</p>
+    <div class="tokrow" id="tokrow"></div>
+    <p class="muted" style="margin:14px 0 4px">② <b id="qName" style="color:var(--brand)">비가</b> 의 <b style="color:var(--brand)">헤드 A</b>(날씨·배경) 주목 비율</p>
+    <div id="attnBarsA"></div>
+    <p class="muted" style="margin:14px 0 4px"><b id="qName2" style="color:var(--good)">비가</b> 의 <b style="color:var(--good)">헤드 B</b>(구조·서술) 주목 비율</p>
+    <div id="attnBarsB"></div>
+  </div>
+  <div class="callout good"><span class="emoji">👀</span>
+  <b>"비가"</b>를 고르면 → 헤드 A는 <b>"먹구름이"</b>에 강하게 쏠립니다(날씨 관련 차원만 보니까).
+  반면 헤드 B는 이 쿼리에서 구조/서술 차원 값이 거의 0이라 <b>고르게 퍼집니다</b> — "비가"를 만들 땐 헤드 B가 별 정보를 안 주는 셈이죠.
+  <b>"같아"</b>를 눌러 보면 이번엔 반대로 헤드 B가 더 뚜렷한 패턴을 보입니다. <b class="hlt">쿼리마다 어느 헤드가 "말을 거는지"가 달라집니다.</b></div>
+</section>
+
+<!-- 6 -->
+<section id="p6">
+  <h2><span class="num">6</span> 합치기(merge) & 전체 코드</h2>
+  <p>헤드별 결과 <span class="inline">(B, h, S, dₖ)</span> 를 다시 <span class="inline">(B, S, d_model)</span> 로 이어붙이는 게
+  <span class="inline">merge</span>, split의 역연산입니다. 그 다음 <span class="inline">wo</span> 선형변환이 헤드 경계를 넘어 한 번 더 정보를 섞어 줍니다.</p>
+
+  <div class="steps">
+    <span class="step">헤드별 결과<br>(B,h,S,dₖ)</span><span class="arw">→</span>
+    <span class="step">merge<br>(B,S,d_model)</span><span class="arw">→</span>
+    <span class="step" style="border-color:var(--good);color:var(--good)">wo(Linear)<br>최종 출력</span>
+  </div>
+
+<pre><code><span class="kw">class</span> <span class="fn">MultiHeadAttention</span>(nn.Module):
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, d_model, num_heads, dropout=<span class="num2">0.1</span>):
+        super().<span class="fn">__init__</span>()
+        self.h, self.dk = num_heads, d_model // num_heads      <span class="cmt"># dk = d_model / h</span>
+        self.wq = nn.<span class="fn">Linear</span>(d_model, d_model); self.wk = nn.<span class="fn">Linear</span>(d_model, d_model)
+        self.wv = nn.<span class="fn">Linear</span>(d_model, d_model); self.wo = nn.<span class="fn">Linear</span>(d_model, d_model)
+        self.dropout = nn.<span class="fn">Dropout</span>(dropout)
+        self.last_attn_weights = <span class="kw">None</span>                 <span class="cmt"># 시각화용 보관</span>
+
+    <span class="kw">def</span> <span class="fn">split</span>(self, x):                                   <span class="cmt"># (B,S,d_model)→(B,h,S,dk)</span>
+        b, s, _ = x.shape
+        <span class="kw">return</span> x.<span class="fn">view</span>(b, s, self.h, self.dk).<span class="fn">transpose</span>(<span class="num2">1</span>, <span class="num2">2</span>)
+
+    <span class="kw">def</span> <span class="fn">merge</span>(self, x):                                   <span class="cmt"># (B,h,S,dk)→(B,S,d_model)</span>
+        b, _, s, _ = x.shape
+        <span class="kw">return</span> x.<span class="fn">transpose</span>(<span class="num2">1</span>, <span class="num2">2</span>).<span class="fn">contiguous</span>().<span class="fn">view</span>(b, s, self.h * self.dk)
+
+    <span class="kw">def</span> <span class="fn">forward</span>(self, q, k, v, mask=<span class="kw">None</span>):
+        q, k, v = self.<span class="fn">split</span>(self.<span class="fn">wq</span>(q)), self.<span class="fn">split</span>(self.<span class="fn">wk</span>(k)), self.<span class="fn">split</span>(self.<span class="fn">wv</span>(v))
+        ctx, attn = <span class="fn">scaled_dot_product_attention</span>(q, k, v, mask, self.dropout)   <span class="cmt"># 헤드별 독립 계산</span>
+        self.last_attn_weights = attn.<span class="fn">detach</span>()
+        <span class="kw">return</span> self.<span class="fn">wo</span>(self.<span class="fn">merge</span>(ctx))                       <span class="cmt"># 합친 뒤 한 번 더 섞기</span></code></pre>
+
+  <table>
+    <tr><th>코드</th><th>단계</th><th>쉬운 말</th></tr>
+    <tr><td><span class="inline">wq/wk/wv(x)</span></td><td>①</td><td>Q·K·V를 각각 만드는 큰 선형변환 (d_model→d_model)</td></tr>
+    <tr><td><span class="inline">split(...)</span></td><td>②</td><td>헤드 수만큼 조각내 (B,h,S,dₖ)로</td></tr>
+    <tr><td><span class="inline">scaled_dot_product_attention</span></td><td>③</td><td>헤드마다 독립적으로 이전 문서의 어텐션 공식 적용</td></tr>
+    <tr><td><span class="inline">merge(ctx)</span></td><td>④</td><td>헤드 결과를 다시 (B,S,d_model)로 이어붙임</td></tr>
+    <tr><td><span class="inline">wo(...)</span></td><td>⑤</td><td>합친 결과를 한 번 더 선형변환해 최종 출력</td></tr>
+  </table>
+</section>
+
+<!-- 7 -->
+<section id="p7">
+  <h2><span class="num">7</span> 헷갈리기 쉬운 점</h2>
+  <div class="callout warn"><span class="emoji">⚖️</span><b>헤드를 늘리면 무조건 좋아지나?</b>
+  아니요. <span class="inline">d_model</span>이 고정이면 헤드(h)를 늘릴수록 헤드당 폭(dₖ)이 줄어듭니다.
+  헤드가 너무 많아지면 한 헤드가 담을 수 있는 정보가 너무 작아져 오히려 표현력이 떨어질 수 있어요.
+  이 노트북은 d_model=64에 num_heads=4(dₖ=16)로 균형을 잡았습니다.</div>
+  <div class="callout"><span class="emoji">🧪</span><b>체크포인트가 실제로 확인하는 것:</b>
+  <span class="inline">MultiHeadAttention(8, 4, 0.0)</span> 에 모양 <span class="inline">(1,3,8)</span> 짜리 Q,K,V를 넣으면
+  출력도 그대로 <span class="inline">(1,3,8)</span> 이어야 합니다(차원 보존). 헤드로 쪼개고 다시 합치는 과정에서
+  <b>모양이 안 틀어지는지</b>를 검증하는 거예요 — 값이 아니라 "배관이 안 새는지" 확인입니다.</div>
+  <div class="callout good"><span class="emoji">🔁</span><b>self든 cross든 똑같이 동작</b>합니다.
+  <a href="attention.html">이전 문서 8번</a>에서 본 것처럼, <span class="inline">MultiHeadAttention</span>도
+  <span class="inline">self_attn(x,x,x)</span> 로 부르면 셀프어텐션, <span class="inline">cross_attn(x, enc, enc)</span> 로 부르면
+  크로스어텐션이 됩니다. 헤드로 쪼개는 로직은 어느 쪽이든 동일해요.</div>
+</section>
+
+<!-- 8 -->
+<section id="p8">
+  <h2><span class="num">8</span> 30초 요약</h2>
+  <div class="card" style="text-align:center;padding:30px">
+    <p style="font-size:21px;font-weight:800;margin:0;line-height:1.7">
+      "어텐션 <span style="color:var(--brand)">한 벌</span>은 한 관점만 본다.<br>
+      그래서 <span style="color:var(--accent)">d_model을 h개 헤드로 쪼개</span>,<br>
+      헤드마다 <span style="color:var(--good)">독립적으로 어텐션</span>을 계산한 뒤,<br>
+      결과를 <span style="color:var(--brand2)">다시 이어붙이고 wo로 섞어</span> 하나로 합친다."
+    </p>
+  </div>
+  <div class="grid2" style="margin-top:18px">
+    <div class="card tight"><b>🎥 비유</b><br><span class="muted">카메라 여러 대로 같은 장면 찍기</span></div>
+    <div class="card tight"><b>📐 제약</b><br><span class="muted">d_model = h × dₖ</span></div>
+    <div class="card tight"><b>🧩 파라미터</b><br><span class="muted">wq/wk/wv/wo는 헤드 공유 없이 하나의 큰 Linear</span></div>
+    <div class="card tight"><b>🔁 순서</b><br><span class="muted">split → 헤드별 어텐션 → merge → wo</span></div>
+  </div>
+</section>
+
+<footer>
+  <p>Mini-Transformer 실습 교재 · 멀티헤드 어텐션 쉬운 설명판<br>
+  코드 출처: <span class="inline">example-detailed.ipynb</span> — 부품 ③ Multi-Head Attention (셀 14, 체크포인트 셀 15)<br>
+  함께 보기: <a href="attention.html">어텐션(부품②)</a> · <a href="positional-encoding.html">위치 인코딩</a> · <a href="vocab.html">어휘 사전</a></p>
+</footer>
+
+</div>
+
+<script>
+function dot(a,b){let s=0;for(let i=0;i<a.length;i++)s+=a[i]*b[i];return s;}
+function softmax(arr){const m=Math.max(...arr);const e=arr.map(v=>Math.exp(v-m));const s=e.reduce((a,b)=>a+b,0);return e.map(v=>v/s);}
+
+/* ================= 3. split 시각화 (d_model=8 고정) ================= */
+const D_MODEL=8;
+const HEAD_OPTS=[1,2,4,8];
+const segColors=['var(--brand)','var(--brand2)','var(--good)','var(--accent)','var(--warn)'];
+let curH=4;
+const headBtns=document.getElementById('headBtns'),splitBar=document.getElementById('splitBar'),dkLabel=document.getElementById('dkLabel');
+function renderHeadBtns(){
+  headBtns.innerHTML=HEAD_OPTS.map(h=>`<div class="headbtn ${h===curH?'sel':''}" data-h="${h}">h = ${h}</div>`).join('');
+  headBtns.querySelectorAll('.headbtn').forEach(el=>el.onclick=()=>{curH=+el.dataset.h;renderHeadBtns();renderSplit();});
+}
+function renderSplit(){
+  const dk=D_MODEL/curH;
+  let html='';
+  for(let i=0;i<curH;i++){
+    const col=segColors[i%segColors.length];
+    const dim=i>=segColors.length?'filter:brightness(.7)':'';
+    html+=`<div class="splitseg" style="width:${100/curH}%;background:${col};${dim}">dₖ=${dk}</div>`;
+  }
+  splitBar.innerHTML=html;
+  dkLabel.textContent=`dₖ = 8 / ${curH} = ${dk}`;
+}
+renderHeadBtns(); renderSplit();
+
+/* ================= 5. 헤드 2개 비교 데모 (attention.html 데이터 재사용) ================= */
+const QUESTION=['하늘에','먹구름이','보이면','뭐가','생각나'];
+const ANSWER=['비가','올','것','같아'];
+// attention.html과 동일한 4차원 벡터. 앞 2차원=헤드A(날씨현상,하늘배경), 뒤 2차원=헤드B(질문구조,서술)
+const K=[
+ [0.10,0.90,0.00,0.00],
+ [0.95,0.30,0.00,0.00],
+ [0.20,0.30,0.50,0.00],
+ [0.00,0.00,0.90,0.10],
+ [0.00,0.00,0.60,0.40],
+];
+const Q=[
+ [0.95,0.10,0.00,0.00],
+ [0.30,0.20,0.20,0.40],
+ [0.10,0.10,0.40,0.30],
+ [0.20,0.10,0.50,0.40],
+];
+const DK_HEAD=2; // 헤드당 차원 (4차원을 2헤드로 쪼갬)
+let selIdx=0;
+const tokrow=document.getElementById('tokrow'),qName=document.getElementById('qName'),qName2=document.getElementById('qName2');
+const attnBarsA=document.getElementById('attnBarsA'),attnBarsB=document.getElementById('attnBarsB');
+function renderToks(){
+  tokrow.innerHTML=ANSWER.map((t,i)=>`<div class="tok ${i===selIdx?'sel':''}" data-i="${i}">${t}</div>`).join('');
+  tokrow.querySelectorAll('.tok').forEach(el=>el.onclick=()=>{selIdx=+el.dataset.i;renderToks();renderAttn();});
+}
+function bars(el,weights,cls){
+  const mx=Math.max(...weights);
+  let h='';
+  for(let j=0;j<QUESTION.length;j++){
+    const pct=weights[j]*100;
+    h+=`<div class="attn-row">
+      <div class="name" style="width:80px">${QUESTION[j]}</div>
+      <div class="track"><div class="barfill ${cls}" style="width:${pct.toFixed(1)}%"></div></div>
+      <div class="pct">${pct.toFixed(0)}%</div></div>`;
+  }
+  el.innerHTML=h;
+}
+function renderAttn(){
+  qName.textContent=ANSWER[selIdx]; qName2.textContent=ANSWER[selIdx];
+  const qFull=Q[selIdx];
+  const qA=qFull.slice(0,2), qB=qFull.slice(2,4);
+  const scoresA=QUESTION.map((_,j)=>dot(qA,K[j].slice(0,2))/Math.sqrt(DK_HEAD));
+  const scoresB=QUESTION.map((_,j)=>dot(qB,K[j].slice(2,4))/Math.sqrt(DK_HEAD));
+  bars(attnBarsA,softmax(scoresA),'');
+  bars(attnBarsB,softmax(scoresB),'headb');
+}
+renderToks(); renderAttn();
+</script>
+</body>
+</html>

@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>디코더 블록(DecoderLayer) — 세상에서 제일 쉽게</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel2:#273449;
+    --ink:#e2e8f0; --sub:#94a3b8; --line:#334155;
+    --brand:#38bdf8; --brand2:#818cf8; --accent:#fbbf24;
+    --good:#34d399; --warn:#f472b6; --code:#0b1220;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:"Segoe UI","Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif;
+    line-height:1.8;font-size:17px}
+  a{color:var(--brand)}
+  .wrap{max-width:900px;margin:0 auto;padding:0 20px 120px}
+
+  header{background:radial-gradient(1200px 500px at 20% -10%,rgba(56,189,248,.25),transparent 60%),
+    radial-gradient(1000px 500px at 90% 0%,rgba(129,140,248,.22),transparent 55%),var(--bg);
+    border-bottom:1px solid var(--line);padding:64px 20px 48px}
+  header .wrap{padding-bottom:0}
+  .kicker{color:var(--brand);font-weight:700;letter-spacing:.14em;font-size:13px;text-transform:uppercase}
+  h1{font-size:clamp(28px,5vw,44px);line-height:1.22;margin:.35em 0 .3em;font-weight:800}
+  h1 .hl{background:linear-gradient(90deg,var(--brand),var(--brand2));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .lead{font-size:19px;color:var(--sub);max-width:720px}
+
+  section{margin-top:60px}
+  h2{font-size:clamp(23px,3.4vw,29px);margin:0 0 8px;font-weight:800;display:flex;align-items:center;gap:12px}
+  h2 .num{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:12px;
+    background:linear-gradient(135deg,var(--brand),var(--brand2));color:#06121f;font-size:18px;font-weight:900;flex:0 0 auto}
+  h3{font-size:19px;margin:26px 0 6px}
+  p{margin:.6em 0}
+  .muted{color:var(--sub)}
+  b.hlt{color:#fff}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px 24px;margin:18px 0}
+  .card.tight{padding:16px 18px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+  @media(max-width:720px){.grid2,.grid3{grid-template-columns:1fr}}
+
+  .callout{border-left:4px solid var(--brand);background:var(--panel2);border-radius:0 12px 12px 0;padding:14px 18px;margin:16px 0}
+  .callout.good{border-color:var(--good)} .callout.warn{border-color:var(--warn)}
+  .callout b{color:#fff}
+  .emoji{font-size:20px;margin-right:6px}
+  .big-idea{background:linear-gradient(135deg,rgba(56,189,248,.16),rgba(129,140,248,.16));
+    border:1px solid var(--line);border-radius:18px;padding:24px 26px;margin:18px 0;font-size:19px;text-align:center;font-weight:700}
+  .big-idea span{color:var(--accent)}
+
+  .inline{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:1px 7px;
+    font-family:"Consolas","D2Coding",monospace;font-size:14px;color:#fde68a}
+
+  /* sublayer role cards */
+  .role{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+  .role .tag{display:inline-block;font-weight:900;font-size:13px;letter-spacing:.06em;padding:3px 10px;border-radius:8px;margin-bottom:8px}
+  .role.q .tag{background:rgba(56,189,248,.2);color:var(--brand)}
+  .role.k .tag{background:rgba(129,140,248,.2);color:var(--brand2)}
+  .role.v .tag{background:rgba(52,211,153,.2);color:var(--good)}
+  .role h4{margin:0 0 4px;font-size:17px}
+
+  /* token buttons (attention.html과 동일) */
+  .tokrow{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0}
+  .tok{background:var(--panel2);border:2px solid var(--line);border-radius:12px;padding:10px 16px;font-weight:700;cursor:pointer;transition:all .12s;font-size:16px}
+  .tok:hover{border-color:var(--brand)}
+  .tok.sel{background:linear-gradient(135deg,var(--brand),var(--brand2));color:#06121f;border-color:transparent;box-shadow:0 0 16px rgba(56,189,248,.45)}
+
+  /* attention bars */
+  .attn-row{display:flex;align-items:center;gap:12px;margin:9px 0}
+  .attn-row .name{width:70px;text-align:right;font-weight:700;flex:0 0 auto}
+  .attn-row .track{flex:1;background:var(--code);border:1px solid var(--line);border-radius:8px;height:30px;position:relative;overflow:hidden}
+  .attn-row .barfill{height:100%;border-radius:6px 0 0 6px;background:linear-gradient(90deg,var(--brand),var(--brand2));transition:width .35s}
+  .attn-row .pct{width:56px;text-align:right;font-variant-numeric:tabular-nums;color:var(--accent);font-weight:700;flex:0 0 auto}
+
+  .steps{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;margin:10px 0}
+  .step{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:13px;font-weight:700}
+  .step .arw{color:var(--sub);margin:0 2px}
+
+  /* 인과 마스크 그리드(디코더 전용 신규 컴포넌트, 팔레트는 기존 변수만 사용) */
+  .maskgrid table{text-align:center}
+  .maskgrid th{background:var(--panel2)}
+  .maskgrid td{font-size:15px;transition:all .15s}
+  .maskgrid td.open{background:rgba(52,211,153,.16);color:var(--good);font-weight:800}
+  .maskgrid td.blocked{background:rgba(244,114,182,.10);color:var(--warn);opacity:.6}
+  .maskgrid td.selcol,.maskgrid th.selrow{border-color:var(--brand)!important;border-width:2px!important}
+
+  pre{background:var(--code);border:1px solid var(--line);border-radius:14px;padding:18px;overflow:auto;font-size:14px;line-height:1.7;margin:14px 0}
+  code{font-family:"Consolas","D2Coding",monospace}
+  pre code{color:#cbd5e1}
+  .cmt{color:#64748b}.kw{color:#f472b6}.fn{color:#38bdf8}.num2{color:#fbbf24}.str{color:#34d399}
+
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:15px}
+  th,td{border:1px solid var(--line);padding:9px 12px;text-align:left}
+  th{background:var(--panel2);color:#fff}
+
+  footer{margin-top:80px;border-top:1px solid var(--line);padding-top:24px;color:var(--sub);font-size:14px}
+  .toc{position:sticky;top:0;z-index:5;background:rgba(15,23,42,.85);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+  .toc .wrap{display:flex;gap:6px;flex-wrap:wrap;padding:10px 20px;overflow-x:auto}
+  .toc a{color:var(--sub);text-decoration:none;font-size:13px;padding:6px 10px;border-radius:8px;white-space:nowrap}
+  .toc a:hover{background:var(--panel);color:#fff}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="kicker">Mini-Transformer · 디코더 블록 쉽게</div>
+    <h1>디코더는<br><span class="hl">"답을 쓰며 곁눈질하기"</span> 입니다</h1>
+    <p class="lead">디코더 블록(<span class="inline">DecoderLayer</span>)은 답을 한 단어씩 써 내려가면서,
+    ① <b>자기가 지금까지 쓴 답</b>만 돌아보고 ② <b>문제(질문)</b>를 곁눈질해서 다음 단어를 정합니다.
+    시험 볼 때 <b>답안지 뒷장은 못 보고, 문제지는 계속 곁눈질</b>하는 수험생과 똑같아요.</p>
+  </div>
+</header>
+
+<nav class="toc"><div class="wrap">
+  <a href="#p1">1. 무슨 일을 하나</a>
+  <a href="#p2">2. 인코더와 뭐가 다를까</a>
+  <a href="#p3">3. 마스크드 셀프어텐션</a>
+  <a href="#p4">4. 크로스어텐션</a>
+  <a href="#p5">5. 코드</a>
+  <a href="#p6">6. 헷갈리기 쉬운 점</a>
+  <a href="#p7">7. 요약</a>
+</div></nav>
+
+<div class="wrap">
+
+<!-- 1 -->
+<section id="p1">
+  <h2><span class="num">1</span> 디코더 블록이 하는 일 (30초)</h2>
+  <p>질문 <b class="hlt">"하늘에 먹구름이 보이면 뭐가 생각나"</b> 를 이해한 인코더 결과가 있다고 해봅시다.
+  이제 답 <b class="hlt">"비가 올 것 같아"</b> 를 <b>한 단어씩</b> 써야 합니다. "비가" 다음에 "올"을 쓰려면
+  ① <b>지금까지 쓴 답("비가")</b> 을 보고, ② <b>질문("먹구름이" 등)</b> 도 다시 살펴봐야겠죠. 이 두 가지 참고 + 정리를
+  한 겹으로 묶은 것이 <span class="inline">DecoderLayer</span> 입니다.</p>
+
+  <div class="big-idea">디코더 블록 한 겹 = <span>내가 쓴 답 돌아보기</span> → <span>질문 곁눈질하기</span> → <span>혼자 정리하기</span></div>
+
+  <div class="callout"><span class="emoji">✍️</span><b>수험생 비유로 시작합니다.</b>
+  서술형 답을 쓰는 학생을 떠올려 보세요. 한 글자 쓸 때마다 <b class="hlt">방금 내가 쓴 문장</b>을 돌아보고,
+  <b class="hlt">문제지</b>를 곁눈질해서 힌트를 다시 확인하죠. <b>단, 답안지 뒷장(아직 안 쓴 미래)은 절대 못 봅니다.</b>
+  디코더 블록이 정확히 이 과정을 계산으로 흉내 냅니다.</div>
+</section>
+
+<!-- 2 -->
+<section id="p2">
+  <h2><span class="num">2</span> 인코더와 뭐가 다를까</h2>
+  <p>인코더 블록(<span class="inline">EncoderLayer</span>, 부품 ⑤)은 질문을 <b>"이해"</b>만 하면 되니 하위층이 2개(셀프어텐션 → FFN)면 충분합니다.
+  디코더는 <b>"생성"</b>까지 해야 해서 하위층이 <b>하나 더</b> 필요합니다.</p>
+  <table>
+    <tr><th>구분</th><th>EncoderLayer (부품⑤)</th><th>DecoderLayer (부품⑥, 지금 배우는 것)</th></tr>
+    <tr><td>하는 일</td><td>질문을 <b>이해</b></td><td>답을 <b>생성</b></td></tr>
+    <tr><td>하위층 수</td><td>2개</td><td>3개</td></tr>
+    <tr><td>1번째</td><td>셀프어텐션 <span class="inline">self_attn(x,x,x)</span></td><td>마스크드 셀프어텐션 <span class="inline">self_attn(x,x,x,tgt_mask)</span></td></tr>
+    <tr><td>2번째</td><td>FFN</td><td>크로스어텐션 <span class="inline">cross_attn(x,enc,enc,src_mask)</span></td></tr>
+    <tr><td>3번째</td><td>—</td><td>FFN</td></tr>
+    <tr><td>LayerNorm 개수</td><td>2개 (n1, n2)</td><td>3개 (n1, n2, n3)</td></tr>
+  </table>
+  <div class="steps">
+    <span class="step">마스크드 셀프어텐션</span><span class="arw">→</span>
+    <span class="step">크로스어텐션</span><span class="arw">→</span>
+    <span class="step">FFN</span><span class="arw">→</span>
+    <span class="step" style="border-color:var(--good);color:var(--good)">다음 단어 후보</span>
+  </div>
+  <div class="callout good"><span class="emoji">💡</span>
+  하위층이 하나 늘었을 뿐, 각 하위층의 패턴은 인코더와 똑같습니다 —
+  <b>x + 하위층(x)</b> 로 잔차 연결한 뒤 <b>LayerNorm</b> 으로 정규화(Post-LN). 3번 반복할 뿐이에요.</div>
+</section>
+
+<!-- 3 -->
+<section id="p3">
+  <h2><span class="num">3</span> 원리① 마스크드 셀프어텐션 — 미래를 가리다</h2>
+  <p><span class="inline">self_attn(x, x, x, tgt_mask)</span> 는 <b>지금까지 만든 답끼리</b> 참조하는 셀프어텐션입니다.
+  그런데 학습할 땐 정답 문장 전체를 한 번에 넣기 때문에, 그냥 두면 "비가"를 만들 때 미래 단어 "올·것·같아"를
+  <b>미리 훔쳐볼 수 있어</b> 버립니다(정답 누설). 그래서 <b class="hlt">인과 마스크(causal mask)</b> 로 미래 자리를 가립니다.</p>
+
+  <div class="card">
+    <p class="muted" style="margin:0 0 4px">① 지금 만들고 있는 답 단어를 골라 보세요</p>
+    <div class="tokrow" id="maskToks"></div>
+    <p class="muted" style="margin:14px 0 4px">② <b id="maskQName" style="color:var(--brand)">비가</b> 를 쓰는 시점에 <b>어느 위치까지 볼 수 있는지</b> (✅=볼 수 있음, 🚫=미래라서 못 봄)</p>
+    <div class="maskgrid" id="maskGrid"></div>
+    <p class="muted" id="maskDesc" style="margin-top:10px"></p>
+  </div>
+  <div class="callout warn"><span class="emoji">🚫</span>
+  코드로는 <span class="inline">torch.tril(torch.ones(L, L))</span> 한 줄, 대각선 포함 <b>왼쪽 아래 삼각형만 True</b> 로 만드는 것과 같습니다.
+  노트북 체크포인트(셀 23)도 3단어 예시에서 True 개수가 <span class="inline">1+2+3=6</span> 인지로 이 모양을 검증합니다.</div>
+</section>
+
+<!-- 4 -->
+<section id="p4">
+  <h2><span class="num">4</span> 원리② 크로스어텐션 — 질문을 곁눈질하다</h2>
+  <p><span class="inline">cross_attn(x, enc, enc, src_mask)</span> 는 이름처럼 <b>서로 다른 곳</b>을 잇습니다.
+  <b class="hlt">Query = 지금 쓰는 답(x)</b>, <b class="hlt">Key·Value = 인코더가 이해한 질문(enc)</b> 입니다.
+  "지금 이 답 단어를 쓰려면, 질문의 어디를 봐야 하지?" 를 계산하는 것이 바로 크로스어텐션이에요.</p>
+
+  <div class="grid3">
+    <div class="role q"><span class="tag">Q</span><h4>답 (x)</h4><p class="muted" style="margin:0">지금 쓰는 디코더 단어</p></div>
+    <div class="role k"><span class="tag">K</span><h4>질문 인코딩 (enc)</h4><p class="muted" style="margin:0">인코더가 이해해 둔 질문</p></div>
+    <div class="role v"><span class="tag">V</span><h4>질문 인코딩 (enc)</h4><p class="muted" style="margin:0">실제로 끌어올 정보</p></div>
+  </div>
+
+  <div class="card">
+    <p class="muted" style="margin:0 0 4px">① 지금 쓰는 답 단어(Query) 고르기</p>
+    <div class="tokrow" id="crossToks"></div>
+    <p class="muted" style="margin:14px 0 4px">② <b id="crossQName" style="color:var(--brand)">비가</b> 가(이) <b>질문의 각 단어</b>를 곁눈질하는 비율</p>
+    <div id="crossBars"></div>
+  </div>
+  <div class="callout good"><span class="emoji">👀</span>
+  <b>"비가"</b> 를 고르면 질문의 <b>"먹구름이"</b> 에 압도적으로 주목합니다 — <a href="attention.html">attention.html</a>·
+  <a href="multi-head-attention.html">multi-head-attention.html</a> 과 <b>동일한 실제 예시 데이터</b>로 계산했어요.
+  <span class="inline">scaled_dot_product_attention</span> 함수를 self-attn과 <b>똑같이 재사용</b>하되, 입력만 (답, 질문, 질문)으로 바꾼 것이 크로스어텐션입니다.</div>
+</section>
+
+<!-- 5 -->
+<section id="p5">
+  <h2><span class="num">5</span> 코드는 이 forward 한 줄씩이 전부</h2>
+  <p>노트북 <span class="inline">example-detailed.ipynb</span> 의 <span class="inline">DecoderLayer</span> 클래스입니다(셀 18).</p>
+<pre><code><span class="kw">class</span> <span class="fn">DecoderLayer</span>(nn.Module):
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, d_model, num_heads, d_ff, dropout=<span class="num2">0.1</span>):
+        super().<span class="fn">__init__</span>()
+        self.self_attn = <span class="fn">MultiHeadAttention</span>(d_model, num_heads, dropout)   <span class="cmt"># 지금까지 쓴 답끼리</span>
+        self.cross_attn = <span class="fn">MultiHeadAttention</span>(d_model, num_heads, dropout)  <span class="cmt"># 답 → 질문 곁눈질</span>
+        self.ffn = <span class="fn">PositionwiseFeedForward</span>(d_model, d_ff, dropout)
+        self.n1 = nn.<span class="fn">LayerNorm</span>(d_model); self.n2 = nn.<span class="fn">LayerNorm</span>(d_model); self.n3 = nn.<span class="fn">LayerNorm</span>(d_model)
+        self.drop = nn.<span class="fn">Dropout</span>(dropout)
+    <span class="kw">def</span> <span class="fn">forward</span>(self, x, enc, tgt_mask, src_mask):
+        x = self.n1(x + self.<span class="fn">drop</span>(self.<span class="fn">self_attn</span>(x, x, x, tgt_mask)))        <span class="cmt"># ① 미래 가림</span>
+        x = self.n2(x + self.<span class="fn">drop</span>(self.<span class="fn">cross_attn</span>(x, enc, enc, src_mask)))  <span class="cmt"># ② 질문 곁눈질</span>
+        x = self.n3(x + self.<span class="fn">drop</span>(self.<span class="fn">ffn</span>(x)))                            <span class="cmt"># ③ 혼자 정리</span>
+        <span class="kw">return</span> x</code></pre>
+  <table>
+    <tr><th>순서</th><th>코드</th><th>쉬운 말</th></tr>
+    <tr><td>①</td><td><span class="inline">self_attn(x,x,x,tgt_mask)</span></td><td>미래+패딩을 가리고 지금까지 쓴 답끼리만 참고 (마스크드 셀프어텐션)</td></tr>
+    <tr><td>②</td><td><span class="inline">cross_attn(x,enc,enc,src_mask)</span></td><td>Q=답, K·V=인코더 출력 → 질문을 곁눈질 (크로스어텐션)</td></tr>
+    <tr><td>③</td><td><span class="inline">ffn(x)</span></td><td>각 위치를 혼자 한 번 더 곱씹기</td></tr>
+  </table>
+</section>
+
+<!-- 6 -->
+<section id="p6">
+  <h2><span class="num">6</span> 헷갈리기 쉬운 점</h2>
+  <div class="callout"><span class="emoji">🏗️</span>
+  <b>self_attn과 cross_attn은 같은 설계도(MultiHeadAttention), 다른 건물입니다.</b>
+  둘 다 <span class="inline">MultiHeadAttention</span> 클래스지만 <span class="inline">__init__</span> 에서 따로 만든
+  <b>서로 다른 인스턴스</b>라 가중치(wq/wk/wv/wo)가 완전히 독립적이에요.</div>
+  <div class="callout warn"><span class="emoji">🎭</span>
+  <b><span class="inline">tgt_mask</span> ≠ <span class="inline">src_mask</span></b>.
+  <span class="inline">tgt_mask</span>(= <span class="inline">make_decoder_mask</span>, 셀 22)는 <b>패딩 + 미래</b> 둘 다 가리고 self_attn에 쓰입니다.
+  <span class="inline">src_mask</span>(= <span class="inline">make_padding_mask</span>)는 <b>질문 쪽 패딩만</b> 가리고 cross_attn에 쓰여요 — 질문엔 "미래"라는 개념이 없으니까요.</div>
+  <div class="callout good"><span class="emoji">3️⃣</span>
+  <b>LayerNorm이 왜 3개?</b> Post-LN 패턴은 <b>하위층 하나마다 정규화 하나</b>가 붙습니다. 하위층이 3개(마스크드 셀프어텐션·크로스어텐션·FFN)라서
+  자연스럽게 n1·n2·n3, 총 3개가 됩니다. 인코더는 하위층이 2개라 n1·n2 뿐이었죠.</div>
+</section>
+
+<!-- 7 -->
+<section id="p7">
+  <h2><span class="num">7</span> 30초 요약</h2>
+  <div class="card" style="text-align:center;padding:30px">
+    <p style="font-size:21px;font-weight:800;margin:0;line-height:1.7">
+      "<span style="color:var(--brand)">지금까지 쓴 답</span>을 돌아보되 <span style="color:var(--warn)">미래는 가리고(마스크드 셀프어텐션)</span>,<br>
+      <span style="color:var(--brand2)">질문을 곁눈질해서(크로스어텐션)</span>,<br>
+      <span style="color:var(--accent)">혼자 한 번 더 정리(FFN)</span>하는 것을<br>
+      <span style="color:var(--good)">잔차+정규화 3번</span>으로 묶은 것이 디코더 블록이다."
+    </p>
+  </div>
+  <div class="grid2" style="margin-top:18px">
+    <div class="card tight"><b>✍️ 비유</b><br><span class="muted">답안지 뒷장은 못 보고 문제지는 곁눈질하는 수험생</span></div>
+    <div class="card tight"><b>🚫 마스크드 셀프어텐션</b><br><span class="muted">tgt_mask로 미래+패딩 가림</span></div>
+    <div class="card tight"><b>👀 크로스어텐션</b><br><span class="muted">Q=답, K·V=인코더 출력</span></div>
+    <div class="card tight"><b>3️⃣ 구조</b><br><span class="muted">하위층 3개 + LayerNorm 3개</span></div>
+  </div>
+</section>
+
+<footer>
+  <p>Mini-Transformer 실습 교재 · 디코더 블록 쉬운 설명판<br>
+  코드 출처: <span class="inline">example-detailed.ipynb</span> — 부품 ⑥ DecoderLayer (셀 18, 관련: 부품③ MultiHeadAttention 셀 14 · 부품⑤ EncoderLayer 셀 17 · 부품⑩ 마스크 셀 22)<br>
+  함께 보기: <a href="attention.html">어텐션(부품②)</a> · <a href="multi-head-attention.html">멀티헤드 어텐션(부품③)</a> ·
+  <a href="positional-encoding.html">위치 인코딩</a> · <a href="vocab.html">어휘 사전</a></p>
+</footer>
+
+</div>
+
+<script>
+function softmax(arr){const m=Math.max(...arr);const e=arr.map(v=>Math.exp(v-m));const s=e.reduce((a,b)=>a+b,0);return e.map(v=>v/s);}
+function dot(a,b){let s=0;for(let i=0;i<a.length;i++)s+=a[i]*b[i];return s;}
+
+/* ================= 3. 마스크드 셀프어텐션 — 인과 마스크(torch.tril) 데모 ================= */
+const ANSWER=['비가','올','것','같아'];
+let selQ=0;
+const maskToks=document.getElementById('maskToks'),maskQName=document.getElementById('maskQName');
+const maskGrid=document.getElementById('maskGrid'),maskDesc=document.getElementById('maskDesc');
+function causalOpen(i,j){ return j<=i; }   // torch.tril: 대각선 포함 왼쪽 아래만 True
+function renderMaskToks(){
+  maskToks.innerHTML=ANSWER.map((t,i)=>`<div class="tok ${i===selQ?'sel':''}" data-i="${i}">${t}</div>`).join('');
+  maskToks.querySelectorAll('.tok').forEach(el=>el.onclick=()=>{selQ=+el.dataset.i;renderMaskToks();renderMaskGrid();});
+}
+function renderMaskGrid(){
+  maskQName.textContent=ANSWER[selQ];
+  let h='<table><tr><th>Q ＼ K</th>'+ANSWER.map((t,j)=>`<th class="${j===selQ?'selrow':''}">${t}</th>`).join('')+'</tr>';
+  for(let i=0;i<ANSWER.length;i++){
+    h+=`<tr><th class="${i===selQ?'selrow':''}">${ANSWER[i]}</th>`;
+    for(let j=0;j<ANSWER.length;j++){
+      const open=causalOpen(i,j);
+      h+=`<td class="${open?'open':'blocked'} ${i===selQ?'selcol':''}">${open?'✅':'🚫'}</td>`;
+    }
+    h+='</tr>';
+  }
+  h+='</table>';
+  maskGrid.innerHTML=h;
+  const visible=ANSWER.slice(0,selQ+1).join('·');
+  const hidden=ANSWER.slice(selQ+1).join('·')||'(없음)';
+  maskDesc.innerHTML=`지금 <b class="hlt">"${ANSWER[selQ]}"</b>를 쓰는 중이라면 → 볼 수 있는 건 <b style="color:var(--good)">${visible}</b>(자기 자신 포함),
+    아직 쓰지 않은 <b style="color:var(--warn)">${hidden}</b>은 존재하지 않으므로 절대 못 봅니다.`;
+}
+renderMaskToks(); renderMaskGrid();
+
+/* ================= 4. 크로스어텐션 데모 (attention.html · multi-head-attention.html과 동일 데이터) ================= */
+const QUESTION=['하늘에','먹구름이','보이면','뭐가','생각나'];
+const K=[
+ [0.10,0.90,0.00,0.00],
+ [0.95,0.30,0.00,0.00],
+ [0.20,0.30,0.50,0.00],
+ [0.00,0.00,0.90,0.10],
+ [0.00,0.00,0.60,0.40],
+];
+const Q=[
+ [0.95,0.10,0.00,0.00],
+ [0.30,0.20,0.20,0.40],
+ [0.10,0.10,0.40,0.30],
+ [0.20,0.10,0.50,0.40],
+];
+const DK=4;
+let selC=0;
+const crossToks=document.getElementById('crossToks'),crossBars=document.getElementById('crossBars'),crossQName=document.getElementById('crossQName');
+function renderCrossToks(){
+  crossToks.innerHTML=ANSWER.map((t,i)=>`<div class="tok ${i===selC?'sel':''}" data-i="${i}">${t}</div>`).join('');
+  crossToks.querySelectorAll('.tok').forEach(el=>el.onclick=()=>{selC=+el.dataset.i;renderCrossToks();renderCrossAttn();});
+}
+function renderCrossAttn(){
+  crossQName.textContent=ANSWER[selC];
+  const scores=QUESTION.map((_,j)=>dot(Q[selC],K[j])/Math.sqrt(DK));
+  const w=softmax(scores);
+  const mx=Math.max(...w);
+  let h='';
+  for(let j=0;j<QUESTION.length;j++){
+    const pct=w[j]*100;
+    h+=`<div class="attn-row">
+      <div class="name" style="width:80px">${QUESTION[j]}</div>
+      <div class="track"><div class="barfill" style="width:${pct.toFixed(1)}%;${w[j]>=mx-1e-9?'background:linear-gradient(90deg,#34d399,#38bdf8)':''}"></div></div>
+      <div class="pct">${pct.toFixed(0)}%</div></div>`;
+  }
+  crossBars.innerHTML=h;
+}
+renderCrossToks(); renderCrossAttn();
+</script>
+</body>
+</html>

@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>마스킹(Masking) — 세상에서 제일 쉽게</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel2:#273449;
+    --ink:#e2e8f0; --sub:#94a3b8; --line:#334155;
+    --brand:#38bdf8; --brand2:#818cf8; --accent:#fbbf24;
+    --good:#34d399; --warn:#f472b6; --code:#0b1220;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:"Segoe UI","Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif;
+    line-height:1.8;font-size:17px}
+  a{color:var(--brand)}
+  .wrap{max-width:900px;margin:0 auto;padding:0 20px 120px}
+
+  header{background:radial-gradient(1200px 500px at 20% -10%,rgba(56,189,248,.25),transparent 60%),
+    radial-gradient(1000px 500px at 90% 0%,rgba(129,140,248,.22),transparent 55%),var(--bg);
+    border-bottom:1px solid var(--line);padding:64px 20px 48px}
+  header .wrap{padding-bottom:0}
+  .kicker{color:var(--brand);font-weight:700;letter-spacing:.14em;font-size:13px;text-transform:uppercase}
+  h1{font-size:clamp(28px,5vw,44px);line-height:1.22;margin:.35em 0 .3em;font-weight:800}
+  h1 .hl{background:linear-gradient(90deg,var(--brand),var(--brand2));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .lead{font-size:19px;color:var(--sub);max-width:720px}
+
+  section{margin-top:60px}
+  h2{font-size:clamp(23px,3.4vw,29px);margin:0 0 8px;font-weight:800;display:flex;align-items:center;gap:12px}
+  h2 .num{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:12px;
+    background:linear-gradient(135deg,var(--brand),var(--brand2));color:#06121f;font-size:18px;font-weight:900;flex:0 0 auto}
+  h3{font-size:19px;margin:26px 0 6px}
+  p{margin:.6em 0}
+  .muted{color:var(--sub)}
+  b.hlt{color:#fff}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px 24px;margin:18px 0}
+  .card.tight{padding:16px 18px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+  @media(max-width:720px){.grid2,.grid3{grid-template-columns:1fr}}
+
+  .callout{border-left:4px solid var(--brand);background:var(--panel2);border-radius:0 12px 12px 0;padding:14px 18px;margin:16px 0}
+  .callout.good{border-color:var(--good)} .callout.warn{border-color:var(--warn)}
+  .callout b{color:#fff}
+  .emoji{font-size:20px;margin-right:6px}
+  .big-idea{background:linear-gradient(135deg,rgba(56,189,248,.16),rgba(129,140,248,.16));
+    border:1px solid var(--line);border-radius:18px;padding:24px 26px;margin:18px 0;font-size:19px;text-align:center;font-weight:700}
+  .big-idea span{color:var(--accent)}
+
+  .inline{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:1px 7px;
+    font-family:"Consolas","D2Coding",monospace;font-size:14px;color:#fde68a}
+
+  /* token buttons (reuse attention.html look) */
+  .tokrow{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0}
+  .tok{background:var(--panel2);border:2px solid var(--line);border-radius:12px;padding:10px 16px;font-weight:700;cursor:pointer;transition:all .12s;font-size:15px}
+  .tok:hover{border-color:var(--brand)}
+  .tok.sel{background:linear-gradient(135deg,var(--brand),var(--brand2));color:#06121f;border-color:transparent;box-shadow:0 0 16px rgba(56,189,248,.45)}
+
+  .steps{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;margin:10px 0}
+  .step{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:13px;font-weight:700}
+  .step .arw{color:var(--sub);margin:0 2px}
+
+  input[type=range]{width:100%;accent-color:var(--brand)}
+  .controls{margin:10px 0}
+  .controls label{font-size:14px;color:var(--sub)}
+
+  /* mask grid visualization */
+  .gridwrap{overflow-x:auto;padding-bottom:4px}
+  .gridtitle{text-align:center;font-weight:800;font-size:14px;color:#fff;margin-bottom:8px}
+  .mgrid{display:inline-grid;gap:4px;margin:0 auto}
+  .mgrid .hcell{display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--sub);padding:2px;white-space:nowrap}
+  .mgrid .hcell.corner{background:transparent}
+  .mgrid .hcell.pad,.mgrid .rcell.pad{color:var(--warn)}
+  .mgrid .rcell{display:flex;align-items:center;justify-content:flex-end;font-size:11px;font-weight:700;color:var(--sub);padding:2px 6px 2px 0;white-space:nowrap}
+  .mgrid .cell{height:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:900}
+  .mgrid .cell.on{background:linear-gradient(135deg,var(--brand),var(--brand2));color:#06121f}
+  .mgrid .cell.off{background:var(--code);border:1px solid var(--line);color:#475569}
+  .legend{display:flex;align-items:center;gap:14px;font-size:12px;color:var(--sub);margin-top:8px;flex-wrap:wrap;justify-content:center}
+  .legend .sw{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:5px;margin-right:5px;font-size:12px;font-weight:900;vertical-align:-4px}
+  .legend .sw.on{background:linear-gradient(135deg,var(--brand),var(--brand2));color:#06121f}
+  .legend .sw.off{background:var(--code);border:1px solid var(--line);color:#475569}
+
+  pre{background:var(--code);border:1px solid var(--line);border-radius:14px;padding:18px;overflow:auto;font-size:14px;line-height:1.7;margin:14px 0}
+  code{font-family:"Consolas","D2Coding",monospace}
+  pre code{color:#cbd5e1}
+  .cmt{color:#64748b}.kw{color:#f472b6}.fn{color:#38bdf8}.num2{color:#fbbf24}.str{color:#34d399}
+
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:15px}
+  th,td{border:1px solid var(--line);padding:9px 12px;text-align:left}
+  th{background:var(--panel2);color:#fff}
+
+  footer{margin-top:80px;border-top:1px solid var(--line);padding-top:24px;color:var(--sub);font-size:14px}
+  .toc{position:sticky;top:0;z-index:5;background:rgba(15,23,42,.85);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+  .toc .wrap{display:flex;gap:6px;flex-wrap:wrap;padding:10px 20px;overflow-x:auto}
+  .toc a{color:var(--sub);text-decoration:none;font-size:13px;padding:6px 10px;border-radius:8px;white-space:nowrap}
+  .toc a:hover{background:var(--panel);color:#fff}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="kicker">Mini-Transformer · 마스킹 쉽게 이해하기</div>
+    <h1>마스킹은<br><span class="hl">"여기는 보지 마"</span>라는 신호입니다</h1>
+    <p class="lead">트랜스포머는 문장을 통째로 한꺼번에 봅니다. 그러다 보면 곤란한 일이 두 가지 생겨요 —
+    길이를 맞추려고 끼워 넣은 빈칸(<span class="inline">&lt;pad&gt;</span>)까지 진짜 단어처럼 읽어 버리는 것,
+    그리고 답을 만들면서 아직 안 나온 <b>미래 단어(정답)</b>를 몰래 훔쳐보는 것. 마스킹은 이 둘을 막는
+    <b>True/False 표</b>입니다.</p>
+  </div>
+</header>
+
+<nav class="toc"><div class="wrap">
+  <a href="#p1">1. 왜 필요한가</a>
+  <a href="#p2">2. 패딩 마스크</a>
+  <a href="#p3">3. 인과 마스크</a>
+  <a href="#p4">4. 코드 3줄</a>
+  <a href="#p5">5. 직접 해보기</a>
+  <a href="#p6">6. 체크포인트</a>
+  <a href="#p7">7. 어디에 쓰이나</a>
+  <a href="#p8">8. 요약</a>
+</div></nav>
+
+<div class="wrap">
+
+<!-- 1 -->
+<section id="p1">
+  <h2><span class="num">1</span> 마스킹이 필요한 이유 (30초)</h2>
+  <p>이 노트북은 문장 6쌍을 <b>배치(batch)</b>로 한 번에 학습합니다. 그런데 문장마다 길이가 달라요 —
+  답이 <b class="hlt">"비가 올 것 같아"</b>(4단어)인 것도 있고 <b class="hlt">"아침이 밝았구나"</b>(2단어)인 것도 있죠.
+  짧은 문장 뒤에는 <span class="inline">&lt;pad&gt;</span>를 채워 넣어 직사각형 텐서로 맞추는데,
+  이 빈칸을 모델이 <b>진짜 단어처럼</b> 취급하면 안 됩니다. <b class="hlt">문제 ①</b>.</p>
+  <p>그리고 디코더가 <b class="hlt">"비가"</b>를 만드는 그 순간, 학습 데이터에는 이미 정답 <b class="hlt">"올 것 같아"</b>가
+  바로 옆에 붙어 있습니다. 모델이 이걸 미리 봐 버리면 실력을 기르는 게 아니라 그냥 <b>답을 베끼는 것</b>이 됩니다.
+  <b class="hlt">문제 ②</b>.</p>
+
+  <div class="big-idea">마스킹 = <span>①빈칸(pad)</span>과 <span>②아직 안 쓴 미래</span>를<br>True/False 표로 가려서, 모델이 정직하게 배우게 만드는 장치</div>
+
+  <div class="callout"><span class="emoji">🧩</span>실제로 이 노트북엔 마스크 함수가 세 개 있어요.
+  <b>make_padding_mask</b>(문제① 담당) · <b>make_causal_mask</b>(문제② 담당) ·
+  <b>make_decoder_mask</b>(둘을 합친 것, 디코더 셀프어텐션 전용). 하나씩 뜯어봅니다.</div>
+</section>
+
+<!-- 2 -->
+<section id="p2">
+  <h2><span class="num">2</span> 비유 ① 패딩 마스크 — 단체사진의 빈자리</h2>
+  <p>단체사진을 찍을 때 줄마다 인원수가 다르면 보기 싫으니, 줄을 맞추려고 사람 없는 자리에
+  <b>빈 의자</b>를 놔둔다고 생각해 보세요. 나중에 사진을 볼 때 그 빈 의자를 <b>"사람 한 명"</b>으로 세면 이상하죠?
+  <span class="inline">&lt;pad&gt;</span> 토큰이 바로 이 빈 의자입니다 — 길이만 맞추려고 끼운 것이지, 의미 있는 단어가 아니에요.</p>
+
+  <div class="callout good"><span class="emoji">✅</span>
+  <span class="inline">make_padding_mask(seq, pad_id)</span>는 각 자리가 <b>진짜 단어(True)</b>인지
+  <b>빈 의자(False)</b>인지 표시한 표를 돌려줍니다. 이 표를 어텐션 점수에 적용해 두면
+  (<a href="attention.html">어텐션 문서</a>에서 본 <span class="inline">masked_fill(mask==0, -inf)</span>),
+  빈 의자 열은 아무리 계산해도 <b>주목 비율이 0%</b>가 됩니다.</div>
+
+  <div class="callout warn"><span class="emoji">🕵️</span><b>재밌는 사실:</b> 이 노트북의 질문 6개는
+  우연히 <b>전부 정확히 5단어</b>예요. 그래서 질문(source) 쪽엔 사실 패딩이 <b>하나도 생기지 않습니다!</b>
+  패딩은 오히려 길이가 들쭉날쭉한 <b>답(target)</b> 쪽에서 생겨요. 5번 "직접 해보기"에서 실제로 확인해 봅시다.</div>
+</section>
+
+<!-- 3 -->
+<section id="p3">
+  <h2><span class="num">3</span> 비유 ② 인과 마스크 — 끝말잇기</h2>
+  <p>노트북 마크다운에 이미 딱 맞는 비유가 있어요: <b class="hlt">"답은 한 단어씩 만들고, 다음 단어를 고를 땐 앞말만 볼 수 있다 —
+  끝말잇기랑 비슷하죠!"</b> 끝말잇기에서 내 차례에 다음 사람이 낼 단어를 미리 알고 시작하면 반칙이듯,
+  디코더도 <b class="hlt">"비가"</b>를 만드는 순간엔 뒤에 올 <b class="hlt">"올·것·같아"</b>를 아직 몰라야 정직한 학습이 됩니다.</p>
+  <p><span class="inline">make_causal_mask</span>는 <b>하삼각(下三角) 행렬</b>로 이걸 표현합니다.
+  i번째 단어는 <b>0번째부터 i번째까지만</b> 볼 수 있고, 그 뒤(미래)는 전부 가려집니다. 슬라이더로 문장 길이를 바꿔가며 확인해 보세요.</p>
+
+  <div class="card">
+    <div class="controls">
+      <label>문장 길이(seq_len) : <b id="lenN" style="color:var(--accent)">3</b>단어</label>
+      <input type="range" id="lenR" min="2" max="8" step="1" value="3">
+    </div>
+    <div class="gridwrap"><div class="gridtitle">make_causal_mask — 하삼각 마스크</div><div id="causalGrid1" style="display:flex;justify-content:center"></div></div>
+    <div class="legend">
+      <span><span class="sw on">✓</span>볼 수 있음(허용)</span>
+      <span><span class="sw off">·</span>가려짐(차단, 미래)</span>
+      <span id="sumTxt" style="margin-left:auto;color:var(--accent);font-weight:700"></span>
+    </div>
+  </div>
+  <div class="callout"><span class="emoji">📐</span>행(row)은 <b>"지금 만드는 단어"</b>, 열(column)은 <b>"내가 보려는 단어"</b>입니다.
+  대각선을 포함해 <b>왼쪽 아래(자기 자신 포함, 과거)</b>만 열려 있고, <b>오른쪽 위(미래)</b>는 전부 닫혀 있어요.
+  이게 <span class="inline">torch.tril</span>(하삼각) 한 줄로 만들어지는 이유입니다.</div>
+</section>
+
+<!-- 4 -->
+<section id="p4">
+  <h2><span class="num">4</span> 코드는 이 세 함수가 전부</h2>
+  <p>노트북 <span class="inline">example-detailed.ipynb</span>의 <b>부품 ⑩ 마스크 만들기</b>(셀 22)입니다.
+  앞서 본 비유 두 개가 그대로 함수 두 개, 그리고 그 둘을 합친 함수 하나로 들어 있어요.</p>
+<pre><code><span class="cmt"># make_padding_mask: &lt;pad&gt; 자리를 가림. seq shape (B, S) → (B,1,1,S)</span>
+<span class="kw">def</span> <span class="fn">make_padding_mask</span>(seq, pad_id):
+    <span class="kw">return</span> (seq != pad_id).<span class="fn">unsqueeze</span>(<span class="num2">1</span>).<span class="fn">unsqueeze</span>(<span class="num2">2</span>)              <span class="cmt"># 패딩 위치 가림</span>
+
+<span class="cmt"># make_causal_mask: 미래 단어를 못 보게 하는 하삼각 마스크</span>
+<span class="kw">def</span> <span class="fn">make_causal_mask</span>(seq_len, device):
+    <span class="kw">return</span> torch.<span class="fn">tril</span>(torch.<span class="fn">ones</span>(seq_len, seq_len, device=device)).<span class="fn">bool</span>().<span class="fn">unsqueeze</span>(<span class="num2">0</span>).<span class="fn">unsqueeze</span>(<span class="num2">0</span>)
+
+<span class="cmt"># make_decoder_mask: 디코더 셀프어텐션엔 두 마스크가 모두 필요 → &(논리곱)</span>
+<span class="kw">def</span> <span class="fn">make_decoder_mask</span>(tgt, pad_id):
+    <span class="kw">return</span> <span class="fn">make_padding_mask</span>(tgt, pad_id) & <span class="fn">make_causal_mask</span>(tgt.size(<span class="num2">1</span>), tgt.device)</code></pre>
+  <table>
+    <tr><th>함수</th><th>막는 문제</th><th>모양(shape)</th><th>비유</th></tr>
+    <tr><td><span class="inline">make_padding_mask</span></td><td>① 빈칸(pad)</td><td>(B,1,1,S)</td><td>단체사진 빈 의자</td></tr>
+    <tr><td><span class="inline">make_causal_mask</span></td><td>② 미래 훔쳐보기</td><td>(1,1,L,L)</td><td>끝말잇기 반칙</td></tr>
+    <tr><td><span class="inline">make_decoder_mask</span></td><td>① + ②</td><td>(B,1,T,T)</td><td>두 규칙을 동시에 지키기</td></tr>
+  </table>
+  <div class="callout good"><span class="emoji">💡</span><span class="inline">&</span> 하나로 두 규칙이 합쳐지는 게 핵심입니다.
+  둘 다 True(볼 수 있음)여야만 최종 결과도 True — <b>빈칸도 아니고, 미래도 아닌 자리만</b> 열립니다.</div>
+</section>
+
+<!-- 5 -->
+<section id="p5">
+  <h2><span class="num">5</span> 직접 해보기 — 실제 데이터로 세 마스크 비교</h2>
+  <p>노트북의 실제 학습 배치에서 <b>답(target) 문장</b> 하나를 골라 보세요. 답마다 길이가 달라서,
+  일부는 <span class="inline">&lt;pad&gt;</span>가 끼어 있고 일부는 없습니다. 아래 세 그리드가
+  <span class="inline">make_padding_mask</span> · <span class="inline">make_causal_mask</span> ·
+  <span class="inline">make_decoder_mask</span>의 실제 계산 결과예요(디코더 학습 입력 <span class="inline">dec_in</span> 기준).</p>
+
+  <div class="card">
+    <p class="muted" style="margin:0 0 4px">질문 → 답 쌍을 고르세요</p>
+    <div class="tokrow" id="maskTokRow"></div>
+    <p class="muted" id="padNote" style="margin:10px 0 0"></p>
+  </div>
+
+  <div class="grid3">
+    <div class="card tight">
+      <div class="gridtitle">① make_padding_mask</div>
+      <div class="gridwrap"><div id="padGrid" style="display:flex;justify-content:center"></div></div>
+    </div>
+    <div class="card tight">
+      <div class="gridtitle">② make_causal_mask</div>
+      <div class="gridwrap"><div id="causalGrid2" style="display:flex;justify-content:center"></div></div>
+    </div>
+    <div class="card tight">
+      <div class="gridtitle">③ make_decoder_mask (①&amp;②)</div>
+      <div class="gridwrap"><div id="decGrid" style="display:flex;justify-content:center"></div></div>
+    </div>
+  </div>
+  <div class="legend">
+    <span><span class="sw on">✓</span>볼 수 있음</span>
+    <span><span class="sw off">·</span>가려짐</span>
+    <span style="color:var(--warn)">■ 빨간 글씨 = &lt;pad&gt; 자리</span>
+  </div>
+  <div class="callout"><span class="emoji">🔍</span><b>"해→아침"</b>을 골라 보세요 — 답 <b class="hlt">"아침이 밝았구나"</b>는
+  이 배치에서 가장 짧아서 <span class="inline">&lt;pad&gt;</span>가 하나 붙습니다. ①에서 그 열이 통째로 차단되고,
+  ③(최종)에서는 <b>그 열이 차단된 채로 + 삼각형(미래 가림)까지</b> 겹쳐진 걸 볼 수 있어요.
+  반대로 <b>"먹구름→비"</b>는 이 배치의 최대 길이와 정확히 맞아 떨어져 pad가 전혀 없습니다 — ①이 완전히 열려 있어요.</div>
+</section>
+
+<!-- 6 -->
+<section id="p6">
+  <h2><span class="num">6</span> 체크포인트 — 하삼각의 합은 왜 6일까</h2>
+  <p>노트북 체크포인트(셀 23)는 이렇게 검증합니다.</p>
+<pre><code><span class="cmt"># 체크포인트: 3x3 인과 마스크의 True 개수가 1+2+3=6인지 확인</span>
+<span class="kw">assert</span> <span class="fn">make_causal_mask</span>(<span class="num2">3</span>, torch.<span class="fn">device</span>(<span class="str">"cpu"</span>)).<span class="fn">sum</span>().<span class="fn">item</span>() == <span class="num2">6</span>
+<span class="fn">print</span>(<span class="str">"✅ 마스크 OK"</span>)</code></pre>
+  <p>이유는 간단합니다. 하삼각 행렬에서 <b>i번째 행(0부터 시작)</b>은 정확히 <b>i+1개</b>의 True를 갖습니다
+  (0번 행=1개, 1번 행=2개, 2번 행=3개…). 그래서 전체 합은 <b class="inline">1+2+...+n = n(n+1)/2</b>이 됩니다.
+  n=3이면 1+2+3=6 — 위 3번 슬라이더를 <b>3</b>으로 놓았을 때와 정확히 같은 숫자예요.</p>
+  <table>
+    <tr><th>seq_len(n)</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th></tr>
+    <tr><th>True 개수 = n(n+1)/2</th><td>3</td><td><b style="color:var(--accent)">6</b></td><td>10</td><td>15</td><td>21</td></tr>
+  </table>
+</section>
+
+<!-- 7 -->
+<section id="p7">
+  <h2><span class="num">7</span> 어디에 쓰이나 — 인코더·디코더 지도</h2>
+  <p>같은 마스크 함수라도 <b>어디서 부르느냐</b>에 따라 역할이 달라집니다. 실제 forward 코드 기준입니다.</p>
+  <table>
+    <tr><th>위치</th><th>사용하는 마스크</th><th>가리는 것</th></tr>
+    <tr><td>인코더 셀프어텐션<br><span class="muted" style="font-size:.85em">EncoderLayer.forward (셀 17)</span></td>
+        <td><span class="inline">make_padding_mask(src)</span></td><td>질문의 <span class="inline">&lt;pad&gt;</span>만</td></tr>
+    <tr><td>디코더 셀프어텐션<br><span class="muted" style="font-size:.85em">DecoderLayer.forward · self_attn (셀 18)</span></td>
+        <td><span class="inline">make_decoder_mask(tgt)</span></td><td><span class="inline">&lt;pad&gt;</span> + 미래 단어 둘 다</td></tr>
+    <tr><td>디코더 크로스어텐션<br><span class="muted" style="font-size:.85em">DecoderLayer.forward · cross_attn (셀 18)</span></td>
+        <td><span class="inline">make_padding_mask(src)</span></td><td>질문(K,V) 쪽 <span class="inline">&lt;pad&gt;</span>만
+        — 미래 개념이 없음(Q=답, K/V=질문 전체를 항상 다 봐도 됨)</td></tr>
+  </table>
+  <div class="callout warn"><span class="emoji">⚠️</span><b>헷갈리기 쉬운 점:</b> 추론 함수 <span class="inline">answer()</span>(5단계, 셀 29)를 보면
+  <span class="inline">tgt_mask = make_causal_mask(...)</span>만 쓰고 <span class="inline">make_decoder_mask</span>는 안 씁니다!
+  왜냐면 추론은 문장을 <b>한 개씩</b>, 그것도 <b>매 스텝 딱 필요한 길이만큼만</b> 키워가며 만들기 때문에
+  애초에 <span class="inline">&lt;pad&gt;</span>가 끼어들 일이 없거든요. 패딩 가림은 <b>여러 문장을 배치로 묶는 학습 때만</b> 필요합니다.</div>
+</section>
+
+<!-- 8 -->
+<section id="p8">
+  <h2><span class="num">8</span> 30초 요약</h2>
+  <div class="card" style="text-align:center;padding:30px">
+    <p style="font-size:21px;font-weight:800;margin:0;line-height:1.7">
+      "<span style="color:var(--brand)">빈 의자(pad)</span>는 안 세고,<br>
+      <span style="color:var(--brand2)">끝말잇기 반칙(미래)</span>은 안 하고,<br>
+      디코더 셀프어텐션에선 <span style="color:var(--accent)">둘 다 동시에</span> 지키면서,<br>
+      정직하게 <span style="color:var(--good)">한 단어씩</span> 배운다."
+    </p>
+  </div>
+  <div class="grid2" style="margin-top:18px">
+    <div class="card tight"><b>🪑 패딩 마스크</b><br><span class="muted">단체사진 빈 의자 — 길이 맞춤용 &lt;pad&gt; 가림</span></div>
+    <div class="card tight"><b>🔺 인과 마스크</b><br><span class="muted">끝말잇기 반칙 방지 — 하삼각으로 미래 가림</span></div>
+    <div class="card tight"><b>➕ 디코더 마스크</b><br><span class="muted">패딩 AND 미래 — 디코더 셀프어텐션 전용</span></div>
+    <div class="card tight"><b>🧭 사용처</b><br><span class="muted">인코더=패딩만, 디코더 self=둘 다, cross=패딩만</span></div>
+  </div>
+</section>
+
+<footer>
+  <p>Mini-Transformer 실습 교재 · 마스킹 쉬운 설명판<br>
+  코드 출처: <span class="inline">example-detailed.ipynb</span> — 부품 ⑩ 마스크 만들기(셀 22, 체크포인트 셀 23),
+  사용 예시(셀 17·18·21·26·29)<br>
+  함께 보기: <a href="attention.html">어텐션(부품②)</a> · <a href="multi-head-attention.html">멀티헤드 어텐션(부품③)</a> ·
+  <a href="positional-encoding.html">위치 인코딩(부품①)</a> · <a href="vocab.html">어휘 사전</a></p>
+</footer>
+
+</div>
+
+<script>
+const esc=s=>s.replace(/</g,"&lt;").replace(/>/g,"&gt;");
+
+/* ================= 공용: 마스크 그리드 렌더러 ================= */
+function renderMaskGrid(container, toks, allowFn){
+  const n=toks.length;
+  const cols=`44px repeat(${n}, 38px)`;
+  let html=`<div class="mgrid" style="grid-template-columns:${cols}">`;
+  html+=`<div class="hcell corner"></div>`;
+  toks.forEach(t=>{
+    html+=`<div class="hcell ${t==='<pad>'?'pad':''}">${esc(t)}</div>`;
+  });
+  for(let i=0;i<n;i++){
+    html+=`<div class="rcell ${toks[i]==='<pad>'?'pad':''}">${esc(toks[i])}</div>`;
+    for(let j=0;j<n;j++){
+      const on=allowFn(i,j);
+      html+=`<div class="cell ${on?'on':'off'}">${on?'✓':'·'}</div>`;
+    }
+  }
+  html+=`</div>`;
+  container.innerHTML=html;
+}
+
+/* ================= 3. 인과 마스크 슬라이더 데모 ================= */
+const lenR=document.getElementById('lenR'),lenN=document.getElementById('lenN'),sumTxt=document.getElementById('sumTxt');
+function renderCausalDemo(){
+  const n=+lenR.value; lenN.textContent=n;
+  const toks=Array.from({length:n},(_,i)=>'t'+i);
+  renderMaskGrid(document.getElementById('causalGrid1'), toks, (i,j)=>j<=i);
+  const sum=n*(n+1)/2;
+  sumTxt.innerHTML=`허용(✓) 칸 = <b style="color:var(--accent)">${sum}</b> = 1+2+...+${n} = n(n+1)/2`;
+}
+lenR.oninput=renderCausalDemo; renderCausalDemo();
+
+/* ================= 5. 실제 데이터 3종 비교 데모 =================
+   아래 dec_in 토큰은 노트북을 실제로 실행해 얻은 값입니다.
+   build_batches(DATA, src_vocab, tgt_vocab) → tgt_ids, dec_in = tgt_ids[:, :-1] */
+const MASK_ROWS=[
+  {label:'먹구름→비',   toks:['<sos>','비가','올','것','같아']},
+  {label:'별→밤',       toks:['<sos>','밤이','깊었나','봐','<eos>']},
+  {label:'해→아침',     toks:['<sos>','아침이','밝았구나','<eos>','<pad>']},
+  {label:'무지개→그침', toks:['<sos>','비가','그쳤나','봐','<eos>']},
+  {label:'눈송이→겨울', toks:['<sos>','겨울이','왔구나','<eos>','<pad>']},
+  {label:'노을→저녁',   toks:['<sos>','저녁이','되었네','<eos>','<pad>']},
+];
+let maskSel=2; // 기본값: pad가 있는 '해→아침'이 가장 설명하기 좋음
+const maskTokRow=document.getElementById('maskTokRow'),padNote=document.getElementById('padNote');
+function renderMaskToks(){
+  maskTokRow.innerHTML=MASK_ROWS.map((r,i)=>`<div class="tok ${i===maskSel?'sel':''}" data-i="${i}">${esc(r.label)}</div>`).join('');
+  maskTokRow.querySelectorAll('.tok').forEach(el=>el.onclick=()=>{maskSel=+el.dataset.i;renderMaskToks();renderMaskDemo();});
+}
+function renderMaskDemo(){
+  const toks=MASK_ROWS[maskSel].toks;
+  const padOK=j=>toks[j]!=='<pad>';
+  renderMaskGrid(document.getElementById('padGrid'), toks, (i,j)=>padOK(j));
+  renderMaskGrid(document.getElementById('causalGrid2'), toks, (i,j)=>j<=i);
+  renderMaskGrid(document.getElementById('decGrid'), toks, (i,j)=>padOK(j)&&j<=i);
+  const padCount=toks.filter(t=>t==='<pad>').length;
+  padNote.textContent = padCount>0
+    ? `이 답엔 <pad>가 ${padCount}개 있어서, ①에서 그 열이 통째로 차단됩니다.`
+    : `이 답은 이 배치의 최대 길이와 꼭 맞아서 <pad>가 하나도 없어요.`;
+}
+renderMaskToks(); renderMaskDemo();
+</script>
+</body>
+</html>

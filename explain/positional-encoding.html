@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>위치 인코딩(Positional Encoding) — 세상에서 제일 쉽게</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel2:#273449;
+    --ink:#e2e8f0; --sub:#94a3b8; --line:#334155;
+    --brand:#38bdf8; --brand2:#818cf8; --accent:#fbbf24;
+    --good:#34d399; --warn:#f472b6; --code:#0b1220;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:"Segoe UI","Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif;
+    line-height:1.8;font-size:17px}
+  a{color:var(--brand)}
+  .wrap{max-width:900px;margin:0 auto;padding:0 20px 120px}
+
+  header{background:radial-gradient(1200px 500px at 20% -10%,rgba(56,189,248,.25),transparent 60%),
+    radial-gradient(1000px 500px at 90% 0%,rgba(129,140,248,.22),transparent 55%),var(--bg);
+    border-bottom:1px solid var(--line);padding:64px 20px 48px}
+  header .wrap{padding-bottom:0}
+  .kicker{color:var(--brand);font-weight:700;letter-spacing:.14em;font-size:13px;text-transform:uppercase}
+  h1{font-size:clamp(28px,5vw,44px);line-height:1.22;margin:.35em 0 .3em;font-weight:800}
+  h1 .hl{background:linear-gradient(90deg,var(--brand),var(--brand2));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .lead{font-size:19px;color:var(--sub);max-width:700px}
+
+  section{margin-top:60px}
+  h2{font-size:clamp(23px,3.4vw,29px);margin:0 0 8px;font-weight:800;display:flex;align-items:center;gap:12px}
+  h2 .num{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:12px;
+    background:linear-gradient(135deg,var(--brand),var(--brand2));color:#06121f;font-size:18px;font-weight:900;flex:0 0 auto}
+  h3{font-size:19px;margin:26px 0 6px}
+  p{margin:.6em 0}
+  .muted{color:var(--sub)}
+  b.hlt{color:#fff}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px 24px;margin:18px 0}
+  .card.tight{padding:16px 18px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  @media(max-width:720px){.grid2{grid-template-columns:1fr}}
+
+  .callout{border-left:4px solid var(--brand);background:var(--panel2);border-radius:0 12px 12px 0;padding:14px 18px;margin:16px 0}
+  .callout.good{border-color:var(--good)} .callout.warn{border-color:var(--warn)}
+  .callout b{color:#fff}
+  .emoji{font-size:20px;margin-right:6px}
+  .big-idea{background:linear-gradient(135deg,rgba(56,189,248,.16),rgba(129,140,248,.16));
+    border:1px solid var(--line);border-radius:18px;padding:24px 26px;margin:18px 0;font-size:19px;text-align:center;font-weight:700}
+  .big-idea span{color:var(--accent)}
+
+  .inline{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:1px 7px;
+    font-family:"Consolas","D2Coding",monospace;font-size:14px;color:#fde68a}
+
+  /* words */
+  .chips{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0}
+  .chip{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 14px;font-weight:600;text-align:center}
+  .chip small{display:block;color:var(--sub);font-weight:400;font-size:12px;margin-top:2px}
+
+  /* binary counter */
+  .pos-big{font-size:44px;font-weight:900;color:var(--accent);text-align:center;margin:6px 0}
+  .bits{display:flex;gap:10px;justify-content:center;margin:16px 0;flex-wrap:wrap}
+  .bit{width:64px;text-align:center}
+  .bit .box{height:64px;border-radius:12px;border:2px solid var(--line);display:flex;align-items:center;justify-content:center;
+    font-size:26px;font-weight:800;transition:all .12s;background:var(--code)}
+  .bit.on .box{background:linear-gradient(135deg,var(--brand),var(--brand2));color:#06121f;border-color:transparent;box-shadow:0 0 18px rgba(56,189,248,.5)}
+  .bit .lab{font-size:11px;color:var(--sub);margin-top:6px;line-height:1.3}
+  .bit .speed{font-size:10px;color:var(--accent)}
+
+  /* PE bars */
+  .pebars{display:flex;gap:8px;justify-content:center;align-items:flex-end;height:150px;margin:14px 0}
+  .peb{width:52px;display:flex;flex-direction:column;align-items:center;height:100%;justify-content:flex-end;position:relative}
+  .peb .fill{width:100%;border-radius:8px 8px 0 0;transition:height .15s,background .15s}
+  .peb .zero{position:absolute;left:0;right:0;top:50%;border-top:1px dashed #475569}
+  .peb .lab{font-size:11px;color:var(--sub);margin-top:6px}
+
+  input[type=range]{width:100%;accent-color:var(--brand)}
+  .controls{margin:10px 0}
+  .controls label{font-size:14px;color:var(--sub)}
+  canvas{max-width:100%;background:var(--code);border:1px solid var(--line);border-radius:12px;display:block}
+  .legend{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--sub);margin-top:8px;flex-wrap:wrap}
+  .barleg{height:12px;width:160px;border-radius:6px;background:linear-gradient(90deg,#440154,#3b528b,#21918c,#5ec962,#fde725)}
+
+  pre{background:var(--code);border:1px solid var(--line);border-radius:14px;padding:18px;overflow:auto;font-size:14px;line-height:1.7;margin:14px 0}
+  code{font-family:"Consolas","D2Coding",monospace}
+  pre code{color:#cbd5e1}
+  .cmt{color:#64748b}.kw{color:#f472b6}.fn{color:#38bdf8}.num2{color:#fbbf24}.str{color:#34d399}
+
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:15px}
+  th,td{border:1px solid var(--line);padding:9px 12px;text-align:left}
+  th{background:var(--panel2);color:#fff}
+
+  footer{margin-top:80px;border-top:1px solid var(--line);padding-top:24px;color:var(--sub);font-size:14px}
+  .toc{position:sticky;top:0;z-index:5;background:rgba(15,23,42,.85);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+  .toc .wrap{display:flex;gap:6px;flex-wrap:wrap;padding:10px 20px;overflow-x:auto}
+  .toc a{color:var(--sub);text-decoration:none;font-size:13px;padding:6px 10px;border-radius:8px;white-space:nowrap}
+  .toc a:hover{background:var(--panel);color:#fff}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="kicker">Mini-Transformer · 위치 인코딩 다시 쉽게</div>
+    <h1>위치 인코딩은<br><span class="hl">"부드러운 이진수 계수기"</span> 입니다</h1>
+    <p class="lead">복잡한 sin·cos 공식은 잠깐 잊으세요. 딱 하나만 기억하면 됩니다 —
+    <b>자동차 주행거리계(0000→0001→0010…)를 부드럽게 만든 것</b>. 슬라이더를 직접 움직이며 느껴봅시다.</p>
+  </div>
+</header>
+
+<nav class="toc"><div class="wrap">
+  <a href="#p1">1. 문제 (30초)</a>
+  <a href="#p2">2. 첫 시도의 실패</a>
+  <a href="#p3">3. 이진수 계수기</a>
+  <a href="#p4">4. 부드럽게 = sin·cos</a>
+  <a href="#p5">5. 전체 그림(히트맵)</a>
+  <a href="#p6">6. 코드</a>
+  <a href="#p7">7. 요약</a>
+</div></nav>
+
+<div class="wrap">
+
+<!-- 1 -->
+<section id="p1">
+  <h2><span class="num">1</span> 문제는 딱 하나 (30초)</h2>
+  <p>트랜스포머의 <b class="hlt">어텐션</b>은 단어들을 <b class="hlt">한꺼번에</b> 봅니다. 그래서 순서를 모릅니다.
+  아래 두 문장이 어텐션에게는 <b>똑같이</b> 보입니다.</p>
+  <div class="grid2">
+    <div class="card tight">
+      <div class="chips">
+        <div class="chip">개가<small>주어</small></div>
+        <div class="chip">고양이를<small>목적어</small></div>
+        <div class="chip">물었다</div>
+      </div>
+      <p class="muted" style="margin:0">🐕 개가 문 쪽</p>
+    </div>
+    <div class="card tight">
+      <div class="chips">
+        <div class="chip">고양이가<small>주어</small></div>
+        <div class="chip">개를<small>목적어</small></div>
+        <div class="chip">물었다</div>
+      </div>
+      <p class="muted" style="margin:0">🐈 고양이가 문 쪽</p>
+    </div>
+  </div>
+  <div class="callout warn"><span class="emoji">⚠️</span>뜻이 정반대인데 순서 정보가 없으면 구별 불가.
+  <b>그래서 단어마다 "너 몇 번째야"를 알려줘야 합니다.</b></div>
+</section>
+
+<!-- 2 -->
+<section id="p2">
+  <h2><span class="num">2</span> 첫 시도: 그냥 번호를 더하자 → 실패</h2>
+  <p>가장 쉬운 생각: 첫째 단어엔 0, 둘째엔 1, 셋째엔 2… 그냥 더하면 되잖아?</p>
+  <div class="callout warn"><span class="emoji">💥</span>
+    문장이 길어지면 <b>500번째 단어엔 500이 더해집니다.</b> 단어의 원래 의미(보통 -1~1 정도)가
+    <b>거대한 숫자에 파묻혀</b> 사라져요. 그리고 학습 때 안 본 긴 문장이 오면 대책이 없습니다.</div>
+  <p>필요한 조건을 정리하면 이렇습니다 👇</p>
+  <table>
+    <tr><th>조건</th><th>이유</th></tr>
+    <tr><td>① 값이 항상 작게 (예: -1~1)</td><td>단어 의미를 안 덮으려고</td></tr>
+    <tr><td>② 위치마다 완전히 다른 무늬</td><td>0번과 1번을 구별하려고</td></tr>
+    <tr><td>③ 길이가 길어져도 계속 만들 수 있게</td><td>안 배운 긴 문장도 처리하려고</td></tr>
+  </table>
+  <p>이 세 조건을 <b class="hlt">한 방에</b> 만족시키는 게 바로… 다음 장의 <b>이진수 계수기</b>입니다.</p>
+</section>
+
+<!-- 3 -->
+<section id="p3">
+  <h2><span class="num">3</span> 핵심 비유: 이진수 계수기(주행거리계)</h2>
+  <p>자동차 주행거리계나 이진수를 떠올려 보세요. 0,1,2,3… 세어 나갈 때 <b>각 자리(비트)의 깜빡이는 속도가 다릅니다.</b></p>
+
+  <div class="big-idea">🚗 맨 오른쪽 자리는 <span>매번</span> 바뀌고, 왼쪽으로 갈수록 <span>점점 천천히</span> 바뀐다</div>
+
+  <div class="card">
+    <div class="controls">
+      <label>위치(position) 슬라이더를 움직여 보세요 — 비트가 어떻게 깜빡이는지 관찰!</label>
+      <input type="range" id="binR" min="0" max="15" step="1" value="5">
+    </div>
+    <div class="pos-big" id="posLabel">5</div>
+    <div class="bits" id="bits"></div>
+    <p class="muted" style="text-align:center;margin:6px 0 0">
+      비트0(맨 왼쪽) = 제일 빠름 · 비트3(맨 오른쪽) = 제일 느림</p>
+  </div>
+
+  <div class="callout good"><span class="emoji">✨</span>두 가지를 확인하세요.<br>
+    <b>①</b> 위치를 1씩 올릴 때 <b>왼쪽 비트가 제일 자주 깜빡</b>이고, 오른쪽 비트는 가끔만 바뀝니다.<br>
+    <b>②</b> 어떤 위치든 <b>비트 조합(무늬)이 세상에 딱 하나뿐</b>입니다 → 그래서 위치를 구별할 수 있어요.</div>
+
+  <p>바로 이겁니다. <b class="hlt">"서로 다른 속도로 깜빡이는 여러 개의 신호를 겹쳐서 위치를 표현한다."</b>
+  위치 인코딩이 하는 일이 정확히 이거예요.</p>
+</section>
+
+<!-- 4 -->
+<section id="p4">
+  <h2><span class="num">4</span> 딱 한 가지만 바꾸면 = sin·cos</h2>
+  <p>이진수는 좋은데 문제가 하나 있어요. 값이 <b>0 아니면 1</b>로 <b class="hlt">뚝뚝 끊깁니다.</b>
+  신경망은 이렇게 계단처럼 끊기는 값보다 <b>부드럽게 이어지는 값</b>을 훨씬 좋아해요(미분·학습에 유리).</p>
+
+  <div class="big-idea">계단처럼 깜빡이는 이진수 → <span>부드럽게 출렁이는 파도(sin·cos)</span>로 바꾼 것<br>그게 바로 위치 인코딩!</div>
+
+  <p>아래에서 <b>같은 위치 슬라이더</b>가 이번엔 이진수 대신 <b>부드러운 파도 값(위치 인코딩 벡터)</b>을 만듭니다.
+  막대가 위(양수)/아래(음수)로 부드럽게 움직이죠. 왼쪽 칸일수록 빨리, 오른쪽 칸일수록 천천히 변합니다 — 이진수와 똑같은 원리!</p>
+
+  <div class="card">
+    <div class="controls">
+      <label>위치(position) — 움직이면 8칸짜리 위치 벡터가 부드럽게 변합니다</label>
+      <input type="range" id="peR" min="0" max="30" step="1" value="5">
+    </div>
+    <div class="pos-big" id="pePos" style="font-size:30px">position = 5</div>
+    <div class="pebars" id="pebars"></div>
+    <p class="muted" style="text-align:center;margin:6px 0 0">각 칸 = 벡터의 한 차원(dim0…dim7) · 위=양수, 아래=음수</p>
+  </div>
+
+  <div class="callout"><span class="emoji">🔍</span>
+    이진수의 "비트"가 위치 인코딩에선 "차원(dim)"이 됩니다. 0/1 대신 -1~1 사이의 <b>부드러운 값</b>일 뿐,
+    <b>"자리마다 속도가 다르다 + 조합이 유일하다"</b>는 성질은 그대로예요.</div>
+
+  <h3>그럼 sin·cos 공식은?</h3>
+  <p class="muted">겁먹지 마세요. 방금 본 걸 수식으로 적은 것뿐입니다.</p>
+  <table>
+    <tr><th>공식 조각</th><th>쉬운 말</th></tr>
+    <tr><td><span class="inline">sin / cos</span></td><td>부드럽게 출렁이는 파도 만들기</td></tr>
+    <tr><td><span class="inline">pos</span></td><td>지금 몇 번째 단어인지 (슬라이더 값)</td></tr>
+    <tr><td><span class="inline">10000^(2i/d)</span></td><td>차원마다 파도 속도를 다르게 (= 비트 자리별 속도)</td></tr>
+  </table>
+</section>
+
+<!-- 5 -->
+<section id="p5">
+  <h2><span class="num">5</span> 전체 그림 — 이제 히트맵이 읽힌다</h2>
+
+  <h3>먼저: 차원마다 다른 sin·cos 파도</h3>
+  <p>히트맵을 보기 전에, <b>차원(dim)마다 파도가 얼마나 빠른지</b>를 곡선으로 봅시다.
+  각 색이 하나의 차원입니다. <b class="hlt">왼쪽 차원(dim0)일수록 빠르게, 오른쪽으로 갈수록 느리게</b> 출렁이죠 — 이진수 비트의 깜빡임 속도와 똑같습니다.</p>
+  <div class="card">
+    <div class="controls">
+      <label>보여줄 차원 개수 : <b id="wvN" style="color:var(--accent)">4</b></label>
+      <input type="range" id="wvNr" min="2" max="8" step="1" value="4">
+    </div>
+    <canvas id="waves" width="880" height="300"></canvas>
+    <div class="legend"><span>가로축 = 위치(pos) →</span><span>·</span><span>세로축 = 값(-1 ~ +1)</span></div>
+  </div>
+  <div class="callout"><span class="emoji">🌊</span>
+    이 곡선들을 세로로 세워서 색으로 칠하면 → 바로 아래 <b>히트맵</b>이 됩니다.
+    (한 위치에서 모든 파도 값을 뽑은 게 4번 섹션의 "막대", 그걸 위→아래로 쌓은 게 히트맵)</div>
+
+  <h3>이제: 전체를 한 장으로 (히트맵)</h3>
+  <p>모든 위치(세로)와 모든 차원(가로)의 값을 한 장에 그리면 이렇게 됩니다.
+  <b>"부드러운 이진 계수기를 위에서 내려다본 사진"</b>이라고 보면 돼요.</p>
+  <div class="card">
+    <div class="controls">
+      <label style="display:block;margin-bottom:6px">아래 슬라이더로 노란 줄(현재 위치)을 움직여 보세요.</label>
+      <input type="range" id="hlR" min="0" max="39" step="1" value="5">
+    </div>
+    <canvas id="heat" width="880" height="420"></canvas>
+    <div class="legend">
+      <span>낮음(-1)</span><span class="barleg"></span><span>높음(+1)</span>
+      <span style="margin-left:auto">가로 → 차원(dim) · 세로 ↓ 위치(pos)</span>
+    </div>
+  </div>
+  <div class="callout good"><span class="emoji">👀</span>
+    <b>왼쪽 차원</b>은 세로 줄무늬가 <b>촘촘</b>(빨리 깜빡 = 빠른 비트),
+    <b>오른쪽 차원</b>은 <b>넓고 완만</b>(천천히 = 느린 비트). 그리고 <b>모든 가로줄(위치)의 무늬가 다 다릅니다.</b>
+    딱 이진수 계수기 그대로죠!</div>
+</section>
+
+<!-- 6 -->
+<section id="p6">
+  <h2><span class="num">6</span> 코드는 이 3줄이 전부</h2>
+  <p>노트북 <span class="inline">example-detailed.ipynb</span>에서 실제로 표를 채우는 부분입니다.</p>
+<pre><code><span class="cmt"># 차원마다 다른 "깜빡임 속도" (오른쪽 dim일수록 느리게)</span>
+div = torch.<span class="fn">exp</span>(torch.<span class="fn">arange</span>(<span class="num2">0</span>, d_model, <span class="num2">2</span>).<span class="fn">float</span>() * (-math.<span class="fn">log</span>(<span class="num2">10000.0</span>) / d_model))
+
+<span class="cmt"># 짝수 칸엔 sin 파도, 홀수 칸엔 cos 파도를 채운다</span>
+pe[:, <span class="num2">0</span>::<span class="num2">2</span>] = torch.<span class="fn">sin</span>(pos * div)
+pe[:, <span class="num2">1</span>::<span class="num2">2</span>] = torch.<span class="fn">cos</span>(pos * div)</code></pre>
+  <p>그리고 실제로 쓸 때는 <b class="hlt">단어 벡터에 그냥 더합니다.</b></p>
+<pre><code><span class="kw">def</span> <span class="fn">forward</span>(self, x):
+    <span class="kw">return</span> self.<span class="fn">dropout</span>(x + self.pe[:, :x.<span class="fn">size</span>(<span class="num2">1</span>)])
+    <span class="cmt">#              ↑ 단어 의미(x) + 위치 무늬(pe) = "세 번째 단어인 '개'"</span></code></pre>
+  <div class="callout"><span class="emoji">➕</span><b>왜 더하기?</b> 이어붙이면(concat) 벡터가 길어져 계산이 늘어요.
+  그냥 더하면 같은 크기 안에서 "의미 + 위치"가 섞이고, 나머지는 모델이 알아서 분리해 씁니다.</div>
+</section>
+
+<!-- 7 -->
+<section id="p7">
+  <h2><span class="num">7</span> 30초 요약</h2>
+  <div class="card" style="text-align:center;padding:30px">
+    <p style="font-size:21px;font-weight:800;margin:0;line-height:1.7">
+      "어텐션은 순서를 모른다.<br>
+      그래서 <span style="color:var(--brand)">이진수 계수기</span>처럼<br>
+      <span style="color:var(--accent)">자리마다 속도가 다른 파도(sin·cos)</span>를 만들어<br>
+      단어 벡터에 <span style="color:var(--good)">더해</span> 위치를 알려준다."
+    </p>
+  </div>
+  <div class="grid2" style="margin-top:18px">
+    <div class="card tight"><b>🚗 비유</b><br><span class="muted">주행거리계 / 이진수 카운터</span></div>
+    <div class="card tight"><b>🌊 무엇</b><br><span class="muted">차원마다 속도 다른 sin·cos 파도</span></div>
+    <div class="card tight"><b>🎯 성질</b><br><span class="muted">값 작음 + 위치마다 유일한 무늬</span></div>
+    <div class="card tight"><b>➕ 사용</b><br><span class="muted">단어 벡터에 그냥 더하기</span></div>
+  </div>
+</section>
+
+<footer>
+  <p>Mini-Transformer 실습 교재 · 위치 인코딩 쉬운 설명판<br>
+  코드 출처: <span class="inline">example-detailed.ipynb</span> — 부품 ① 위치 인코딩</p>
+</footer>
+
+</div>
+
+<script>
+/* ---------- viridis 컬러맵 ---------- */
+const VIRIDIS=[[68,1,84],[72,40,120],[62,74,137],[49,104,142],[38,130,142],
+[31,158,137],[53,183,121],[110,206,88],[181,222,43],[253,231,37]];
+function viridis(t){t=Math.max(0,Math.min(1,t));const x=t*(VIRIDIS.length-1);
+  const i=Math.floor(x),f=x-i;const a=VIRIDIS[i],b=VIRIDIS[Math.min(i+1,9)];
+  return`rgb(${Math.round(a[0]+(b[0]-a[0])*f)},${Math.round(a[1]+(b[1]-a[1])*f)},${Math.round(a[2]+(b[2]-a[2])*f)})`;}
+
+const WCOL=['#38bdf8','#818cf8','#34d399','#fbbf24','#f472b6','#f87171','#a78bfa','#22d3ee'];
+
+/* ---------- 5-1. sin·cos 파도 그래프 ---------- */
+const wv=document.getElementById('waves');const wctx=wv.getContext('2d');
+const wvNr=document.getElementById('wvNr'),wvN=document.getElementById('wvN');
+function drawWaves(){
+  const n=+wvNr.value; wvN.textContent=n;
+  const d=32, maxPos=40;
+  const W=wv.width,H=wv.height,padL=42,padR=12,padT=28,padB=26;
+  const gw=W-padL-padR,gh=H-padT-padB;
+  wctx.clearRect(0,0,W,H);
+  // 0선
+  wctx.strokeStyle='#334155';wctx.lineWidth=1;
+  wctx.beginPath();wctx.moveTo(padL,padT+gh/2);wctx.lineTo(W-padR,padT+gh/2);wctx.stroke();
+  wctx.fillStyle='#64748b';wctx.font='11px sans-serif';wctx.textAlign='right';wctx.textBaseline='middle';
+  wctx.fillText('0',padL-6,padT+gh/2);wctx.fillText('+1',padL-6,padT+4);wctx.fillText('-1',padL-6,padT+gh-4);
+  // 각 차원의 sin 파도
+  for(let k=0;k<n;k++){
+    const i=k*2;
+    const div=Math.exp(i*(-Math.log(10000.0)/d));
+    wctx.strokeStyle=WCOL[k%WCOL.length];wctx.lineWidth=2.2;
+    wctx.beginPath();
+    for(let px=0;px<=gw;px++){
+      const pos=px/gw*maxPos;
+      const y=padT+gh/2 - Math.sin(pos*div)*(gh/2-4);
+      const x=padL+px;
+      px===0?wctx.moveTo(x,y):wctx.lineTo(x,y);
+    }
+    wctx.stroke();
+    // 범례
+    const lx=padL+6+k*74;
+    wctx.fillStyle=WCOL[k%WCOL.length];wctx.fillRect(lx,6,11,11);
+    wctx.fillStyle='#94a3b8';wctx.font='11px sans-serif';wctx.textAlign='left';wctx.textBaseline='top';
+    wctx.fillText('dim '+i,lx+15,6);
+  }
+  wctx.fillStyle='#64748b';wctx.textAlign='right';wctx.textBaseline='bottom';
+  wctx.fillText('pos →',W-padR,H-6);
+}
+wvNr.oninput=drawWaves; drawWaves();
+
+/* ---------- 3. 이진수 계수기 ---------- */
+const binR=document.getElementById('binR');
+const bitsEl=document.getElementById('bits');
+const posLabel=document.getElementById('posLabel');
+function drawBits(){
+  const v=+binR.value; posLabel.textContent=v;
+  const nbits=4; let html='';
+  // 비트0(LSB)=제일 빠름 을 왼쪽에 배치
+  const speeds=['제일 빠름','빠름','느림','제일 느림'];
+  for(let b=0;b<nbits;b++){
+    const on=(v>>b)&1;
+    html+=`<div class="bit ${on?'on':''}"><div class="box">${on}</div>
+      <div class="lab">비트${b}<div class="speed">${speeds[b]}</div></div></div>`;
+  }
+  bitsEl.innerHTML=html;
+}
+binR.oninput=drawBits; drawBits();
+
+/* ---------- PE 계산 (노트북과 동일) ---------- */
+function peRow(pos,d){
+  const row=new Array(d).fill(0);
+  for(let i=0;i<d;i+=2){
+    const div=Math.exp(i*(-Math.log(10000.0)/d));
+    row[i]=Math.sin(pos*div);
+    if(i+1<d) row[i+1]=Math.cos(pos*div);
+  }
+  return row;
+}
+
+/* ---------- 4. PE 막대 ---------- */
+const peR=document.getElementById('peR');
+const pebars=document.getElementById('pebars');
+const pePos=document.getElementById('pePos');
+const PED=8;
+function drawPeBars(){
+  const pos=+peR.value; pePos.textContent='position = '+pos;
+  const row=peRow(pos,PED);
+  let html='';
+  for(let i=0;i<PED;i++){
+    const v=row[i];               // -1..1
+    const h=Math.abs(v)*50;       // 0..50%
+    const up=v>=0;
+    const col=viridis((v+1)/2);
+    html+=`<div class="peb">
+      <div class="zero"></div>
+      <div class="fill" style="height:${h}%;background:${col};align-self:${up?'flex-end':'flex-start'};
+        border-radius:${up?'8px 8px 0 0':'0 0 8px 8px'};margin-top:${up?'auto':'50%'};"></div>
+      <div class="lab">dim${i}</div></div>`;
+  }
+  pebars.innerHTML=html;
+}
+peR.oninput=drawPeBars; drawPeBars();
+
+/* ---------- 5. 히트맵 (현재 위치 하이라이트) ---------- */
+const heat=document.getElementById('heat');const hctx=heat.getContext('2d');
+const hlR=document.getElementById('hlR');
+const HD=32, HM=40;
+function drawHeat(){
+  const hl=+hlR.value;
+  const padL=44,padT=10,padB=28,padR=10;
+  const W=heat.width,H=heat.height,gw=W-padL-padR,gh=H-padT-padB;
+  const cw=gw/HD,ch=gh/HM;
+  hctx.clearRect(0,0,W,H);
+  for(let pos=0;pos<HM;pos++){
+    const row=peRow(pos,HD);
+    for(let i=0;i<HD;i++){
+      hctx.fillStyle=viridis((row[i]+1)/2);
+      hctx.fillRect(padL+i*cw,padT+pos*ch,Math.ceil(cw),Math.ceil(ch));
+    }
+  }
+  // highlight current position
+  hctx.strokeStyle='#fbbf24';hctx.lineWidth=3;
+  hctx.strokeRect(padL,padT+hl*ch,gw,ch);
+  // labels
+  hctx.fillStyle='#94a3b8';hctx.font='12px sans-serif';
+  hctx.textAlign='right';hctx.textBaseline='middle';
+  for(let p=0;p<=HM;p+=5) hctx.fillText(p,padL-6,padT+p*ch);
+  hctx.textAlign='center';hctx.textBaseline='top';
+  for(let i=0;i<=HD;i+=4) hctx.fillText(i,padL+i*cw,H-padB+6);
+  hctx.textAlign='left';hctx.fillStyle='#fbbf24';
+  hctx.fillText('◀ 지금 위치 '+hl,padL+gw-140,padT+hl*ch<H-40?padT+hl*ch-14:padT+hl*ch+14);
+}
+hlR.oninput=drawHeat; drawHeat();
+</script>
+</body>
+</html>

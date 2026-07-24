@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Transformer(전체 조립) — 세상에서 제일 쉽게</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel2:#273449;
+    --ink:#e2e8f0; --sub:#94a3b8; --line:#334155;
+    --brand:#38bdf8; --brand2:#818cf8; --accent:#fbbf24;
+    --good:#34d399; --warn:#f472b6; --code:#0b1220;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:"Segoe UI","Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif;
+    line-height:1.8;font-size:17px}
+  a{color:var(--brand)}
+  .wrap{max-width:900px;margin:0 auto;padding:0 20px 120px}
+
+  header{background:radial-gradient(1200px 500px at 20% -10%,rgba(56,189,248,.25),transparent 60%),
+    radial-gradient(1000px 500px at 90% 0%,rgba(129,140,248,.22),transparent 55%),var(--bg);
+    border-bottom:1px solid var(--line);padding:64px 20px 48px}
+  header .wrap{padding-bottom:0}
+  .kicker{color:var(--brand);font-weight:700;letter-spacing:.14em;font-size:13px;text-transform:uppercase}
+  h1{font-size:clamp(28px,5vw,44px);line-height:1.22;margin:.35em 0 .3em;font-weight:800}
+  h1 .hl{background:linear-gradient(90deg,var(--brand),var(--brand2));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .lead{font-size:19px;color:var(--sub);max-width:720px}
+
+  section{margin-top:60px}
+  h2{font-size:clamp(23px,3.4vw,29px);margin:0 0 8px;font-weight:800;display:flex;align-items:center;gap:12px}
+  h2 .num{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:12px;
+    background:linear-gradient(135deg,var(--brand),var(--brand2));color:#06121f;font-size:18px;font-weight:900;flex:0 0 auto}
+  h3{font-size:19px;margin:26px 0 6px}
+  p{margin:.6em 0}
+  .muted{color:var(--sub)}
+  b.hlt{color:#fff}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px 24px;margin:18px 0}
+  .card.tight{padding:16px 18px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+  @media(max-width:720px){.grid2,.grid3{grid-template-columns:1fr}}
+
+  .callout{border-left:4px solid var(--brand);background:var(--panel2);border-radius:0 12px 12px 0;padding:14px 18px;margin:16px 0}
+  .callout.good{border-color:var(--good)} .callout.warn{border-color:var(--warn)}
+  .callout b{color:#fff}
+  .emoji{font-size:20px;margin-right:6px}
+  .big-idea{background:linear-gradient(135deg,rgba(56,189,248,.16),rgba(129,140,248,.16));
+    border:1px solid var(--line);border-radius:18px;padding:24px 26px;margin:18px 0;font-size:19px;text-align:center;font-weight:700}
+  .big-idea span{color:var(--accent)}
+
+  .inline{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:1px 7px;
+    font-family:"Consolas","D2Coding",monospace;font-size:14px;color:#fde68a}
+
+  /* role cards (통역 부스 3역할, 다른 문서와 동일 컴포넌트) */
+  .role{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+  .role .tag{display:inline-block;font-weight:900;font-size:13px;letter-spacing:.06em;padding:3px 10px;border-radius:8px;margin-bottom:8px}
+  .role.q .tag{background:rgba(56,189,248,.2);color:var(--brand)}
+  .role.k .tag{background:rgba(129,140,248,.2);color:var(--brand2)}
+  .role.v .tag{background:rgba(52,211,153,.2);color:var(--good)}
+  .role h4{margin:0 0 4px;font-size:17px}
+
+  .steps{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;margin:10px 0}
+  .step{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:13px;font-weight:700}
+  .step .arw{color:var(--sub);margin:0 2px}
+
+  /* 조립도 클릭형 스텝(신규: 기존 .step을 버튼으로 확장, 팔레트는 기존 변수만 사용) */
+  .flowsteps{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:center;margin:14px 0}
+  .flowstep{background:var(--panel2);border:2px solid var(--line);border-radius:10px;padding:10px 14px;font-size:14px;font-weight:700;cursor:pointer;transition:all .12s}
+  .flowstep:hover{border-color:var(--brand)}
+  .flowstep.sel{background:linear-gradient(135deg,var(--brand),var(--brand2));color:#06121f;border-color:transparent;box-shadow:0 0 16px rgba(56,189,248,.45)}
+  .flowarw{color:var(--sub);font-weight:700}
+  .flowdesc{min-height:64px}
+
+  /* 가중치 공유 데모(신규: 임베딩표 vs 출력층 가중치, 기존 변수만 사용) */
+  .tiegrid{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center;margin:14px 0}
+  @media(max-width:640px){.tiegrid{grid-template-columns:1fr}}
+  .tiebox{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+  .tiebox h4{margin:0 0 10px;font-size:15px;display:flex;align-items:center;gap:6px}
+  .tierow{display:flex;align-items:center;gap:8px;margin:6px 0}
+  .tierow .wname{width:44px;font-weight:700;font-size:14px;flex:0 0 auto}
+  .tiecell{width:56px;background:var(--code);border:1px solid var(--line);border-radius:6px;color:#fde68a;
+    font-family:"Consolas","D2Coding",monospace;font-size:13px;padding:5px 4px;text-align:center}
+  .tiecell:focus{outline:none;border-color:var(--brand)}
+  .tielink{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;font-size:22px;color:var(--brand)}
+  .tielink small{font-size:11px;color:var(--sub);text-align:center;white-space:nowrap}
+  .tiebtn{background:var(--panel2);border:2px solid var(--brand);color:var(--brand);border-radius:10px;padding:8px 14px;
+    font-weight:700;cursor:pointer;font-size:14px}
+  .tiebtn.off{border-color:var(--warn);color:var(--warn)}
+
+  pre{background:var(--code);border:1px solid var(--line);border-radius:14px;padding:18px;overflow:auto;font-size:14px;line-height:1.7;margin:14px 0}
+  code{font-family:"Consolas","D2Coding",monospace}
+  pre code{color:#cbd5e1}
+  .cmt{color:#64748b}.kw{color:#f472b6}.fn{color:#38bdf8}.num2{color:#fbbf24}.str{color:#34d399}
+
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:15px}
+  th,td{border:1px solid var(--line);padding:9px 12px;text-align:left}
+  th{background:var(--panel2);color:#fff}
+
+  footer{margin-top:80px;border-top:1px solid var(--line);padding-top:24px;color:var(--sub);font-size:14px}
+  .toc{position:sticky;top:0;z-index:5;background:rgba(15,23,42,.85);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+  .toc .wrap{display:flex;gap:6px;flex-wrap:wrap;padding:10px 20px;overflow-x:auto}
+  .toc a{color:var(--sub);text-decoration:none;font-size:13px;padding:6px 10px;border-radius:8px;white-space:nowrap}
+  .toc a:hover{background:var(--panel);color:#fff}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="kicker">Mini-Transformer · 부품 ⑨ 전체 조립 다시 쉽게</div>
+    <h1>Transformer 클래스는<br><span class="hl">"통역 부스 총괄 매니저"</span> 입니다</h1>
+    <p class="lead">인코더는 질문을 이해만 하고, 디코더는 그걸 참고해 표현만 만듭니다.
+    누군가는 그 표현을 <b>실제 단어 점수</b>로 바꿔야 하고, 누군가는 이 둘을 <b>한 자리에 앉혀야</b> 합니다.
+    <span class="inline">Transformer</span> 클래스가 그 마지막 조립 도면이자, 부스 사양(하이퍼파라미터)까지 정하는 총괄 매니저예요.</p>
+  </div>
+</header>
+
+<nav class="toc"><div class="wrap">
+  <a href="#p1">1. 왜 또 조립하나</a>
+  <a href="#p2">2. 통역 부스 비유</a>
+  <a href="#p3">3. 코드 — __init__</a>
+  <a href="#p4">4. 가중치 공유 직접 해보기</a>
+  <a href="#p5">5. 조립도 눌러보기</a>
+  <a href="#p6">6. 문 3개: forward·encode·decode_step</a>
+  <a href="#p7">7. 헷갈리기 쉬운 점</a>
+  <a href="#p8">8. 요약</a>
+</div></nav>
+
+<div class="wrap">
+
+<!-- 1 -->
+<section id="p1">
+  <h2><span class="num">1</span> 왜 또 조립해야 하나 (30초)</h2>
+  <p>부품 ①~⑧을 다 만들었지만, 아직 <b class="hlt">"질문 문장을 넣으면 답 문장 점수가 나오는"</b> 모델은 없습니다.
+  <span class="inline">Encoder</span>(부품⑦)는 질문을 이해만 하고, <span class="inline">Decoder</span>(부품⑧)는 그 이해를 참고해
+  <b>벡터 표현</b>만 만들어요. 그 벡터를 실제 <b>"다음 단어 점수(logit)"</b>로 바꾸는 사람도, 이 둘을 한 자리에 앉히는 사람도 아직 없습니다.</p>
+
+  <div class="big-idea">인코더 + 디코더 + <span>출력층</span>을 한 자리에 → 이름 그대로 <span>"전체 조립"</span></div>
+
+  <div class="callout"><span class="emoji">🧩</span><b>노트북 코드 주석 그대로:</b>
+  "인코더 + 디코더 + 출력층을 하나로 묶습니다. <b>하이퍼파라미터 기본값도 여기서 정합니다.</b>"
+  즉 이 클래스는 단순히 두 부품을 이어붙이는 것 이상으로, <b>모델 전체의 크기(d_model, num_heads 등)를 정하는 유일한 곳</b>이기도 합니다.</div>
+</section>
+
+<!-- 2 -->
+<section id="p2">
+  <h2><span class="num">2</span> 비유: 통역 부스 총괄 매니저</h2>
+  <p>동시통역 부스를 떠올려 보세요. 한 명은 <b>듣고 이해</b>만 하고, 다른 한 명은 <b>듣기 담당의 메모를 곁눈질하며 말</b>만 합니다.
+  그런데 말하기 담당이 머릿속으로 "생각한 것"과 실제로 <b>입 밖으로 나올 단어</b>는 다릅니다 — 마이크를 통해 실제 발음 점수로 바꿔줘야 하죠.</p>
+  <div class="grid3">
+    <div class="role q">
+      <span class="tag">듣기 통역사</span>
+      <h4>🎧 인코더 (Encoder)</h4>
+      <p class="muted" style="margin:0">질문을 딱 한 번 듣고 이해해 <b>마음속 표현(enc)</b>으로 저장합니다.</p>
+    </div>
+    <div class="role k">
+      <span class="tag">말하기 통역사</span>
+      <h4>🗣️ 디코더 (Decoder)</h4>
+      <p class="muted" style="margin:0">지금까지 한 말과 상대방 메모(enc)를 참고해 <b>다음에 할 말의 표현</b>을 만듭니다.</p>
+    </div>
+    <div class="role v">
+      <span class="tag">마이크</span>
+      <h4>🎙️ 출력층 (out, Linear)</h4>
+      <p class="muted" style="margin:0">그 표현을 <b>답 단어장 크기의 점수</b>로 바꿔 실제 발음될 단어를 고를 수 있게 합니다.</p>
+    </div>
+  </div>
+  <div class="callout good"><span class="emoji">🏢</span><b>총괄 매니저(Transformer 클래스)</b>가 하는 일은 두 가지예요.
+  ① 이 세 역할을 한 부스에 앉혀 <b>서로 데이터를 주고받게</b> 연결하고, ② <b>부스 사양</b>
+  (<span class="inline">d_model, num_heads, num_layers, d_ff, dropout, max_len</span>)을 <b>기본값으로 정해</b> 통역사들에게 나눠줍니다.</div>
+</section>
+
+<!-- 3 -->
+<section id="p3">
+  <h2><span class="num">3</span> 코드 — __init__ 뜯어보기</h2>
+  <p>노트북 <span class="inline">example-detailed.ipynb</span> 셀 21, <span class="inline">Transformer</span> 클래스의 생성자입니다.</p>
+<pre><code><span class="kw">class</span> <span class="fn">Transformer</span>(nn.Module):
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, src_vocab, tgt_vocab, d_model=<span class="num2">64</span>, num_heads=<span class="num2">4</span>,
+                 num_layers=<span class="num2">2</span>, d_ff=<span class="num2">256</span>, dropout=<span class="num2">0.1</span>, max_len=<span class="num2">32</span>):
+        super().<span class="fn">__init__</span>()
+        self.encoder = <span class="fn">Encoder</span>(src_vocab, d_model, num_heads, num_layers, d_ff, dropout, max_len)   <span class="cmt"># 듣기 통역사</span>
+        self.decoder = <span class="fn">Decoder</span>(tgt_vocab, d_model, num_heads, num_layers, d_ff, dropout, max_len)   <span class="cmt"># 말하기 통역사</span>
+        self.out = nn.<span class="fn">Linear</span>(d_model, tgt_vocab, bias=<span class="kw">False</span>)   <span class="cmt"># 마이크: 표현 → 답 단어 점수</span>
+        self.out.weight = self.decoder.emb.weight   <span class="cmt"># weight tying(가중치 공유)</span></code></pre>
+
+  <table>
+    <tr><th>속성</th><th>역할</th><th>기본값(하이퍼파라미터)</th></tr>
+    <tr><td><span class="inline">self.encoder</span></td><td>질문 이해 (부품⑦)</td><td rowspan="2"><span class="inline">d_model=64</span> · <span class="inline">num_heads=4</span> · <span class="inline">num_layers=2</span> · <span class="inline">d_ff=256</span></td></tr>
+    <tr><td><span class="inline">self.decoder</span></td><td>답 표현 생성 (부품⑧)</td></tr>
+    <tr><td><span class="inline">self.out</span></td><td>표현 → 답 단어 점수</td><td><span class="inline">bias=False</span> (아래 4번 이유)</td></tr>
+  </table>
+
+  <div class="callout"><span class="emoji">🗺️</span><b>이 클래스가 하이퍼파라미터의 유일한 근원지입니다.</b>
+  <a href="positional-encoding.html">위치 인코딩</a>·<a href="multi-head-attention.html">멀티헤드 어텐션</a>·
+  <a href="feed-forward.html">FFN</a>·<a href="encoder-layer.html">인코더 블록</a> 등 부품들은 전부 이 값을
+  <b>인자로 받아 쓰기만</b> 하고, 스스로 기본값을 정하지 않습니다. "실전에선 d_model=64를 쓴다"는 사실이 바로
+  <b>여기, 셀 21 한 곳</b>에서 정해지기 때문에 다른 문서들이 공통으로 인용할 수 있는 거예요.</div>
+</section>
+
+<!-- 4 -->
+<section id="p4">
+  <h2><span class="num">4</span> 가중치 공유(weight tying) 직접 해보기</h2>
+  <p><span class="inline">self.out.weight = self.decoder.emb.weight</span> — 이 한 줄이 이 클래스의 진짜 트릭입니다.
+  <b>복사가 아니라 대입</b>입니다. 즉 출력층의 가중치와 디코더 임베딩 표는 <b class="hlt">완전히 같은 텐서(같은 메모리)</b>를 가리켜요.
+  아래에서 한쪽 값을 바꾸면 다른 쪽도 <b>실시간으로 같이 바뀌는지</b> 직접 확인해 보세요.</p>
+
+  <div class="card">
+    <p class="muted" style="margin:0 0 8px">토이 예시(개념 시각화용 수치, 실제 학습된 가중치 아님) · 답 단어장 4개 × 3차원</p>
+    <div class="tiegrid">
+      <div class="tiebox">
+        <h4 style="color:var(--brand)">🗣️ decoder.emb.weight</h4>
+        <div id="decTable"></div>
+      </div>
+      <div class="tielink">
+        <span id="tieIcon">🔗</span>
+        <small id="tieLabel">같은 텐서<br>(공유 중)</small>
+      </div>
+      <div class="tiebox">
+        <h4 style="color:var(--good)">🎙️ out.weight</h4>
+        <div id="outTable"></div>
+      </div>
+    </div>
+    <div style="text-align:center;margin-top:6px">
+      <button class="tiebtn" id="tieToggle">가중치 공유 끄기(비교용)</button>
+    </div>
+  </div>
+
+  <div class="callout good" id="tieExplain"><span class="emoji">🔗</span>
+  지금은 <b>공유 중</b>입니다. 왼쪽 표(예: "비가"의 1번째 값)를 고쳐보세요 — 오른쪽 표의 <b>같은 자리</b>가 즉시 같이 바뀝니다.
+  둘이 애초에 <b>같은 배열(같은 텐서)</b>이기 때문이에요.</div>
+
+  <div class="callout"><span class="emoji">💡</span><b>왜 이렇게 하나?</b>
+  노트북 주석 그대로: "입력 임베딩과 출력 예측이 <b>같은 단어공간</b>을 쓰게 해 파라미터를 줄이고 일반화를 돕습니다."
+  "비가"라는 단어를 <b>입력으로 받을 때 쓰는 벡터</b>와, "다음 단어가 비가일 확률이 높다"고 <b>점수를 낼 때 쓰는 벡터</b>가
+  본질적으로 같은 정보(그 단어의 의미)여야 한다는 관점이에요. 덕분에 <span class="inline">d_model × tgt_vocab</span> 크기의
+  파라미터를 <b>통째로 하나 아낍니다.</b></div>
+  <div class="callout warn"><span class="emoji">🎙️</span><b><span class="inline">out.weight</span>에만 <span class="inline">bias=False</span>인 이유:</b>
+  임베딩 표(<span class="inline">nn.Embedding</span>)는 원래 bias 개념이 없는 순수 조회 테이블입니다.
+  두 텐서를 <b>같은 것으로 취급</b>하려면 출력층도 bias 없이 순수 행렬곱이어야 짝이 맞아요.
+  bias까지 있었다면 "완전히 같은 텐서"라는 말이 어색해집니다.</div>
+</section>
+
+<!-- 5 -->
+<section id="p5">
+  <h2><span class="num">5</span> 조립도 눌러보기</h2>
+  <p><span class="inline">forward</span> 한 줄 <span class="inline">self.out(self.decoder(tgt, self.encoder(src, src_mask), tgt_mask, src_mask))</span>
+  을 순서대로 눌러가며 각 단계가 무슨 일을 하는지, 자세한 설명은 어느 문서에 있는지 확인해 보세요.</p>
+
+  <div class="flowsteps" id="flowSteps"></div>
+  <div class="card flowdesc" id="flowDesc"></div>
+</section>
+
+<!-- 6 -->
+<section id="p6">
+  <h2><span class="num">6</span> 문 3개: forward · encode · decode_step</h2>
+  <p>조립된 <span class="inline">Transformer</span>를 실제로 쓰는 입구는 세 개입니다. 학습과 추론이 서로 다른 문을 씁니다.</p>
+  <table>
+    <tr><th>메서드</th><th>언제</th><th>하는 일</th><th>자세히</th></tr>
+    <tr><td><span class="inline">forward(src,tgt,src_mask,tgt_mask)</span></td><td>학습</td>
+      <td>정답 문장 전체를 한 번에 넣고 모든 위치의 다음 단어 점수를 계산</td>
+      <td><a href="training-loop.html">학습 문서</a></td></tr>
+    <tr><td><span class="inline">encode(src, src_mask)</span></td><td>추론(1회)</td>
+      <td>질문을 딱 한 번만 이해해 <span class="inline">enc</span>로 저장</td>
+      <td><a href="greedy-decoding.html">답 생성 문서</a></td></tr>
+    <tr><td><span class="inline">decode_step(tgt, enc, tgt_mask, src_mask)</span></td><td>추론(반복)</td>
+      <td>지금까지 만든 답 + <span class="inline">enc</span>로 다음 단어 점수 계산, 한 단어 늘 때마다 재호출</td>
+      <td><a href="greedy-decoding.html">답 생성 문서</a></td></tr>
+  </table>
+  <div class="callout"><span class="emoji">🚪</span><b>왜 문이 세 개나 필요한가:</b>
+  학습 때는 정답을 이미 알고 있어서 <b>한 번에(forward)</b> 계산하면 되지만, 추론 때는 답을 모르는 채로
+  <b>한 단어씩 만들어야</b> 합니다. 매 단어마다 질문을 다시 이해하면 낭비이므로, "질문 이해(encode)"와
+  "답 한 단어 만들기(decode_step)"를 <b>따로 떼어 재사용</b>할 수 있게 만든 거예요.
+  이 문 3개 안에서 정확히 무슨 일이 일어나는지는 <a href="training-loop.html">학습</a>·<a href="greedy-decoding.html">답 생성</a> 문서에서 스텝별로 다룹니다.</div>
+</section>
+
+<!-- 7 -->
+<section id="p7">
+  <h2><span class="num">7</span> 헷갈리기 쉬운 점</h2>
+  <div class="callout"><span class="emoji">🚫</span><b>마스크는 왜 Transformer 안에서 안 만드나?</b>
+  <span class="inline">forward</span>·<span class="inline">encode</span>·<span class="inline">decode_step</span> 모두
+  <span class="inline">src_mask</span>·<span class="inline">tgt_mask</span>를 <b>인자로 받기만</b> 합니다. 마스크 자체는
+  부품 ⑩(<a href="masking.html">마스크 만들기</a>)이라는 <b>완전히 별개의 함수</b>에서 만들어요. "부스를 조립하는 일"과
+  "무엇을 가릴지 정하는 일"을 분리해 두면 각자 이해하고 테스트하기 쉬워집니다.</div>
+  <div class="callout warn"><span class="emoji">📚</span><b>가중치 공유는 인코더와는 무관합니다.</b>
+  <span class="inline">self.out.weight = self.decoder.emb.weight</span>는 <b>디코더 임베딩(tgt_vocab 기준)</b>과
+  <b>출력층(tgt_vocab 기준)</b> 사이의 공유예요. 둘 다 크기가 <span class="inline">tgt_vocab</span>이라 딱 맞아떨어지는 거고,
+  질문 쪽 <span class="inline">self.encoder.emb</span>(src_vocab 기준)는 <b>크기부터 다르므로 애초에 공유 대상이 아닙니다.</b></div>
+  <div class="callout good"><span class="emoji">🔬</span><b>num_layers=2가 왜 이렇게 작나?</b>
+  이 노트북은 손으로 익히는 <b>실습용 미니 모델</b>이라 인코더·디코더 각 2겹만 씁니다. 실제 논문(Transformer 원 논문)은
+  보통 6겹을 씁니다 — 구조는 완전히 같고 <span class="inline">num_layers</span> 숫자만 다를 뿐이에요.</div>
+</section>
+
+<!-- 8 -->
+<section id="p8">
+  <h2><span class="num">8</span> 30초 요약</h2>
+  <div class="card" style="text-align:center;padding:30px">
+    <p style="font-size:21px;font-weight:800;margin:0;line-height:1.7">
+      "<span style="color:var(--brand)">인코더</span>(이해) + <span style="color:var(--brand2)">디코더</span>(생성) +
+      <span style="color:var(--good)">출력층</span>(점수화)을 한 부스에 앉히고,<br>
+      <span style="color:var(--accent)">부스 사양(하이퍼파라미터)</span>을 이 클래스가 정한다.<br>
+      출력층은 디코더 임베딩과 <span style="color:var(--warn)">가중치를 공유</span>해 파라미터를 아낀다."
+    </p>
+  </div>
+  <div class="grid2" style="margin-top:18px">
+    <div class="card tight"><b>🏢 비유</b><br><span class="muted">듣기·말하기 통역사 + 마이크를 관리하는 부스 매니저</span></div>
+    <div class="card tight"><b>🗺️ 근원지</b><br><span class="muted">d_model=64 등 모든 부품의 기본값이 여기서 정해짐</span></div>
+    <div class="card tight"><b>🔗 가중치 공유</b><br><span class="muted">out.weight = decoder.emb.weight (같은 텐서)</span></div>
+    <div class="card tight"><b>🚪 문 3개</b><br><span class="muted">forward(학습) / encode+decode_step(추론)</span></div>
+  </div>
+</section>
+
+<footer>
+  <p>Mini-Transformer 실습 교재 · Transformer(전체 조립) 쉬운 설명판<br>
+  코드 출처: <span class="inline">example-detailed.ipynb</span> — 부품 ⑨ Transformer (셀 21, 관련: 부품⑦ Encoder 셀 19 · 부품⑧ Decoder 셀 20 · 부품⑩ 마스크 셀 22)<br>
+  함께 보기: <a href="encoder.html">인코더(부품⑦)</a> · <a href="decoder-block.html">디코더 블록(부품⑥)</a> ·
+  <a href="masking.html">마스킹(부품⑩)</a> · <a href="training-loop.html">학습</a> · <a href="greedy-decoding.html">답 생성</a> · <a href="vocab.html">어휘 사전</a></p>
+</footer>
+
+</div>
+
+<script>
+/* ================= 4. 가중치 공유(weight tying) 데모 ================= */
+const TIE_WORDS=['(pad)','비가','올','같아'];
+// decoder.emb.weight와 out.weight를 "같은 배열"로 공유(실제 self.out.weight = self.decoder.emb.weight를 흉내)
+let sharedVecs=[[0.10,0.05,0.02],[0.72,0.18,0.05],[0.15,0.66,0.20],[0.05,0.22,0.68]];
+let decVecs=sharedVecs, outVecs=sharedVecs;   // tied=true일 땐 같은 참조
+let tied=true;
+const decTable=document.getElementById('decTable'), outTable=document.getElementById('outTable');
+const tieToggle=document.getElementById('tieToggle'), tieIcon=document.getElementById('tieIcon'),
+      tieLabel=document.getElementById('tieLabel'), tieExplain=document.getElementById('tieExplain');
+
+function renderTieTable(el, vecs, colorVar, editable){
+  let h='';
+  for(let i=0;i<TIE_WORDS.length;i++){
+    h+=`<div class="tierow"><div class="wname" style="color:var(${colorVar})">${TIE_WORDS[i]}</div>`;
+    for(let d=0;d<3;d++){
+      h+=`<input class="tiecell" type="number" step="0.01" value="${vecs[i][d]}" data-i="${i}" data-d="${d}">`;
+    }
+    h+='</div>';
+  }
+  el.innerHTML=h;
+  el.querySelectorAll('.tiecell').forEach(inp=>{
+    inp.oninput=()=>{
+      const i=+inp.dataset.i, d=+inp.dataset.d, v=parseFloat(inp.value)||0;
+      vecs[i][d]=v;
+      renderTie();   // tied면 양쪽 다 같은 배열이라 자동 반영, 다시 그려서 입력값 sync
+    };
+  });
+}
+function renderTie(){
+  renderTieTable(decTable, decVecs, '--brand');
+  renderTieTable(outTable, outVecs, '--good');
+}
+tieToggle.onclick=()=>{
+  tied=!tied;
+  if(tied){
+    // 다시 공유: out을 dec 값으로 맞추고 같은 참조로 합침
+    outVecs=decVecs;
+    tieIcon.textContent='🔗'; tieLabel.innerHTML='같은 텐서<br>(공유 중)';
+    tieToggle.textContent='가중치 공유 끄기(비교용)'; tieToggle.classList.remove('off');
+    tieExplain.className='callout good';
+    tieExplain.innerHTML='<span class="emoji">🔗</span>지금은 <b>공유 중</b>입니다. 왼쪽 표를 고쳐보세요 — 오른쪽 표의 <b>같은 자리</b>가 즉시 같이 바뀝니다. 둘이 애초에 <b>같은 배열(같은 텐서)</b>이기 때문이에요.';
+  } else {
+    // 공유 끔: 서로 다른 복사본으로 분리(실제로 tying을 안 했다면 벌어질 일)
+    decVecs=decVecs.map(r=>r.slice());
+    outVecs=outVecs.map(r=>r.slice());
+    tieIcon.textContent='✂️'; tieLabel.innerHTML='서로 다른<br>텐서(복사됨)';
+    tieToggle.textContent='가중치 공유 다시 켜기'; tieToggle.classList.add('off');
+    tieExplain.className='callout warn';
+    tieExplain.innerHTML='<span class="emoji">✂️</span>지금은 <b>공유가 꺼져</b> 서로 다른 텐서입니다. 왼쪽을 고쳐도 오른쪽은 <b>더 이상 바뀌지 않습니다</b> — <span class="inline">out.weight = self.decoder.emb.weight</span> 대신 각자 따로 <span class="inline">nn.Parameter</span>를 뒀다면 이런 모습이었을 거예요. 파라미터도 그만큼 <b>두 배</b>로 필요했겠죠.';
+  }
+  renderTie();
+};
+renderTie();
+
+/* ================= 5. 조립도 눌러보기 ================= */
+const FLOW=[
+  {key:'src', label:'질문 문장 (src)', desc:'"하늘에 먹구름이 보이면 뭐가 생각나"를 번호 텐서로 바꾼 입력입니다. <a href="vocab.html">어휘 사전 문서</a>에서 토큰화 과정을 볼 수 있어요.'},
+  {key:'encoder', label:'인코더 (Encoder)', desc:'임베딩+위치인코딩 후 EncoderLayer를 겹겹이 통과시켜 질문을 이해합니다. <span class="inline">src_mask</span>로 패딩을 가려요. <a href="encoder.html">인코더 문서</a> 참고.'},
+  {key:'decoder', label:'디코더 (Decoder)', desc:'인코더 결과(enc)를 곁눈질하며 DecoderLayer를 겹겹이 통과시켜 답을 만들 표현으로 바꿉니다. <span class="inline">tgt_mask</span>(미래+패딩)·<span class="inline">src_mask</span>(질문 패딩) 둘 다 씁니다. <a href="decoder-block.html">디코더 블록 문서</a> 참고.'},
+  {key:'out', label:'출력층 (out)', desc:'디코더가 만든 벡터를 답 단어장 크기의 점수(logit)로 바꿉니다. 이 클래스의 핵심 트릭인 <b>가중치 공유</b>가 바로 여기서 일어나요 — <a href="#p4">4번으로 돌아가 직접 확인</a>해 보세요.'},
+  {key:'logits', label:'답 단어 점수 (logits)', desc:'각 위치마다 답 단어장 크기의 점수 벡터가 나옵니다. 여기서 다음 단어를 실제로 고르는 과정(greedy)은 <a href="greedy-decoding.html">답 생성 문서</a>에서 자세히 다룹니다.'},
+];
+let selFlow=0;
+const flowSteps=document.getElementById('flowSteps'), flowDesc=document.getElementById('flowDesc');
+function renderFlow(){
+  let h='';
+  FLOW.forEach((f,i)=>{
+    h+=`<div class="flowstep ${i===selFlow?'sel':''}" data-i="${i}">${f.label}</div>`;
+    if(i<FLOW.length-1) h+='<span class="flowarw">→</span>';
+  });
+  flowSteps.innerHTML=h;
+  flowSteps.querySelectorAll('.flowstep').forEach(el=>el.onclick=()=>{selFlow=+el.dataset.i;renderFlow();});
+  flowDesc.innerHTML=`<b class="hlt">${FLOW[selFlow].label}</b><p style="margin:6px 0 0">${FLOW[selFlow].desc}</p>`;
+}
+renderFlow();
+</script>
+</body>
+</html>

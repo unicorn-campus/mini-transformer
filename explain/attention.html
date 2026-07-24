@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>어텐션(Scaled Dot-Product Attention) — 세상에서 제일 쉽게</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel2:#273449;
+    --ink:#e2e8f0; --sub:#94a3b8; --line:#334155;
+    --brand:#38bdf8; --brand2:#818cf8; --accent:#fbbf24;
+    --good:#34d399; --warn:#f472b6; --code:#0b1220;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:"Segoe UI","Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif;
+    line-height:1.8;font-size:17px}
+  a{color:var(--brand)}
+  .wrap{max-width:900px;margin:0 auto;padding:0 20px 120px}
+
+  header{background:radial-gradient(1200px 500px at 20% -10%,rgba(56,189,248,.25),transparent 60%),
+    radial-gradient(1000px 500px at 90% 0%,rgba(129,140,248,.22),transparent 55%),var(--bg);
+    border-bottom:1px solid var(--line);padding:64px 20px 48px}
+  header .wrap{padding-bottom:0}
+  .kicker{color:var(--brand);font-weight:700;letter-spacing:.14em;font-size:13px;text-transform:uppercase}
+  h1{font-size:clamp(28px,5vw,44px);line-height:1.22;margin:.35em 0 .3em;font-weight:800}
+  h1 .hl{background:linear-gradient(90deg,var(--brand),var(--brand2));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .lead{font-size:19px;color:var(--sub);max-width:720px}
+
+  section{margin-top:60px}
+  h2{font-size:clamp(23px,3.4vw,29px);margin:0 0 8px;font-weight:800;display:flex;align-items:center;gap:12px}
+  h2 .num{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:12px;
+    background:linear-gradient(135deg,var(--brand),var(--brand2));color:#06121f;font-size:18px;font-weight:900;flex:0 0 auto}
+  h3{font-size:19px;margin:26px 0 6px}
+  p{margin:.6em 0}
+  .muted{color:var(--sub)}
+  b.hlt{color:#fff}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px 24px;margin:18px 0}
+  .card.tight{padding:16px 18px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+  @media(max-width:720px){.grid2,.grid3{grid-template-columns:1fr}}
+
+  .callout{border-left:4px solid var(--brand);background:var(--panel2);border-radius:0 12px 12px 0;padding:14px 18px;margin:16px 0}
+  .callout.good{border-color:var(--good)} .callout.warn{border-color:var(--warn)}
+  .callout b{color:#fff}
+  .emoji{font-size:20px;margin-right:6px}
+  .big-idea{background:linear-gradient(135deg,rgba(56,189,248,.16),rgba(129,140,248,.16));
+    border:1px solid var(--line);border-radius:18px;padding:24px 26px;margin:18px 0;font-size:19px;text-align:center;font-weight:700}
+  .big-idea span{color:var(--accent)}
+
+  .inline{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:1px 7px;
+    font-family:"Consolas","D2Coding",monospace;font-size:14px;color:#fde68a}
+
+  /* QKV role cards */
+  .role{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+  .role .tag{display:inline-block;font-weight:900;font-size:13px;letter-spacing:.06em;padding:3px 10px;border-radius:8px;margin-bottom:8px}
+  .role.q .tag{background:rgba(56,189,248,.2);color:var(--brand)}
+  .role.k .tag{background:rgba(129,140,248,.2);color:var(--brand2)}
+  .role.v .tag{background:rgba(52,211,153,.2);color:var(--good)}
+  .role h4{margin:0 0 4px;font-size:17px}
+
+  /* token buttons */
+  .tokrow{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0}
+  .tok{background:var(--panel2);border:2px solid var(--line);border-radius:12px;padding:10px 16px;font-weight:700;cursor:pointer;transition:all .12s;font-size:16px}
+  .tok:hover{border-color:var(--brand)}
+  .tok.sel{background:linear-gradient(135deg,var(--brand),var(--brand2));color:#06121f;border-color:transparent;box-shadow:0 0 16px rgba(56,189,248,.45)}
+
+  /* attention bars */
+  .attn-row{display:flex;align-items:center;gap:12px;margin:9px 0}
+  .attn-row .name{width:70px;text-align:right;font-weight:700;flex:0 0 auto}
+  .attn-row .track{flex:1;background:var(--code);border:1px solid var(--line);border-radius:8px;height:30px;position:relative;overflow:hidden}
+  .attn-row .barfill{height:100%;border-radius:6px 0 0 6px;background:linear-gradient(90deg,var(--brand),var(--brand2));transition:width .35s}
+  .attn-row .pct{width:56px;text-align:right;font-variant-numeric:tabular-nums;color:var(--accent);font-weight:700;flex:0 0 auto}
+
+  .steps{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;margin:10px 0}
+  .step{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:13px;font-weight:700}
+  .step .arw{color:var(--sub);margin:0 2px}
+
+  input[type=range]{width:100%;accent-color:var(--brand)}
+  .controls{margin:10px 0}
+  .controls label{font-size:14px;color:var(--sub)}
+  canvas{max-width:100%;background:var(--code);border:1px solid var(--line);border-radius:12px;display:block}
+  .legend{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--sub);margin-top:8px;flex-wrap:wrap}
+
+  pre{background:var(--code);border:1px solid var(--line);border-radius:14px;padding:18px;overflow:auto;font-size:14px;line-height:1.7;margin:14px 0}
+  code{font-family:"Consolas","D2Coding",monospace}
+  pre code{color:#cbd5e1}
+  .cmt{color:#64748b}.kw{color:#f472b6}.fn{color:#38bdf8}.num2{color:#fbbf24}.str{color:#34d399}
+
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:15px}
+  th,td{border:1px solid var(--line);padding:9px 12px;text-align:left}
+  th{background:var(--panel2);color:#fff}
+
+  footer{margin-top:80px;border-top:1px solid var(--line);padding-top:24px;color:var(--sub);font-size:14px}
+  .toc{position:sticky;top:0;z-index:5;background:rgba(15,23,42,.85);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+  .toc .wrap{display:flex;gap:6px;flex-wrap:wrap;padding:10px 20px;overflow-x:auto}
+  .toc a{color:var(--sub);text-decoration:none;font-size:13px;padding:6px 10px;border-radius:8px;white-space:nowrap}
+  .toc a:hover{background:var(--panel);color:#fff}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="kicker">Mini-Transformer · 어텐션 다시 쉽게</div>
+    <h1>어텐션은<br><span class="hl">"검색해서 골라 섞기"</span> 입니다</h1>
+    <p class="lead">복잡한 <span class="inline">softmax(QKᵀ/√dₖ)·V</span> 공식은 잠깐 잊으세요. 딱 하나만 기억하면 됩니다 —
+    <b>내가 찾는 것(Q)과 비슷한 것(K)에 더 많이 주목해서, 그 내용(V)을 비율대로 섞는 것</b>. 아래에서 단어를 눌러 직접 확인해 봅시다.</p>
+  </div>
+</header>
+
+<nav class="toc"><div class="wrap">
+  <a href="#p1">1. 무슨 일을 하나</a>
+  <a href="#p2">2. Q·K·V 세 역할</a>
+  <a href="#p3">3. 유사도 점수(내적)</a>
+  <a href="#p4">4. √dₖ로 나누기</a>
+  <a href="#p5">5. softmax = 비율</a>
+  <a href="#p6">6. 직접 해보기</a>
+  <a href="#p7">7. 코드</a>
+  <a href="#p8">8. self vs cross</a>
+  <a href="#p9">9. 요약</a>
+</div></nav>
+
+<div class="wrap">
+
+<!-- 1 -->
+<section id="p1">
+  <h2><span class="num">1</span> 어텐션이 하는 일 (30초)</h2>
+  <p>이 노트북이 배우는 문제는 이렇습니다. 질문 <b class="hlt">"하늘에 먹구름이 보이면 뭐가 생각나"</b> 를 주면
+  답 <b class="hlt">"비가 올 것 같아"</b> 를 만들어야 해요. 그런데 답의 <b>"비가"</b> 를 만들려면 질문 속 어떤 단어를 봐야 할까요?
+  바로 <b class="hlt">"먹구름이"</b> 입니다. 어텐션은 이 <b>"어떤 단어가 어떤 단어를 봐야 하는가"</b> 를 계산하는 장치예요.</p>
+
+  <div class="big-idea">답의 한 단어를 만들 때, 질문 속 <span>관련 깊은 단어(먹구름이)</span>에<br><span>더 많이 주목해서</span> 그 정보를 끌어온다</div>
+
+  <div class="callout"><span class="emoji">🔎</span><b>도서관 비유로 시작합니다.</b>
+  도서관에서 자료를 찾을 때를 떠올려 보세요.
+  <b class="hlt">검색어</b>를 넣고 → 책들의 <b class="hlt">제목표(색인)</b>와 비교해 → 관련 있는 책의 <b class="hlt">내용</b>을 골라 읽죠.
+  어텐션도 똑같이 <b>Q(검색어) · K(색인) · V(내용)</b> 세 가지로 움직입니다.</div>
+</section>
+
+<!-- 2 -->
+<section id="p2">
+  <h2><span class="num">2</span> 주인공 셋: Query · Key · Value</h2>
+  <p>어텐션에는 딱 세 개의 재료만 있습니다. 도서관에 그대로 대응돼요.</p>
+  <div class="grid3">
+    <div class="role q">
+      <span class="tag">Q · Query</span>
+      <h4>🙋 검색어</h4>
+      <p class="muted" style="margin:0">"나는 지금 <b>이런 걸</b> 찾고 있어" — 주목하는 쪽(현재 단어)이 내미는 질문.</p>
+      <p class="muted" style="margin:6px 0 0;font-size:.85em">예) 지금 답 단어 <b class="hlt">"비가"</b>를 만드는 쪽 = Q</p>
+    </div>
+    <div class="role k">
+      <span class="tag">K · Key</span>
+      <h4>🏷️ 색인(제목표)</h4>
+      <p class="muted" style="margin:0">"나는 <b>이런 내용</b>을 담고 있어" — 각 단어가 내거는 이름표. Q와 얼마나 맞는지 비교당함.</p>
+      <p class="muted" style="margin:6px 0 0;font-size:.85em">예) 질문 속 <b class="hlt">"먹구름이"</b> 등 각 단어 = K</p>
+    </div>
+    <div class="role v">
+      <span class="tag">V · Value</span>
+      <h4>📦 실제 내용</h4>
+      <p class="muted" style="margin:0">골라졌을 때 <b>실제로 꺼내 오는 정보</b>. 관련도(비율)만큼 섞여서 결과가 됨.</p>
+      <p class="muted" style="margin:6px 0 0;font-size:.85em">예) "먹구름이"가 실제로 담은 의미 = V</p>
+    </div>
+  </div>
+  <div class="callout good"><span class="emoji">💡</span>핵심: <b>K로는 "얼마나 관련 있나"를 재고, V로는 "무엇을 가져올까"를 정합니다.</b>
+  이름표(K)와 알맹이(V)를 분리해 둔 것이 어텐션의 영리한 점이에요.</div>
+  <div class="callout warn"><span class="emoji">⚠️</span><b>헷갈리기 쉬운 점:</b> "질문 문장"이라고 해서 Q가 되는 게 아닙니다!
+  Q는 <b>"지금 정보를 찾으러 나선 쪽"</b>이라서, 오히려 <b class="hlt">답을 만드는 단어("비가")</b>가 Q이고
+  <b class="hlt">질문 문장("하늘에·먹구름이·...")</b>은 검색당하는 K·V가 됩니다. (6번에서 직접 확인해요)</div>
+</section>
+
+<!-- 3 -->
+<section id="p3">
+  <h2><span class="num">3</span> 1단계: 얼마나 비슷한가? (내적 = QKᵀ)</h2>
+  <p>Q와 K가 얼마나 맞는지를 재는 도구가 <b class="hlt">내적(dot product)</b> 입니다. 어렵지 않아요.
+  두 화살표가 <b>같은 방향이면 큰 값</b>, <b>직각이면 0</b>, <b>반대 방향이면 음수</b>가 나옵니다.</p>
+
+  <div class="card">
+    <div class="controls">
+      <label>검색어 화살표(Q)를 돌려 보세요 — 색인 화살표(K)와 방향이 맞을수록 점수가 커집니다.</label>
+      <input type="range" id="angR" min="0" max="360" step="1" value="30">
+    </div>
+    <canvas id="dotCv" width="880" height="300"></canvas>
+    <div class="legend">
+      <span style="color:var(--brand)">■ Q (검색어)</span>
+      <span style="color:var(--brand2)">■ K (색인)</span>
+      <span style="margin-left:auto">내적 Q·K = <b id="dotVal" style="color:var(--accent)">—</b></span>
+    </div>
+  </div>
+  <div class="callout"><span class="emoji">🧭</span>
+    방향이 <b>거의 같을 때(0°)</b> 점수 최대, <b>직각(90°)</b>에서 0, <b>반대(180°)</b> 에서 가장 낮은 음수.
+    즉 <b class="hlt">"의미가 통하는 단어일수록 높은 점수"</b> — 이게 관련도를 숫자로 바꾼 것입니다.</div>
+</section>
+
+<!-- 4 -->
+<section id="p4">
+  <h2><span class="num">4</span> 2단계: 왜 √dₖ로 나눌까? (Scaled)</h2>
+  <p>함수 이름의 <b class="hlt">"Scaled"</b> 가 바로 이 단계입니다. 점수를 <span class="inline">√dₖ</span>(벡터 차원의 제곱근)로 나눠 줍니다. 이유가 있어요.</p>
+  <div class="callout warn"><span class="emoji">💥</span>
+    벡터 차원(dₖ)이 커지면 내적은 <b>여러 항을 더하므로 값이 자연스럽게 커집니다.</b>
+    점수가 너무 크면 다음 단계 softmax가 <b>한 단어에만 100%로 쏠려(포화)</b> 나머지를 아예 안 보게 되고,
+    학습 기울기도 거의 사라져 버립니다.</div>
+  <p>그래서 크기를 적당히 <b class="hlt">눌러 주는 게 √dₖ 나누기</b> 입니다. 아래에서 효과를 직접 보세요.</p>
+
+  <div class="card">
+    <div class="controls">
+      <label>벡터 차원 dₖ : <b id="dkN" style="color:var(--accent)">64</b> (커질수록 나눠주지 않으면 쏠림이 심해집니다)</label>
+      <input type="range" id="dkR" min="4" max="256" step="4" value="64">
+    </div>
+    <div class="grid2">
+      <div>
+        <p class="muted" style="text-align:center;margin:4px 0"><b>❌ 나누지 않으면</b></p>
+        <div id="noscale"></div>
+      </div>
+      <div>
+        <p class="muted" style="text-align:center;margin:4px 0"><b>✅ √dₖ로 나누면</b></p>
+        <div id="yesscale"></div>
+      </div>
+    </div>
+  </div>
+  <div class="callout good"><span class="emoji">⚖️</span>
+    dₖ를 키워 보세요. <b>왼쪽(안 나눔)</b>은 1등 단어가 순식간에 거의 100%를 먹어 나머지가 사라집니다.
+    <b>오른쪽(√dₖ로 나눔)</b>은 차원이 커져도 <b>비율이 골고루 유지</b>됩니다.</div>
+</section>
+
+<!-- 5 -->
+<section id="p5">
+  <h2><span class="num">5</span> 3단계: 점수를 비율로 (softmax)</h2>
+  <p>이제 점수들을 <b class="hlt">"합이 100%가 되는 비율"</b> 로 바꿉니다. 그 도구가 <b>softmax</b> 예요.</p>
+  <div class="big-idea">softmax = <span>큰 점수는 더 크게, 작은 점수는 더 작게</span> 만들어<br>전체 합이 <span>1(=100%)</span> 이 되도록 정리하는 함수</div>
+  <p>결과는 <b>"어느 단어에 몇 % 주목할지"</b> 를 나타내는 <b class="hlt">어텐션 가중치</b> 입니다.
+  그리고 마지막 4단계에서, 이 비율대로 <b>V(내용)를 섞어(가중합)</b> 최종 결과를 만듭니다.</p>
+  <div class="steps">
+    <span class="step">Q·Kᵀ 점수</span><span class="arw">→</span>
+    <span class="step">÷ √dₖ</span><span class="arw">→</span>
+    <span class="step">softmax → 비율(%)</span><span class="arw">→</span>
+    <span class="step">× V 섞기</span><span class="arw">→</span>
+    <span class="step" style="border-color:var(--good);color:var(--good)">결과(context)</span>
+  </div>
+  <div class="callout"><span class="emoji">🧪</span>
+    (참고) <span class="inline">masked_fill(mask==0, -inf)</span> 는 "여기는 보지 마"인 자리를 softmax 전에 <b>-무한대</b>로 만들어
+    그 비율을 <b>0%</b>로 눌러 버리는 장치입니다. 패딩·미래 단어를 가릴 때 씁니다.</div>
+</section>
+
+<!-- 6 -->
+<section id="p6">
+  <h2><span class="num">6</span> 직접 해보기 — 답 단어를 눌러보세요</h2>
+  <p>노트북의 실제 예제로 해봅니다. 질문 <b class="hlt">"하늘에 · 먹구름이 · 보이면 · 뭐가 · 생각나"</b> 를 보고
+  답 <b class="hlt">"비가 · 올 · 것 · 같아"</b> 를 만드는 상황이에요. 아래에서 <b>지금 만들 답 단어(Query)</b>를 고르면,
+  그 단어가 <b>질문의 각 단어에 몇 %씩 주목</b>하는지 실제 계산으로 보여줍니다. (디코더 → 인코더, 즉 cross-attention)</p>
+
+  <div class="card">
+    <p class="muted" style="margin:0 0 4px">① 지금 만들 답 단어(Query) 고르기</p>
+    <div class="tokrow" id="tokrow"></div>
+    <p class="muted" style="margin:14px 0 4px">② <b id="qName" style="color:var(--brand)">비가</b> 가(이) <b>질문의 각 단어</b>를 보는 비율 (softmax 결과)</p>
+    <div id="attnBars"></div>
+  </div>
+  <div class="callout good"><span class="emoji">👀</span>
+    <b>"비가"</b> 를 고르면 → 질문의 <b>"먹구름이"</b> 에 압도적으로 주목합니다. 바로 이 노트북의 핵심 쌍
+    <b class="hlt">먹구름이 → 비가</b> 예요! 배경어 <b>"하늘에"</b> 나 질문 구조어 <b>"뭐가·생각나"</b> 는 비율이 낮습니다.
+    이렇게 <b>"답을 만들 때 질문의 어디를 봐야 하는지"</b> 를 숫자(비율)로 잡아내는 게 어텐션의 힘입니다.</div>
+</section>
+
+<!-- 7 -->
+<section id="p7">
+  <h2><span class="num">7</span> 코드는 이 다섯 줄이 전부</h2>
+  <p>노트북 <span class="inline">example-detailed.ipynb</span> 의 <span class="inline">scaled_dot_product_attention</span> 함수입니다.
+  지금까지 본 4단계가 그대로 한 줄씩 들어 있어요.</p>
+<pre><code><span class="kw">def</span> <span class="fn">scaled_dot_product_attention</span>(q, k, v, mask=<span class="kw">None</span>, dropout=<span class="kw">None</span>):
+    d_k = q.<span class="fn">size</span>(-<span class="num2">1</span>)                                        <span class="cmt"># 벡터 차원 dₖ</span>
+    scores = torch.<span class="fn">matmul</span>(q, k.<span class="fn">transpose</span>(-<span class="num2">2</span>,-<span class="num2">1</span>)) / math.<span class="fn">sqrt</span>(d_k)  <span class="cmt"># ①②: QKᵀ ÷ √dₖ</span>
+    <span class="kw">if</span> mask <span class="kw">is not</span> <span class="kw">None</span>:
+        scores = scores.<span class="fn">masked_fill</span>(mask==<span class="num2">0</span>, <span class="fn">float</span>(<span class="str">"-inf"</span>))     <span class="cmt"># 가릴 곳은 -무한대</span>
+    attn = torch.<span class="fn">softmax</span>(scores, dim=-<span class="num2">1</span>)                   <span class="cmt"># ③: 비율(%)로</span>
+    <span class="kw">if</span> dropout <span class="kw">is not</span> <span class="kw">None</span>: attn = <span class="fn">dropout</span>(attn)
+    context = torch.<span class="fn">matmul</span>(attn, v)                       <span class="cmt"># ④: 비율대로 V 섞기</span>
+    <span class="kw">return</span> context, attn</code></pre>
+  <table>
+    <tr><th>코드</th><th>단계</th><th>쉬운 말</th></tr>
+    <tr><td><span class="inline">matmul(q, kᵀ)</span></td><td>①</td><td>검색어 Q와 색인 K의 유사도 점수</td></tr>
+    <tr><td><span class="inline">/ sqrt(d_k)</span></td><td>②</td><td>점수가 너무 커지지 않게 눌러줌 (Scaled)</td></tr>
+    <tr><td><span class="inline">softmax(...)</span></td><td>③</td><td>점수를 합 100%의 비율로 변환</td></tr>
+    <tr><td><span class="inline">matmul(attn, v)</span></td><td>④</td><td>비율대로 내용 V를 섞어 결과 만들기</td></tr>
+  </table>
+</section>
+
+<!-- 8 -->
+<section id="p8">
+  <h2><span class="num">8</span> 헷갈리기 쉬운 점: self냐 cross냐</h2>
+  <p><b class="hlt">scaled_dot_product_attention 자체는 self-attention 전용이 아닙니다.</b> Q·K·V 셋만 받아 계산하는 <b>공용 수학 엔진</b>일 뿐이에요.
+  그런데 아래 표에 갑자기 <span class="inline">self_attn</span>·<span class="inline">cross_attn</span> 이라는 이름이 나오면 마치 새 함수처럼 보이죠 —
+  사실은 <b>같은 클래스를 두 번 만들어 이름만 다르게 붙인 것</b>입니다. 3겹으로 쌓여 있어요.</p>
+
+  <div class="steps">
+    <span class="step">scaled_dot_product_attention<br><span class="muted" style="font-size:.72em;font-weight:400">수학 엔진 (7번의 다섯 줄)</span></span><span class="arw">→ 감싸는 클래스</span>
+    <span class="step">MultiHeadAttention<br><span class="muted" style="font-size:.72em;font-weight:400">투영 + 헤드분할 후 엔진 호출</span></span><span class="arw">→ 두 번 생성</span>
+    <span class="step" style="border-color:var(--good);color:var(--good)">self_attn · cross_attn<br><span class="muted" style="font-size:.72em;font-weight:400">인코더·디코더가 붙인 인스턴스 이름</span></span>
+  </div>
+
+  <p>실제 코드(<span class="inline">mini_transformer.py</span>)로 보면 이렇습니다 — <span class="inline">self_attn</span>과 <span class="inline">cross_attn</span>은
+  똑같은 <span class="inline">MultiHeadAttention</span> 클래스를 <b>서로 다른 속성에 담아둔 것</b>뿐이고, 안에서는 결국 같은 엔진을 호출합니다.</p>
+<pre><code><span class="kw">class</span> <span class="fn">MultiHeadAttention</span>(nn.Module):
+    <span class="kw">def</span> <span class="fn">forward</span>(<span class="kw">self</span>, query, key, value, mask=<span class="kw">None</span>):
+        ...
+        context, attn = <span class="fn">scaled_dot_product_attention</span>(q, k, v, mask, <span class="kw">self</span>.dropout)  <span class="cmt"># 결국 여기서 만남</span>
+        <span class="kw">return</span> <span class="kw">self</span>.w_o(...)
+
+<span class="kw">class</span> <span class="fn">DecoderLayer</span>(nn.Module):
+    <span class="kw">def</span> <span class="fn">__init__</span>(<span class="kw">self</span>, ...):
+        <span class="kw">self</span>.self_attn  = <span class="fn">MultiHeadAttention</span>(...)   <span class="cmt"># 인스턴스 ①</span>
+        <span class="kw">self</span>.cross_attn = <span class="fn">MultiHeadAttention</span>(...)   <span class="cmt"># 인스턴스 ②: 같은 클래스, 다른 이름</span></code></pre>
+
+  <div class="callout warn"><span class="emoji">🧩</span>
+  <span class="inline">self.self_attn</span> 처럼 <b>self가 두 번</b> 나와서 헷갈릴 수 있는데, 앞의 <span class="inline">self</span>는
+  파이썬에서 "이 객체 자신"을 가리키는 키워드이고, 뒤의 <span class="inline">self_attn</span>은 그냥 <b>"self-attention용"</b>이라는 뜻으로
+  코드 작성자가 붙인 변수 이름입니다. 둘은 우연히 겹친 것일 뿐 서로 관계없어요.</div>
+
+  <p>그래서 아래 표의 <b>"호출 예"</b>는 사실 <span class="inline">self.self_attn(...)</span> / <span class="inline">self.cross_attn(...)</span> 를 줄여 쓴 것이고,
+  실제로 다른 건 <b>어떤 텐서를 Q·K·V로 넣느냐(그리고 마스크 유무)</b> 뿐입니다.</p>
+  <table>
+    <tr><th>어디서</th><th>호출 예</th><th>Q / K / V 출처</th><th>종류</th></tr>
+    <tr><td>인코더</td><td><span class="inline">self_attn(enc_x, enc_x, enc_x)</span></td><td>셋 다 인코더 입력 <b>enc_x</b> · 마스크 없음</td><td><b>Self-Attention</b></td></tr>
+    <tr><td>디코더①</td><td><span class="inline">self_attn(dec_x, dec_x, dec_x)</span></td><td>셋 다 디코더 자신 <b>dec_x</b> · <b class="hlt">마스크 있음(미래 가림)</b></td><td><b>Masked Self-Attn</b></td></tr>
+    <tr><td>디코더②</td><td><span class="inline">cross_attn(dec_x, enc_out, enc_out)</span></td><td>Q=<b>dec_x</b>, K·V=인코더 출력 <b>enc_out</b></td><td><b>Cross-Attention</b></td></tr>
+  </table>
+  <div class="callout"><span class="emoji">🔁</span>
+    <b>Self-Attention</b> = 문장이 자기 자신을 둘러봄(Q·K·V가 같은 곳). <br>
+    <b>Cross-Attention</b> = 답(디코더)이 원문(인코더)을 참고함(Q만 다른 곳). <br>
+    셋 다 결국 똑같은 <span class="inline">scaled_dot_product_attention</span> 엔진을 입력만 바꿔 재사용할 뿐입니다.</div>
+</section>
+
+<!-- 9 -->
+<section id="p9">
+  <h2><span class="num">9</span> 30초 요약</h2>
+  <div class="card" style="text-align:center;padding:30px">
+    <p style="font-size:21px;font-weight:800;margin:0;line-height:1.7">
+      "<span style="color:var(--brand)">검색어(Q)</span>와 <span style="color:var(--brand2)">색인(K)</span>을 견줘 관련도를 재고,<br>
+      너무 커지지 않게 <span style="color:var(--accent)">√dₖ로 눌러</span>,<br>
+      <span style="color:var(--accent)">softmax로 비율(%)</span>을 만든 뒤,<br>
+      그 비율대로 <span style="color:var(--good)">내용(V)을 섞어</span> 결과를 낸다."
+    </p>
+  </div>
+  <div class="grid2" style="margin-top:18px">
+    <div class="card tight"><b>🔎 비유</b><br><span class="muted">도서관 검색: 검색어·색인·내용</span></div>
+    <div class="card tight"><b>🧭 유사도</b><br><span class="muted">내적 = 방향 맞을수록 높은 점수</span></div>
+    <div class="card tight"><b>⚖️ Scaled</b><br><span class="muted">√dₖ로 나눠 쏠림·기울기 소실 방지</span></div>
+    <div class="card tight"><b>📦 결과</b><br><span class="muted">softmax 비율대로 V 가중합</span></div>
+  </div>
+</section>
+
+<footer>
+  <p>Mini-Transformer 실습 교재 · 어텐션 쉬운 설명판<br>
+  코드 출처: <span class="inline">example-detailed.ipynb</span> — 부품 ② Scaled Dot-Product Attention</p>
+</footer>
+
+</div>
+
+<script>
+/* ================= 3. 내적(유사도) 시각화 ================= */
+const dotCv=document.getElementById('dotCv'),dctx=dotCv.getContext('2d');
+const angR=document.getElementById('angR'),dotVal=document.getElementById('dotVal');
+function drawDot(){
+  const W=dotCv.width,H=dotCv.height,cx=W/2,cy=H/2,R=110;
+  dctx.clearRect(0,0,W,H);
+  // 축
+  dctx.strokeStyle='#1f2b3d';dctx.lineWidth=1;
+  dctx.beginPath();dctx.moveTo(0,cy);dctx.lineTo(W,cy);dctx.moveTo(cx,0);dctx.lineTo(cx,H);dctx.stroke();
+  // K 고정(오른쪽 0도)
+  const ka=0, kx=cx+Math.cos(ka)*R, ky=cy-Math.sin(ka)*R;
+  arrow(cx,cy,kx,ky,'#818cf8','K');
+  // Q 회전
+  const qa=(+angR.value)*Math.PI/180, qx=cx+Math.cos(qa)*R, qy=cy-Math.sin(qa)*R;
+  arrow(cx,cy,qx,qy,'#38bdf8','Q');
+  // 내적 = |Q||K|cosθ, 단위벡터로 → cosθ
+  const dot=Math.cos(qa-ka);
+  dotVal.textContent=dot.toFixed(2)+(dot>0.5?'  (높음 👍)':dot<-0.1?'  (음수)':'  (낮음)');
+  dotVal.style.color = dot>0.5?'#34d399':dot<-0.1?'#f472b6':'#fbbf24';
+  // 각도 호
+  dctx.strokeStyle='rgba(251,191,36,.6)';dctx.lineWidth=2;
+  dctx.beginPath();dctx.arc(cx,cy,38,0,-qa,qa>0);dctx.stroke();
+  dctx.fillStyle='#fbbf24';dctx.font='13px sans-serif';dctx.textAlign='left';
+  dctx.fillText(Math.round((+angR.value))+'°',cx+44,cy-8);
+}
+function arrow(x1,y1,x2,y2,col,label){
+  dctx.strokeStyle=col;dctx.fillStyle=col;dctx.lineWidth=3.5;
+  dctx.beginPath();dctx.moveTo(x1,y1);dctx.lineTo(x2,y2);dctx.stroke();
+  const a=Math.atan2(y2-y1,x2-x1),hl=13;
+  dctx.beginPath();dctx.moveTo(x2,y2);
+  dctx.lineTo(x2-hl*Math.cos(a-.4),y2-hl*Math.sin(a-.4));
+  dctx.lineTo(x2-hl*Math.cos(a+.4),y2-hl*Math.sin(a+.4));
+  dctx.closePath();dctx.fill();
+  dctx.font='bold 16px sans-serif';dctx.textAlign='center';
+  dctx.fillText(label,x2+14*Math.cos(a),y2+14*Math.sin(a)+5);
+}
+angR.oninput=drawDot; drawDot();
+
+/* ================= 4. √dₖ 스케일링 효과 ================= */
+const dkR=document.getElementById('dkR'),dkN=document.getElementById('dkN');
+function softmax(arr){const m=Math.max(...arr);const e=arr.map(v=>Math.exp(v-m));const s=e.reduce((a,b)=>a+b,0);return e.map(v=>v/s);}
+function miniBars(el,weights,labels){
+  let h='';
+  for(let i=0;i<weights.length;i++){
+    const pct=(weights[i]*100);
+    h+=`<div class="attn-row"><div class="name" style="width:44px;font-size:14px">${labels[i]}</div>
+      <div class="track"><div class="barfill" style="width:${pct.toFixed(1)}%"></div></div>
+      <div class="pct" style="width:46px">${pct.toFixed(0)}%</div></div>`;
+  }
+  el.innerHTML=h;
+}
+function drawScale(){
+  const dk=+dkR.value; dkN.textContent=dk;
+  const labels=['A','B','C','D'];
+  // 기본 원점수(같은 방향성 비율을 유지). 차원↑ → 내적 크기 ~ √dk 배로 커진다고 가정
+  const base=[1.0,0.7,0.4,0.1];
+  const grow=Math.sqrt(dk);
+  const raw=base.map(v=>v*grow);        // 안 나눔 → 차원 커지면 값 폭증
+  const scaled=base.map(v=>v*grow/Math.sqrt(dk)); // = base (√dk로 나눔)
+  miniBars(document.getElementById('noscale'),softmax(raw),labels);
+  miniBars(document.getElementById('yesscale'),softmax(scaled),labels);
+}
+dkR.oninput=drawScale; drawScale();
+
+/* ================= 6. 어텐션 종합 데모 (실제 예제 · cross-attention) ================= */
+// 질문(인코더) 토큰 = Key/Value 쪽,  답(디코더) 토큰 = Query 쪽
+const QUESTION=['하늘에','먹구름이','보이면','뭐가','생각나'];
+const ANSWER=['비가','올','것','같아'];
+// 의미 차원: [날씨현상, 하늘배경, 질문구조, 서술]
+const K=[
+ [0.10,0.90,0.00,0.00],  // 하늘에   → 하늘 배경
+ [0.95,0.30,0.00,0.00],  // 먹구름이 → 날씨 현상 (핵심)
+ [0.20,0.30,0.50,0.00],  // 보이면   → 구조
+ [0.00,0.00,0.90,0.10],  // 뭐가     → 질문 구조
+ [0.00,0.00,0.60,0.40],  // 생각나   → 서술/질문
+];
+const Q=[
+ [0.95,0.10,0.00,0.00],  // 비가 → 날씨현상(먹구름이) 찾기 ★
+ [0.30,0.20,0.20,0.40],  // 올   → 약하게 서술
+ [0.10,0.10,0.40,0.30],  // 것   → 구조
+ [0.20,0.10,0.50,0.40],  // 같아 → 서술/질문
+];
+const DK=4;
+function dot(a,b){let s=0;for(let i=0;i<a.length;i++)s+=a[i]*b[i];return s;}
+let selIdx=0;
+const tokrow=document.getElementById('tokrow'),attnBars=document.getElementById('attnBars'),qName=document.getElementById('qName');
+function renderToks(){
+  tokrow.innerHTML=ANSWER.map((t,i)=>`<div class="tok ${i===selIdx?'sel':''}" data-i="${i}">${t}</div>`).join('');
+  tokrow.querySelectorAll('.tok').forEach(el=>el.onclick=()=>{selIdx=+el.dataset.i;renderToks();renderAttn();});
+}
+function renderAttn(){
+  qName.textContent=ANSWER[selIdx];
+  const scores=QUESTION.map((_,j)=>dot(Q[selIdx],K[j])/Math.sqrt(DK));
+  const w=softmax(scores);
+  const mx=Math.max(...w);
+  let h='';
+  for(let j=0;j<QUESTION.length;j++){
+    const pct=w[j]*100;
+    h+=`<div class="attn-row">
+      <div class="name" style="width:80px">${QUESTION[j]}</div>
+      <div class="track"><div class="barfill" style="width:${pct.toFixed(1)}%;${w[j]>=mx-1e-9?'background:linear-gradient(90deg,#34d399,#38bdf8)':''}"></div></div>
+      <div class="pct">${pct.toFixed(0)}%</div></div>`;
+  }
+  attnBars.innerHTML=h;
+}
+renderToks(); renderAttn();
+</script>
+</body>
+</html>

@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FFN(Position-wise Feed-Forward) — 세상에서 제일 쉽게</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel2:#273449;
+    --ink:#e2e8f0; --sub:#94a3b8; --line:#334155;
+    --brand:#38bdf8; --brand2:#818cf8; --accent:#fbbf24;
+    --good:#34d399; --warn:#f472b6; --code:#0b1220;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:"Segoe UI","Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif;
+    line-height:1.8;font-size:17px}
+  a{color:var(--brand)}
+  .wrap{max-width:900px;margin:0 auto;padding:0 20px 120px}
+
+  header{background:radial-gradient(1200px 500px at 20% -10%,rgba(56,189,248,.25),transparent 60%),
+    radial-gradient(1000px 500px at 90% 0%,rgba(129,140,248,.22),transparent 55%),var(--bg);
+    border-bottom:1px solid var(--line);padding:64px 20px 48px}
+  header .wrap{padding-bottom:0}
+  .kicker{color:var(--brand);font-weight:700;letter-spacing:.14em;font-size:13px;text-transform:uppercase}
+  h1{font-size:clamp(28px,5vw,44px);line-height:1.22;margin:.35em 0 .3em;font-weight:800}
+  h1 .hl{background:linear-gradient(90deg,var(--brand),var(--brand2));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .lead{font-size:19px;color:var(--sub);max-width:720px}
+
+  section{margin-top:60px}
+  h2{font-size:clamp(23px,3.4vw,29px);margin:0 0 8px;font-weight:800;display:flex;align-items:center;gap:12px}
+  h2 .num{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:12px;
+    background:linear-gradient(135deg,var(--brand),var(--brand2));color:#06121f;font-size:18px;font-weight:900;flex:0 0 auto}
+  h3{font-size:19px;margin:26px 0 6px}
+  p{margin:.6em 0}
+  .muted{color:var(--sub)}
+  b.hlt{color:#fff}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px 24px;margin:18px 0}
+  .card.tight{padding:16px 18px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+  @media(max-width:720px){.grid2,.grid3{grid-template-columns:1fr}}
+
+  .callout{border-left:4px solid var(--brand);background:var(--panel2);border-radius:0 12px 12px 0;padding:14px 18px;margin:16px 0}
+  .callout.good{border-color:var(--good)} .callout.warn{border-color:var(--warn)}
+  .callout b{color:#fff}
+  .emoji{font-size:20px;margin-right:6px}
+  .big-idea{background:linear-gradient(135deg,rgba(56,189,248,.16),rgba(129,140,248,.16));
+    border:1px solid var(--line);border-radius:18px;padding:24px 26px;margin:18px 0;font-size:19px;text-align:center;font-weight:700}
+  .big-idea span{color:var(--accent)}
+
+  .inline{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:1px 7px;
+    font-family:"Consolas","D2Coding",monospace;font-size:14px;color:#fde68a}
+
+  .role{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+  .role .tag{display:inline-block;font-weight:900;font-size:13px;letter-spacing:.06em;padding:3px 10px;border-radius:8px;margin-bottom:8px}
+  .role.q .tag{background:rgba(56,189,248,.2);color:var(--brand)}
+  .role.k .tag{background:rgba(129,140,248,.2);color:var(--brand2)}
+  .role.v .tag{background:rgba(52,211,153,.2);color:var(--good)}
+  .role h4{margin:0 0 4px;font-size:17px}
+
+  .tokrow{display:flex;flex-wrap:wrap;gap:10px;margin:14px 0}
+  .tok{background:var(--panel2);border:2px solid var(--line);border-radius:12px;padding:10px 16px;font-weight:700;cursor:pointer;transition:all .12s;font-size:16px}
+  .tok:hover{border-color:var(--brand)}
+  .tok.sel{background:linear-gradient(135deg,var(--brand),var(--brand2));color:#06121f;border-color:transparent;box-shadow:0 0 16px rgba(56,189,248,.45)}
+
+  .attn-row{display:flex;align-items:center;gap:12px;margin:9px 0}
+  .attn-row .name{width:70px;text-align:right;font-weight:700;flex:0 0 auto}
+  .attn-row .track{flex:1;background:var(--code);border:1px solid var(--line);border-radius:8px;height:28px;position:relative;overflow:hidden}
+  .attn-row .barfill{height:100%;border-radius:6px 0 0 6px;background:linear-gradient(90deg,var(--brand),var(--brand2));transition:width .35s}
+  .attn-row .pct{width:52px;text-align:right;font-variant-numeric:tabular-nums;color:var(--accent);font-weight:700;flex:0 0 auto}
+
+  .steps{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;margin:10px 0}
+  .step{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:13px;font-weight:700;text-align:center}
+  .step .arw{color:var(--sub);margin:0 2px}
+
+  pre{background:var(--code);border:1px solid var(--line);border-radius:14px;padding:18px;overflow:auto;font-size:14px;line-height:1.7;margin:14px 0}
+  code{font-family:"Consolas","D2Coding",monospace}
+  pre code{color:#cbd5e1}
+  .cmt{color:#64748b}.kw{color:#f472b6}.fn{color:#38bdf8}.num2{color:#fbbf24}.str{color:#34d399}
+
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:15px}
+  th,td{border:1px solid var(--line);padding:9px 12px;text-align:left}
+  th{background:var(--panel2);color:#fff}
+
+  footer{margin-top:80px;border-top:1px solid var(--line);padding-top:24px;color:var(--sub);font-size:14px}
+  .toc{position:sticky;top:0;z-index:5;background:rgba(15,23,42,.85);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+  .toc .wrap{display:flex;gap:6px;flex-wrap:wrap;padding:10px 20px;overflow-x:auto}
+  .toc a{color:var(--sub);text-decoration:none;font-size:13px;padding:6px 10px;border-radius:8px;white-space:nowrap}
+  .toc a:hover{background:var(--panel);color:#fff}
+
+  /* FFN 데모 전용 */
+  .unitgrid{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+  .unit{min-width:46px;height:40px;border-radius:8px;display:flex;align-items:center;justify-content:center;
+    font-size:11px;font-weight:800;border:1px solid var(--line);background:var(--code);color:var(--sub);
+    font-variant-numeric:tabular-nums;transition:all .15s;padding:0 4px}
+  .unit.alive{color:#06121f;border-color:transparent}
+  .unit.dead{opacity:.32}
+  .unit.dropped{outline:2px dashed var(--warn);opacity:.32}
+  .lane{margin:14px 0}
+  .lane .lbl{font-size:13px;color:var(--sub);margin-bottom:6px;display:flex;justify-content:space-between;align-items:center}
+  .switch{position:relative;display:inline-block;width:46px;height:26px;vertical-align:middle}
+  .switch input{opacity:0;width:0;height:0}
+  .slider2{position:absolute;cursor:pointer;inset:0;background:var(--code);border:1px solid var(--line);border-radius:26px;transition:.2s}
+  .slider2:before{position:absolute;content:"";height:18px;width:18px;left:3px;top:3px;background:var(--sub);border-radius:50%;transition:.2s}
+  input:checked + .slider2{background:linear-gradient(135deg,var(--brand),var(--brand2))}
+  input:checked + .slider2:before{transform:translateX(20px);background:#06121f}
+  input[type=range]{accent-color:var(--brand);width:100%}
+  .cmprow.sel td{border-color:var(--brand);background:rgba(56,189,248,.08)}
+  .cmprow td b{color:var(--brand)}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="kicker">Mini-Transformer · 부품④ FFN 쉽게 다시</div>
+    <h1>FFN은<br><span class="hl">"회의 끝나고 각자 책상에서 혼자 곱씹기"</span> 입니다</h1>
+    <p class="lead"><a href="multi-head-attention.html">멀티헤드 어텐션</a>이 단어들끼리 정보를 <b>섞는</b> 단계였다면,
+    FFN(Position-wise Feed-Forward)은 그렇게 섞인 정보를 각 단어가 <b>혼자 더 깊이 소화</b>하는 단계예요.
+    아래에서 벡터가 커졌다 작아지는 과정을 직접 눌러 보며 확인해 봅시다.</p>
+  </div>
+</header>
+
+<nav class="toc"><div class="wrap">
+  <a href="#p1">1. 무슨 문제</a>
+  <a href="#p2">2. 혼자 곱씹기 비유</a>
+  <a href="#p3">3. 확대→비선형→축소</a>
+  <a href="#p4">4. 코드</a>
+  <a href="#p5">5. 직접 해보기</a>
+  <a href="#p6">6. 헷갈리기 쉬운 점</a>
+  <a href="#p7">7. 요약</a>
+</div></nav>
+
+<div class="wrap">
+
+<!-- 1 -->
+<section id="p1">
+  <h2><span class="num">1</span> 어텐션만으론 부족한 이유 (30초)</h2>
+  <p><a href="multi-head-attention.html">이전 문서</a>에서 배운 멀티헤드 어텐션은 문장 속 단어들이
+  <b class="hlt">서로 참고하며 정보를 섞는</b> 일을 합니다. 그런데 섞기만 하고 끝나면 어떨까요?
+  각 단어는 남에게서 받은 정보를 <b>자기 나름대로 정리하고 판단할 기회</b>가 없습니다.</p>
+
+  <div class="big-idea">어텐션 = <span>회의</span>(다른 단어 의견 듣기)<br>→ 회의가 끝나면 각자 자리로 돌아가 <span>혼자 곱씹어야</span> 진짜 내 생각이 된다</div>
+
+  <div class="callout"><span class="emoji">📝</span><b>노트북 코드 주석 그대로:</b>
+  "어텐션이 <b>'단어들끼리 정보를 섞는'</b> 단계라면, FFN은 각 단어가 <b>'혼자 더 깊이 곱씹는'</b> 단계.
+  모든 위치(단어)에 <b>'똑같은'</b> 작은 2층 신경망을 독립적으로 적용합니다(그래서 <b>position-wise</b>)."</div>
+</section>
+
+<!-- 2 -->
+<section id="p2">
+  <h2><span class="num">2</span> 비유: 같은 업무 매뉴얼로 각자 곱씹기</h2>
+  <p>FFN이 하는 일은 딱 세 단계입니다. "position-wise"라는 이름은 <b>모든 위치(단어)가 완전히 같은 신경망</b>을
+  쓰지만, <b>서로의 결과는 절대 들여다보지 않는다</b>는 뜻이에요 — 같은 업무 매뉴얼을 전 직원이 각자 자리에서
+  혼자 따라 하는 것과 같습니다.</p>
+  <div class="grid3">
+    <div class="role q">
+      <span class="tag">① 확대</span>
+      <h4>📖 매뉴얼 펼치기</h4>
+      <p class="muted" style="margin:0">Linear(d_model→d_ff)로 차원을 <b>보통 4배</b> 늘려, 생각을 펼쳐 볼 공간을 넉넉히 마련합니다.</p>
+    </div>
+    <div class="role k">
+      <span class="tag">② 판단</span>
+      <h4>✂️ 필요 없는 건 버리기</h4>
+      <p class="muted" style="margin:0">ReLU로 <b>음수는 0으로</b> 꺼 버리고, Dropout으로 학습 중 일부를 더 꺼서 과적합을 막습니다.</p>
+    </div>
+    <div class="role v">
+      <span class="tag">③ 압축</span>
+      <h4>📎 결론만 정리</h4>
+      <p class="muted" style="margin:0">Linear(d_ff→d_model)로 다시 원래 차원으로 되돌려, 다음 층(잔차 연결)과 모양을 맞춥니다.</p>
+    </div>
+  </div>
+  <div class="callout good"><span class="emoji">💡</span>핵심 제약: <b class="inline">모든 위치가 동일한 W1·b1·W2·b2를 공유</b>합니다.
+  그래서 문장이 길어져도(단어 수가 늘어도) <b>FFN의 파라미터 수는 늘지 않아요</b> — 매뉴얼은 하나, 읽는 사람만 여럿인 셈입니다.</div>
+</section>
+
+<!-- 3 -->
+<section id="p3">
+  <h2><span class="num">3</span> 구조: 확대 → 비선형 → 축소</h2>
+  <p>코드 한 줄 <span class="inline">nn.Sequential(Linear, ReLU, Dropout, Linear)</span> 안에 이 네 단계가 순서대로 들어 있습니다.</p>
+
+  <div class="steps">
+    <span class="step">입력<br>(B,S,d_model)</span><span class="arw">→</span>
+    <span class="step">Linear1 확대<br>(B,S,d_ff)</span><span class="arw">→</span>
+    <span class="step">ReLU<br>음수 제거</span><span class="arw">→</span>
+    <span class="step">Dropout<br>(학습 중만)</span><span class="arw">→</span>
+    <span class="step" style="border-color:var(--good);color:var(--good)">Linear2 축소<br>(B,S,d_model)</span>
+  </div>
+
+  <div class="callout"><span class="emoji">📐</span>
+  <b>왜 굳이 늘렸다 줄일까?</b> 차원이 그대로면(d_model→d_model) 두 Linear를 이어붙여도 결국 하나의 Linear와
+  다를 게 없어요(선형변환의 합성은 선형변환). <b>일부러 넓혔다가 ReLU로 비선형성을 넣고 다시 좁혀야</b>
+  "단순 곱하기"를 넘어서는 진짜 표현력이 생깁니다.</div>
+
+  <div class="callout good"><span class="emoji">🏭</span><b>실제 학습에 쓰는 진짜 값</b> (부품⑨ <span class="inline">Transformer</span> 기본 하이퍼파라미터):
+  <span class="inline">d_model=64, d_ff=256</span> → 정확히 <b>4배 확대</b>. 이 문서의 아래 데모는 손으로 계산을 눈으로 볼 수 있게
+  <span class="inline">d_model=4, d_ff=16</span>로 축소했지만, <b>4배 확대라는 비율은 실전과 동일</b>하게 맞췄습니다.</div>
+
+  <div class="callout warn"><span class="emoji">🧯</span><b>이 부품 단독 체크포인트는 없습니다.</b>
+  FFN은 바로 다음 <a href="#p6">부품⑤ EncoderLayer(셀 17)</a>·부품⑥ DecoderLayer(셀 18) 안에 조립되어,
+  두 블록의 forward가 정상 작동하는 것으로 간접 검증됩니다.</div>
+</section>
+
+<!-- 4 -->
+<section id="p4">
+  <h2><span class="num">4</span> 코드 그대로 보기</h2>
+  <p>노트북 <b>셀 16</b>의 <span class="inline">PositionwiseFeedForward</span> 클래스입니다. 딱 5줄뿐이에요.</p>
+
+<pre><code><span class="cmt"># 직관: 어텐션이 '단어들끼리 정보를 섞는' 단계라면, FFN은 각 단어가 '혼자 더 깊이 곱씹는' 단계.</span>
+<span class="cmt"># 모든 위치(단어)에 '똑같은' 작은 2층 신경망을 독립적으로 적용합니다(그래서 position-wise).</span>
+<span class="kw">class</span> <span class="fn">PositionwiseFeedForward</span>(nn.Module):
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, d_model, d_ff, dropout=<span class="num2">0.1</span>):
+        super().<span class="fn">__init__</span>()
+        <span class="cmt"># Linear(d_model→d_ff)로 차원을 크게 늘려(보통 4배) 표현력을 키우고 → ReLU로 비선형성 부여 →</span>
+        <span class="cmt"># Dropout으로 과적합 억제 → Linear(d_ff→d_model)로 원래 차원으로 되돌립니다.</span>
+        self.net = nn.<span class="fn">Sequential</span>(nn.<span class="fn">Linear</span>(d_model, d_ff), nn.<span class="fn">ReLU</span>(),
+                                 nn.<span class="fn">Dropout</span>(dropout), nn.<span class="fn">Linear</span>(d_ff, d_model))
+    <span class="kw">def</span> <span class="fn">forward</span>(self, x):
+        <span class="cmt"># x: (B, S, d_model) → (B, S, d_model). 각 위치가 서로 독립적으로 같은 net을 통과합니다.</span>
+        <span class="kw">return</span> self.<span class="fn">net</span>(x)</code></pre>
+
+  <table>
+    <tr><th>코드</th><th>단계</th><th>쉬운 말</th></tr>
+    <tr><td><span class="inline">nn.Linear(d_model,d_ff)</span></td><td>①</td><td>차원을 4배로 넓혀 표현할 공간을 늘림</td></tr>
+    <tr><td><span class="inline">nn.ReLU()</span></td><td>②</td><td>음수는 전부 0으로 — 살아남은 신호만 통과</td></tr>
+    <tr><td><span class="inline">nn.Dropout(dropout)</span></td><td>③</td><td>학습 중에만 일부를 랜덤으로 더 꺼서 과적합 방지</td></tr>
+    <tr><td><span class="inline">nn.Linear(d_ff,d_model)</span></td><td>④</td><td>다시 원래 차원으로 압축</td></tr>
+    <tr><td><span class="inline">forward(x)</span></td><td>⑤</td><td>위 net을 위치마다 독립적으로 통과 (position-wise)</td></tr>
+  </table>
+</section>
+
+<!-- 5 -->
+<section id="p5">
+  <h2><span class="num">5</span> 직접 해보기 — 넓혔다 좁히는 과정, 눈으로 보기</h2>
+  <p>토이 문장의 단어 3개(<b class="hlt">먹구름이·보이면·뭐가</b>)에 각각 예시 벡터(d_model=4)를 붙였습니다.
+  아래 단계는 실제 <span class="inline">Linear→ReLU→Dropout→Linear</span> 공식 그대로 계산합니다
+  <span class="muted">(가중치 W1·b1·W2·b2는 학습된 값이 아니라 구조를 보여주기 위한 고정 예시 값입니다)</span>.</p>
+
+  <div class="card">
+    <p class="muted" style="margin:0 0 8px">① 어느 단어(위치)를 볼까요?</p>
+    <div class="tokrow" id="tokrow"></div>
+
+    <div class="lane">
+      <div class="lbl"><span>② 입력 벡터 <b id="wname" style="color:var(--brand)">먹구름이</b> (d_model=4) — 첫 번째 값 직접 조절</span>
+        <span id="dim0val" class="inline">0.80</span></div>
+      <input type="range" id="dim0" min="-1" max="1" step="0.05" value="0.8">
+      <div class="unitgrid" id="inputUnits"></div>
+    </div>
+
+    <div class="lane">
+      <div class="lbl"><span>③ Linear1로 확대 (d_ff=16) — 파란/보라 = 아직 ReLU 전</span></div>
+      <div class="unitgrid" id="expandUnits"></div>
+    </div>
+
+    <div class="lane">
+      <div class="lbl"><span>④ ReLU 통과 — 회색 = 음수라서 꺼짐(0)</span></div>
+      <div class="unitgrid" id="reluUnits"></div>
+    </div>
+
+    <div class="lane">
+      <div class="lbl">
+        <span>⑤ Dropout <span class="muted">(학습 때만 동작, 점선 테두리 = 이번에 추가로 꺼진 자리)</span></span>
+        <label class="switch"><input type="checkbox" id="dropToggle"><span class="slider2"></span></label>
+      </div>
+      <div class="unitgrid" id="dropUnits"></div>
+    </div>
+
+    <div class="lane">
+      <div class="lbl"><span>⑥ Linear2로 축소 (d_model=4) — 최종 출력</span></div>
+      <div class="unitgrid" id="outputUnits"></div>
+    </div>
+  </div>
+
+  <div class="callout good"><span class="emoji">🔒</span><b>Position-wise 증거:</b> 아래 표에서 <b id="wname2">먹구름이</b>의 슬라이더를 움직여도
+  <b>다른 두 단어(보이면·뭐가)의 출력은 한 자리도 바뀌지 않습니다.</b> 완전히 같은 W1·W2를 쓰지만,
+  단어끼리는 계산이 <b class="hlt">철저히 독립적</b>이에요 — 어텐션이라면 한 단어를 바꾸면 다른 단어의 결과도 흔들렸겠죠.</div>
+
+  <table id="cmpTable"></table>
+</section>
+
+<!-- 6 -->
+<section id="p6">
+  <h2><span class="num">6</span> 헷갈리기 쉬운 점</h2>
+  <div class="callout warn"><span class="emoji">⚖️</span><b>어텐션 vs FFN, 정보가 섞이는 방향이 다릅니다.</b>
+  <table style="margin-top:10px">
+    <tr><th></th><th>어텐션(부품②·③)</th><th>FFN(부품④)</th></tr>
+    <tr><td>정보 흐름</td><td>위치 <b>사이</b>(다른 단어 참고)</td><td>위치 <b>안</b>(자기 자신만)</td></tr>
+    <tr><td>파라미터</td><td>Q/K/V/O 선형변환</td><td>2층 신경망(Linear-ReLU-Linear)</td></tr>
+    <tr><td>단어 하나 바꾸면?</td><td>다른 단어 출력도 영향 받음</td><td>그 단어 출력만 바뀜</td></tr>
+  </table></div>
+  <div class="callout"><span class="emoji">🧩</span><b>"같은 클래스"≠"같은 가중치".</b>
+  <span class="inline">EncoderLayer</span>(셀 17)와 <span class="inline">DecoderLayer</span>(셀 18)는 각각
+  <b>자기만의 <span class="inline">PositionwiseFeedForward</span> 인스턴스</b>를 새로 만듭니다 — 층마다 W1·W2 값이 다릅니다.
+  공유되는 건 오직 <b>"한 층 안에서 위치(단어)들끼리"</b>뿐입니다. 이 둘을 헷갈리기 쉬워요.</div>
+  <div class="callout good"><span class="emoji">🚦</span><b>Dropout은 학습 때만!</b> <span class="inline">model.eval()</span>로 전환하면
+  Dropout은 자동으로 꺼지고 모든 신호를 그대로 통과시킵니다. 그래서 5번 데모의 답 생성(<a href="#p5">부품⑤ 이후, 노트북 5️⃣~6️⃣</a>) 단계에서는
+  Dropout이 실제로 아무 영향도 주지 않습니다 — 학습 곡선에서만 과적합 억제 역할을 합니다.</div>
+</section>
+
+<!-- 7 -->
+<section id="p7">
+  <h2><span class="num">7</span> 30초 요약</h2>
+  <div class="card" style="text-align:center;padding:30px">
+    <p style="font-size:21px;font-weight:800;margin:0;line-height:1.7">
+      "어텐션이 <span style="color:var(--brand)">단어들끼리 정보를 섞으면</span>,<br>
+      FFN은 <span style="color:var(--accent)">각 단어가 혼자</span> 그 정보를 <span style="color:var(--good)">확대→비선형→축소</span>로 곱씹는다.<br>
+      모든 위치는 <span style="color:var(--brand2)">같은 신경망을 공유</span>하지만, 계산은 <span class="hlt">서로 절대 섞이지 않는다.</span>"
+    </p>
+  </div>
+  <div class="grid2" style="margin-top:18px">
+    <div class="card tight"><b>📖 비유</b><br><span class="muted">회의 후 각자 책상에서 혼자 곱씹기</span></div>
+    <div class="card tight"><b>📐 구조</b><br><span class="muted">Linear(×4 확대)→ReLU→Dropout→Linear(축소)</span></div>
+    <div class="card tight"><b>🧩 파라미터</b><br><span class="muted">위치끼리는 공유, 층끼리는 각자 따로</span></div>
+    <div class="card tight"><b>🔁 쓰이는 곳</b><br><span class="muted">EncoderLayer·DecoderLayer 둘 다, 어텐션 다음마다</span></div>
+  </div>
+</section>
+
+<footer>
+  <p>Mini-Transformer 실습 교재 · FFN(Position-wise Feed-Forward) 쉬운 설명판<br>
+  코드 출처: <span class="inline">example-detailed.ipynb</span> — 부품 ④ PositionwiseFeedForward(셀 16),
+  사용처 부품⑤ EncoderLayer(셀 17)·부품⑥ DecoderLayer(셀 18)<br>
+  함께 보기: <a href="attention.html">어텐션(부품②)</a> · <a href="multi-head-attention.html">멀티헤드 어텐션(부품③)</a> ·
+  <a href="positional-encoding.html">위치 인코딩</a> · <a href="vocab.html">어휘 사전</a></p>
+</footer>
+
+</div>
+
+<script>
+/* ===== 고정 예시 데이터 (학습된 값 아님 — 구조 이해용) ===== */
+const WORDS = ['먹구름이', '보이면', '뭐가'];
+const BASE_VECS = [
+  [0.80, -0.30, 0.50, 0.10],
+  [-0.40, 0.60, -0.20, 0.70],
+  [0.20, 0.90, -0.60, -0.10],
+];
+const DM = 4, DFF = 16;
+
+/* 결정론적 고정 가중치 생성 (매번 동일, 랜덤 아님) */
+function buildWeights(){
+  const W1 = [], b1 = [], W2 = [], b2 = [];
+  for(let j=0;j<DFF;j++){
+    const row = [];
+    for(let i=0;i<DM;i++) row.push(+(Math.sin((j+1)*0.6+(i+1)*1.3)*0.9).toFixed(2));
+    W1.push(row);
+    b1.push(+(Math.cos(j*0.5)*0.2).toFixed(2));
+  }
+  for(let i=0;i<DM;i++){
+    const row = [];
+    for(let j=0;j<DFF;j++) row.push(+(Math.cos((i+1)*0.4+(j+1)*0.9)*0.5).toFixed(2));
+    W2.push(row);
+    b2.push(+(Math.sin(i*0.7)*0.15).toFixed(2));
+  }
+  return {W1,b1,W2,b2};
+}
+const {W1,b1,W2,b2} = buildWeights();
+const DROP_IDX = [1,4,7,10,13]; // 예시로 5/16 자리를 강제로 꺼봄 (개념 시연용, 실제 dropout=0.1 비율과 다름)
+
+function matvec(W, x, b){ return W.map((row,idx)=> row.reduce((s,w,k)=>s+w*x[k],0) + b[idx]); }
+function relu(v){ return v.map(x=>Math.max(0,x)); }
+
+let selIdx = 0;
+let dim0Override = BASE_VECS[0][0];
+
+function currentVec(idx){
+  if(idx === selIdx) return [dim0Override, ...BASE_VECS[idx].slice(1)];
+  return BASE_VECS[idx];
+}
+
+function forward(x, dropOn){
+  const h1 = matvec(W1, x, b1);
+  const r = relu(h1);
+  const rd = dropOn ? r.map((v,i)=> DROP_IDX.includes(i) ? 0 : v) : r.slice();
+  const out = matvec(W2, rd, b2);
+  return {h1, r, rd, out};
+}
+
+const tokrow = document.getElementById('tokrow');
+const wname = document.getElementById('wname'), wname2 = document.getElementById('wname2');
+const dim0 = document.getElementById('dim0'), dim0val = document.getElementById('dim0val');
+const dropToggle = document.getElementById('dropToggle');
+const inputUnits = document.getElementById('inputUnits'), expandUnits = document.getElementById('expandUnits');
+const reluUnits = document.getElementById('reluUnits'), dropUnits = document.getElementById('dropUnits');
+const outputUnits = document.getElementById('outputUnits'), cmpTable = document.getElementById('cmpTable');
+
+function chip(v, alive, dropped){
+  let cls = 'unit';
+  if(dropped) cls += ' dropped';
+  else if(alive) cls += ' alive';
+  else cls += ' dead';
+  const bg = alive && !dropped ? (v>=0 ? 'background:linear-gradient(135deg,var(--brand),var(--brand2))' : 'background:linear-gradient(135deg,var(--warn),#f97316)') : '';
+  return `<div class="${cls}" style="${bg}">${v.toFixed(2)}</div>`;
+}
+
+function renderTokrow(){
+  tokrow.innerHTML = WORDS.map((w,i)=>`<div class="tok ${i===selIdx?'sel':''}" data-i="${i}">${w}</div>`).join('');
+  tokrow.querySelectorAll('.tok').forEach(el=>el.onclick=()=>{
+    selIdx = +el.dataset.i;
+    dim0Override = BASE_VECS[selIdx][0];
+    renderTokrow(); renderAll();
+  });
+}
+
+function renderAll(){
+  const x = currentVec(selIdx);
+  const dropOn = dropToggle.checked;
+  const {h1, r, rd, out} = forward(x, dropOn);
+
+  wname.textContent = WORDS[selIdx];
+  wname2.textContent = WORDS[selIdx];
+  dim0.value = x[0];
+  dim0val.textContent = x[0].toFixed(2);
+
+  inputUnits.innerHTML = x.map(v=>chip(v, true, false)).join('');
+  expandUnits.innerHTML = h1.map(v=>chip(v, true, false)).join('');
+  reluUnits.innerHTML = r.map(v=>chip(v, v>0, false)).join('');
+  dropUnits.innerHTML = rd.map((v,i)=>chip(v, v>0, dropOn && DROP_IDX.includes(i))).join('');
+  outputUnits.innerHTML = out.map(v=>chip(v, true, false)).join('');
+
+  renderCmpTable();
+}
+
+function renderCmpTable(){
+  const dropOn = dropToggle.checked;
+  let rows = `<tr><th>단어(위치)</th><th>입력 벡터</th><th>FFN 출력 벡터</th></tr>`;
+  WORDS.forEach((w,i)=>{
+    const x = currentVec(i);
+    const {out} = forward(x, dropOn);
+    const vecStr = v => `[${v.map(n=>n.toFixed(2)).join(', ')}]`;
+    rows += `<tr class="cmprow ${i===selIdx?'sel':''}"><td>${i===selIdx?`<b>${w}</b>`:w}</td>
+      <td><span class="inline">${vecStr(x)}</span></td>
+      <td><span class="inline">${vecStr(out)}</span></td></tr>`;
+  });
+  cmpTable.innerHTML = rows;
+}
+
+dim0.addEventListener('input', ()=>{ dim0Override = +dim0.value; renderAll(); });
+dropToggle.addEventListener('change', renderAll);
+
+renderTokrow();
+renderAll();
+</script>
+</body>
+</html>

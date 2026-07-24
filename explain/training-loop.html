@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>학습(Training Loop) — 세상에서 제일 쉽게</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel2:#273449;
+    --ink:#e2e8f0; --sub:#94a3b8; --line:#334155;
+    --brand:#38bdf8; --brand2:#818cf8; --accent:#fbbf24;
+    --good:#34d399; --warn:#f472b6; --code:#0b1220;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:"Segoe UI","Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif;
+    line-height:1.8;font-size:17px}
+  a{color:var(--brand)}
+  .wrap{max-width:900px;margin:0 auto;padding:0 20px 120px}
+
+  header{background:radial-gradient(1200px 500px at 20% -10%,rgba(56,189,248,.25),transparent 60%),
+    radial-gradient(1000px 500px at 90% 0%,rgba(129,140,248,.22),transparent 55%),var(--bg);
+    border-bottom:1px solid var(--line);padding:64px 20px 48px}
+  header .wrap{padding-bottom:0}
+  .kicker{color:var(--brand);font-weight:700;letter-spacing:.14em;font-size:13px;text-transform:uppercase}
+  h1{font-size:clamp(28px,5vw,44px);line-height:1.22;margin:.35em 0 .3em;font-weight:800}
+  h1 .hl{background:linear-gradient(90deg,var(--brand),var(--brand2));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .lead{font-size:19px;color:var(--sub);max-width:720px}
+
+  section{margin-top:60px}
+  h2{font-size:clamp(23px,3.4vw,29px);margin:0 0 8px;font-weight:800;display:flex;align-items:center;gap:12px}
+  h2 .num{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:12px;
+    background:linear-gradient(135deg,var(--brand),var(--brand2));color:#06121f;font-size:18px;font-weight:900;flex:0 0 auto}
+  h3{font-size:19px;margin:26px 0 6px}
+  p{margin:.6em 0}
+  .muted{color:var(--sub)}
+  b.hlt{color:#fff}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px 24px;margin:18px 0}
+  .card.tight{padding:16px 18px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+  @media(max-width:720px){.grid2,.grid3{grid-template-columns:1fr}}
+
+  .callout{border-left:4px solid var(--brand);background:var(--panel2);border-radius:0 12px 12px 0;padding:14px 18px;margin:16px 0}
+  .callout.good{border-color:var(--good)} .callout.warn{border-color:var(--warn)}
+  .callout b{color:#fff}
+  .emoji{font-size:20px;margin-right:6px}
+  .big-idea{background:linear-gradient(135deg,rgba(56,189,248,.16),rgba(129,140,248,.16));
+    border:1px solid var(--line);border-radius:18px;padding:24px 26px;margin:18px 0;font-size:19px;text-align:center;font-weight:700}
+  .big-idea span{color:var(--accent)}
+
+  .inline{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:1px 7px;
+    font-family:"Consolas","D2Coding",monospace;font-size:14px;color:#fde68a}
+
+  /* role cards (재사용) */
+  .role{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+  .role .tag{display:inline-block;font-weight:900;font-size:13px;letter-spacing:.06em;padding:3px 10px;border-radius:8px;margin-bottom:8px}
+  .role.q .tag{background:rgba(56,189,248,.2);color:var(--brand)}
+  .role.k .tag{background:rgba(129,140,248,.2);color:var(--brand2)}
+  .role.v .tag{background:rgba(52,211,153,.2);color:var(--good)}
+  .role h4{margin:0 0 4px;font-size:17px}
+
+  .steps{display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;margin:10px 0}
+  .step{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:13px;font-weight:700}
+  .step .arw{color:var(--sub);margin:0 2px}
+
+  /* 배치 패딩 그리드 */
+  .padgrid{display:grid;grid-template-columns:96px repeat(6,1fr);gap:6px;margin:14px 0;font-size:13px}
+  .padgrid .rlabel{color:var(--sub);display:flex;align-items:center;font-size:12px}
+  .padcell{background:var(--panel2);border:1px solid var(--line);border-radius:8px;text-align:center;
+    padding:8px 4px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .padcell.spec{color:var(--brand2)}
+  .padcell.pad{background:var(--code);color:var(--sub);border-style:dashed;font-weight:400}
+  @media(max-width:720px){.padgrid{grid-template-columns:60px repeat(6,1fr);font-size:11px}}
+
+  /* 티처 포싱 시프트 그리드 */
+  .shiftgrid{display:grid;grid-template-columns:96px repeat(6,1fr);gap:6px;margin:10px 0;font-size:13px}
+  .shiftgrid .rlabel{color:var(--sub);display:flex;align-items:center;font-size:12px}
+  .shiftcell{background:var(--panel2);border:1px solid var(--line);border-radius:8px;text-align:center;padding:8px 4px;font-weight:700}
+  .shiftcell.tgt{border-color:var(--good);color:var(--good)}
+  .shiftcell.empty{visibility:hidden}
+  .shiftarrow{text-align:center;color:var(--sub);font-size:13px}
+  @media(max-width:720px){.shiftgrid{grid-template-columns:60px repeat(6,1fr);font-size:11px}}
+
+  /* 다트보드 */
+  .dartwrap{display:flex;flex-direction:column;align-items:center;gap:10px}
+  .dartboard{position:relative;width:200px;height:200px;border-radius:50%;
+    background:repeating-radial-gradient(circle at center,
+      var(--brand2) 0 8%, var(--panel2) 8% 18%,
+      var(--brand2) 18% 28%, var(--panel2) 28% 38%,
+      var(--brand2) 38% 48%, var(--panel2) 48% 58%,
+      var(--brand2) 58% 100%);
+    border:2px solid var(--line);flex:0 0 auto}
+  .dart-dot{position:absolute;width:13px;height:13px;border-radius:50%;background:var(--accent);
+    box-shadow:0 0 12px rgba(251,191,36,.85);transform:translate(-50%,-50%);transition:top .25s,left .25s}
+
+  input[type=range]{width:100%;accent-color:var(--brand)}
+  .controls{margin:10px 0}
+  .controls label{font-size:14px;color:var(--sub)}
+  canvas{max-width:100%;background:var(--code);border:1px solid var(--line);border-radius:12px;display:block}
+  .legend{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--sub);margin-top:8px;flex-wrap:wrap}
+
+  pre{background:var(--code);border:1px solid var(--line);border-radius:14px;padding:18px;overflow:auto;font-size:14px;line-height:1.7;margin:14px 0}
+  code{font-family:"Consolas","D2Coding",monospace}
+  pre code{color:#cbd5e1}
+  .cmt{color:#64748b}.kw{color:#f472b6}.fn{color:#38bdf8}.num2{color:#fbbf24}.str{color:#34d399}
+
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:15px}
+  th,td{border:1px solid var(--line);padding:9px 12px;text-align:left}
+  th{background:var(--panel2);color:#fff}
+
+  footer{margin-top:80px;border-top:1px solid var(--line);padding-top:24px;color:var(--sub);font-size:14px}
+  .toc{position:sticky;top:0;z-index:5;background:rgba(15,23,42,.85);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+  .toc .wrap{display:flex;gap:6px;flex-wrap:wrap;padding:10px 20px;overflow-x:auto}
+  .toc a{color:var(--sub);text-decoration:none;font-size:13px;padding:6px 10px;border-radius:8px;white-space:nowrap}
+  .toc a:hover{background:var(--panel);color:#fff}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="kicker">Mini-Transformer · 학습 다시 쉽게</div>
+    <h1>학습은<br><span class="hl">"틀린 만큼 조금씩 고치기"</span> 입니다</h1>
+    <p class="lead">3단계에서 만든 부품들은 아직 <b>텅 빈 뼈대</b>일 뿐이에요. 예측 → 정답과 비교(loss) → 가중치 수정,
+    이 세 걸음을 <b>400번</b> 반복해야 모델이 진짜로 "먹구름 → 비"를 배웁니다. 실제 노트북을 그대로 실행해 얻은
+    <b>진짜 loss 곡선</b>으로 그 과정을 직접 훑어봅시다.</p>
+  </div>
+</header>
+
+<nav class="toc"><div class="wrap">
+  <a href="#p1">1. 무슨 문제</a>
+  <a href="#p2">2. 다트 연습 비유</a>
+  <a href="#p3">3. 배치 만들기(패딩)</a>
+  <a href="#p4">4. 티처 포싱</a>
+  <a href="#p5">5. 코드</a>
+  <a href="#p6">6. 직접 해보기</a>
+  <a href="#p7">7. 헷갈리기 쉬운 점</a>
+  <a href="#p8">8. 요약</a>
+</div></nav>
+
+<div class="wrap">
+
+<!-- 1 -->
+<section id="p1">
+  <h2><span class="num">1</span> 부품은 다 만들었는데, 왜 아직 안 되나요? (30초)</h2>
+  <p>3단계에서 위치 인코딩·어텐션·인코더·디코더·마스크까지 <b>10개 부품</b>을 다 조립했습니다. 그런데 이 상태로
+  모델에 질문을 넣으면 어떻게 될까요? <b class="hlt">아무 의미 없는 답</b>이 나옵니다. 왜냐하면 <span class="inline">nn.Linear</span>,
+  <span class="inline">nn.Embedding</span> 같은 부품들의 숫자(가중치)가 아직 <b>무작위로 초기화된 값</b>이기 때문이에요.</p>
+
+  <div class="big-idea">부품(구조)은 완성했지만, 그 부품 안의 <span>숫자(가중치)</span>는 아직<br><span>"먹구름 → 비"라는 규칙을 전혀 모르는</span> 상태다</div>
+
+  <div class="callout"><span class="emoji">🎯</span><b>학습이 하는 일:</b> 질문을 넣어보고(예측) → 정답과 얼마나 다른지 재고(loss) →
+  그 차이만큼 가중치 숫자를 아주 조금씩 고쳐주는 것. 이걸 <b class="hlt">400번</b> 반복하면, 처음엔 무작위였던 숫자들이
+  점점 "먹구름이 나오면 비를 가리켜라"는 규칙에 맞게 정렬됩니다.</div>
+</section>
+
+<!-- 2 -->
+<section id="p2">
+  <h2><span class="num">2</span> 비유: 눈 감고 다트 던지기 연습</h2>
+  <p>학습 초반의 모델은 <b>눈을 감고 다트를 던지는 초보</b>와 같습니다. 처음엔 과녁 어디에 맞을지 전혀 모르죠.
+  그런데 던질 때마다 <b class="hlt">"얼마나 빗나갔는지"(loss)</b>를 알려주면, 다음 던질 땐 그 정보를 참고해 팔 각도를
+  아주 조금 고칩니다. 이걸 수백 번 반복하면 점점 과녁 중앙 근처에 꽂히게 돼요.</p>
+
+  <div class="grid3">
+    <div class="role q">
+      <span class="tag">① 예측</span>
+      <h4>🎯 일단 던진다</h4>
+      <p class="muted" style="margin:0">지금 가진 가중치로 답을 만들어봅니다. <span class="inline">model(...)</span> 한 번 호출.</p>
+    </div>
+    <div class="role k">
+      <span class="tag">② 비교(loss)</span>
+      <h4>📏 얼마나 빗나갔나</h4>
+      <p class="muted" style="margin:0">정답과 예측이 얼마나 다른지 숫자 하나(loss)로 잽니다. <span class="inline">CrossEntropyLoss</span>.</p>
+    </div>
+    <div class="role v">
+      <span class="tag">③ 수정</span>
+      <h4>🔧 팔 각도 조금 고치기</h4>
+      <p class="muted" style="margin:0">빗나간 방향의 <b>반대쪽</b>으로 가중치를 살짝 옮깁니다. <span class="inline">loss.backward(); opt.step()</span>.</p>
+    </div>
+  </div>
+
+  <div class="dartwrap">
+    <div class="dartboard">
+      <div class="dart-dot" style="top:8%;left:88%"></div>
+    </div>
+    <p class="muted" style="margin:4px 0 0;font-size:14px">학습 <b class="hlt">1번째 던지기</b> — 완전히 무작위 (과녁 밖 근처)</p>
+  </div>
+  <div class="callout good"><span class="emoji">👀</span>
+  6번 섹션에서는 이 다트가 <b>실제 노트북을 돌려서 나온 진짜 loss 값</b>을 따라 과녁 중앙으로 이동하는 걸 슬라이더로 직접 확인합니다.</div>
+</section>
+
+<!-- 3 -->
+<section id="p3">
+  <h2><span class="num">3</span> 예측하기 전에: 배치 만들기 (build_batches)</h2>
+  <p>질문 6개·답 6개는 <b>길이가 제각각</b>입니다. "비가 올 것 같아"(4단어)도 있고 "아침이 밝았구나"(2단어)도 있어요.
+  그런데 계산은 <b>하나의 반듯한 직사각형 표(텐서)</b> 위에서만 됩니다. 그래서 짧은 문장 뒤를
+  <span class="inline">&lt;pad&gt;</span>(빈칸)로 채워 모두 같은 길이로 맞춥니다 — 마치 <b>단체사진 찍을 때 키 작은 사람
+  뒤에 발판을 놓아 줄을 맞추는 것</b>과 같아요.</p>
+
+  <div class="card">
+    <p class="muted" style="margin:0 0 8px">노트북을 실제로 실행해 얻은 <span class="inline">tgt_ids</span> (답 문장 6개, 실제 값) —
+    <span style="color:var(--sub)">회색 점선 칸이 &lt;pad&gt;</span></p>
+    <div class="padgrid" id="padgrid"></div>
+  </div>
+  <div class="callout"><span class="emoji">🔎</span>
+  재미있게도 이번 데이터는 <b>질문(src_ids) 쪽엔 패딩이 하나도 없습니다!</b> "하늘에 OO이 보이면 뭐가 생각나" 틀이
+  항상 <b class="hlt">5단어</b>로 똑같기 때문이에요. 답만 3~4단어로 길이가 달라서 패딩이 필요했습니다.</div>
+  <div class="callout warn"><span class="emoji">⚠️</span><b>&lt;pad&gt;는 계산에서 아예 빠집니다.</b>
+  <span class="inline">CrossEntropyLoss(ignore_index=tgt_vocab.pad_id)</span> 덕분에 저 점선 칸들은 loss 계산에 끼어들지 않아요.
+  발판(패딩)은 사진엔 찍히지만 "사람 수"에는 안 들어가는 것과 같습니다.</div>
+</section>
+
+<!-- 4 -->
+<section id="p4">
+  <h2><span class="num">4</span> 티처 포싱 — 정답을 한 칸씩 미리 보여주며 연습</h2>
+  <p>디코더는 <b>"지금까지 쓴 답"을 보고 "다음 한 단어"</b>를 맞혀야 합니다. 그런데 학습 땐 모델이 직접 만든(아직 엉망인)
+  답을 보게 하는 대신, <b class="hlt">진짜 정답을 한 칸 밀어서</b> 미리 보여줍니다. 끝말잇기 선생님이 정답을 한 글자씩
+  대신 불러주면서 "자, 다음 글자는?" 하고 계속 물어보는 것과 같아요. 이래야 훈련 속도가 훨씬 빠르고 안정적입니다.</p>
+
+  <div class="card">
+    <p class="muted" style="margin:0 0 8px">실제 데이터: <span class="inline">DATA[0]</span> = ("...", "비가 올 것 같아") →
+    <span class="inline">tgt_ids[0] = [1, 13, 15, 5, 4, 2]</span> 을 한 칸씩 어긋나게 자릅니다.</p>
+    <div class="shiftgrid" id="shiftgrid"></div>
+  </div>
+  <div class="callout good"><span class="emoji">➡️</span>
+  <b class="inline">dec_in = tgt_ids[:, :-1]</b>(마지막 뺀 앞부분, &lt;sos&gt;부터) 를 보고,
+  <b class="inline">dec_tgt = tgt_ids[:, 1:]</b>(첫 칸 뺀 뒷부분, 한 칸 뒤) 를 맞히도록 훈련합니다.
+  <b class="hlt">"&lt;sos&gt;"를 보면 "비가"를, "&lt;sos&gt; 비가"를 보면 "올"을</b> 맞혀야 하는 식이에요.</div>
+</section>
+
+<!-- 5 -->
+<section id="p5">
+  <h2><span class="num">5</span> 코드로 보기</h2>
+  <p>노트북 <span class="inline">example-detailed.ipynb</span> 셀 25(배치 만들기)와 셀 26(학습 루프)입니다.</p>
+<pre><code><span class="cmt"># 셀 25: 길이 다른 문장들을 &lt;pad&gt;로 채워 직사각형 배치로</span>
+<span class="kw">def</span> <span class="fn">build_batches</span>(pairs, sv, tv):
+    src = [torch.<span class="fn">tensor</span>(sv.<span class="fn">encode</span>(q, add_special=<span class="kw">False</span>)) <span class="kw">for</span> q, _ <span class="kw">in</span> pairs]
+    tgt = [torch.<span class="fn">tensor</span>(tv.<span class="fn">encode</span>(a, add_special=<span class="kw">True</span>))  <span class="kw">for</span> _, a <span class="kw">in</span> pairs]
+    src = <span class="fn">pad_sequence</span>(src, batch_first=<span class="kw">True</span>, padding_value=sv.pad_id)   <span class="cmt"># 길이 맞추기</span>
+    tgt = <span class="fn">pad_sequence</span>(tgt, batch_first=<span class="kw">True</span>, padding_value=tv.pad_id)
+    <span class="kw">return</span> src, tgt</code></pre>
+
+<pre><code><span class="cmt"># 셀 26: (1)예측 → (2)비교 → (3)수정, 을 400번 반복</span>
+torch.<span class="fn">manual_seed</span>(<span class="num2">42</span>)                                       <span class="cmt"># 재현성(같은 결과)</span>
+src_ids, tgt_ids = <span class="fn">build_batches</span>(DATA, src_vocab, tgt_vocab)
+model = <span class="fn">Transformer</span>(<span class="fn">len</span>(src_vocab), <span class="fn">len</span>(tgt_vocab), max_len=max_len)
+opt  = torch.optim.<span class="fn">Adam</span>(model.<span class="fn">parameters</span>(), lr=<span class="num2">3e-4</span>)
+crit = nn.<span class="fn">CrossEntropyLoss</span>(ignore_index=tgt_vocab.pad_id)     <span class="cmt"># pad는 손실에서 제외</span>
+dec_in, dec_tgt = tgt_ids[:, :-<span class="num2">1</span>], tgt_ids[:, <span class="num2">1</span>:]         <span class="cmt"># 티처 포싱(한 칸 시프트)</span>
+
+<span class="kw">for</span> ep <span class="kw">in</span> <span class="fn">range</span>(<span class="num2">1</span>, <span class="num2">401</span>):
+    tgt_mask = <span class="fn">make_decoder_mask</span>(dec_in, tgt_vocab.pad_id)
+    logits = <span class="fn">model</span>(src_ids, dec_in, src_mask, tgt_mask)                   <span class="cmt"># (1) 예측</span>
+    loss = <span class="fn">crit</span>(logits.<span class="fn">reshape</span>(-<span class="num2">1</span>, logits.<span class="fn">size</span>(-<span class="num2">1</span>)), dec_tgt.<span class="fn">reshape</span>(-<span class="num2">1</span>))  <span class="cmt"># (2) 비교</span>
+    opt.<span class="fn">zero_grad</span>(); loss.<span class="fn">backward</span>(); opt.<span class="fn">step</span>()                       <span class="cmt"># (3) 수정</span></code></pre>
+
+  <table>
+    <tr><th>코드</th><th>단계</th><th>쉬운 말</th></tr>
+    <tr><td><span class="inline">model(src_ids, dec_in, ...)</span></td><td>①</td><td>지금 가중치로 다음 단어들을 예측</td></tr>
+    <tr><td><span class="inline">crit(logits, dec_tgt)</span></td><td>②</td><td>예측과 정답의 차이를 숫자(loss) 하나로</td></tr>
+    <tr><td><span class="inline">loss.backward()</span></td><td>③-1</td><td>"어느 방향으로 틀렸는지" 기울기 계산</td></tr>
+    <tr><td><span class="inline">opt.step()</span></td><td>③-2</td><td>그 반대 방향으로 가중치를 한 걸음 이동</td></tr>
+  </table>
+</section>
+
+<!-- 6 -->
+<section id="p6">
+  <h2><span class="num">6</span> 직접 해보기 — 진짜 400 에폭 loss 곡선</h2>
+  <p>아래 곡선은 <b class="hlt">이 문서를 만들며 노트북 코드를 실제로 그대로 실행해서 나온 진짜 loss 값</b>입니다
+  (같은 <span class="inline">torch.manual_seed(42)</span>). 슬라이더로 에폭을 옮기며, 다트가 과녁 중앙으로
+  다가가는 모습과 실제 loss 숫자를 함께 확인하세요.</p>
+
+  <div class="card">
+    <div class="controls">
+      <label>학습 진행도 — 지금 <b id="epLabel" style="color:var(--accent)">1</b>번째 에폭 / loss = <b id="lossLabel" style="color:var(--accent)">48.8795</b></label>
+      <input type="range" id="epR" min="0" max="80" step="1" value="0">
+    </div>
+    <canvas id="lossCv" width="820" height="260"></canvas>
+    <div class="legend">
+      <span style="color:var(--brand)">■ loss (로그 스케일 y축)</span>
+      <span style="margin-left:auto">체크포인트 기준선(0.5) 아래로 내려가면 "학습 완료" ✅</span>
+    </div>
+    <div class="dartwrap" style="margin-top:18px">
+      <div class="dartboard">
+        <div class="dart-dot" id="dartDot"></div>
+      </div>
+      <p class="muted" style="margin:4px 0 0;font-size:14px" id="dartCaption">1번째 에폭 — 과녁 밖 (loss 48.8795)</p>
+    </div>
+  </div>
+  <div class="callout good"><span class="emoji">📉</span>
+  슬라이더를 끝까지 밀어보세요. <b>epoch 1: loss 48.88</b> → <b>epoch 100: 1.84</b> → <b>epoch 200: 0.11</b> →
+  <b>epoch 300: 0.066</b> → <b>epoch 400: 0.0063</b>. 체크포인트 셀 27의
+  <span class="inline">assert loss.item() &lt; 0.5</span> 을 여유 있게 통과하는 걸 볼 수 있어요.</div>
+</section>
+
+<!-- 7 -->
+<section id="p7">
+  <h2><span class="num">7</span> 헷갈리기 쉬운 점</h2>
+  <div class="callout warn"><span class="emoji">🔁</span><b>데이터가 6쌍뿐인데 왜 400번이나 반복하나요?</b>
+  한 번 보여주는 걸로는 모델이 패턴을 못 외웁니다. 사람도 단어 하나를 한 번 듣고 바로 외우진 못하죠.
+  <b>같은 6쌍을 400번(=400 에폭) 반복해서 보여주며</b> 조금씩 가중치를 다듬는 겁니다. 데이터가 작아
+  CPU로도 수 초면 끝나요.</div>
+  <div class="callout"><span class="emoji">0️⃣</span><b>loss가 완전히 0이 되지는 않아요.</b>
+  실제 값도 <span class="inline">0.0063</span>처럼 아주 작아지지만 정확히 0은 아닙니다. softmax는 확률이라
+  100%(=1)에 무한히 가까워질 뿐 정확히 1이 되진 않거든요. "충분히 작으면 성공"이라
+  체크포인트가 <span class="inline">&lt; 0.5</span>라는 기준선을 둔 것입니다.</div>
+  <div class="callout good"><span class="emoji">🧊</span><b>src_mask는 왜 루프 밖에서 한 번만 만들까요?</b>
+  질문(src_ids)은 400번 내내 바뀌지 않으니, 그 패딩 마스크도 매번 다시 계산할 필요가 없어요.
+  반면 <span class="inline">tgt_mask</span>는 루프 안에서 매번 새로 만드는데, 미래 가림(인과 마스크)이
+  입력 길이에 맞춰 계산되기 때문입니다.</div>
+</section>
+
+<!-- 8 -->
+<section id="p8">
+  <h2><span class="num">8</span> 30초 요약</h2>
+  <div class="card" style="text-align:center;padding:30px">
+    <p style="font-size:21px;font-weight:800;margin:0;line-height:1.7">
+      "길이가 다른 문장은 <span style="color:var(--brand)">&lt;pad&gt;로 줄을 맞추고(배치)</span>,<br>
+      정답을 <span style="color:var(--brand2)">한 칸 밀어 미리 보여주며(티처 포싱)</span>,<br>
+      <span style="color:var(--accent)">예측 → 비교(loss) → 수정</span>을<br>
+      <span style="color:var(--good)">400번 반복</span>해 다트가 과녁 중앙에 꽂히게 만든다."
+    </p>
+  </div>
+  <div class="grid2" style="margin-top:18px">
+    <div class="card tight"><b>📦 배치</b><br><span class="muted">&lt;pad&gt;로 길이 맞추기, ignore_index로 무시</span></div>
+    <div class="card tight"><b>👩‍🏫 티처 포싱</b><br><span class="muted">정답을 한 칸 밀어서 dec_in/dec_tgt</span></div>
+    <div class="card tight"><b>🎯 학습 3단계</b><br><span class="muted">예측 → loss 계산 → 가중치 수정</span></div>
+    <div class="card tight"><b>📉 결과</b><br><span class="muted">400 에폭 만에 loss 48.88 → 0.0063</span></div>
+  </div>
+</section>
+
+<footer>
+  <p>Mini-Transformer 실습 교재 · 학습 쉬운 설명판<br>
+  코드 출처: <span class="inline">example-detailed.ipynb</span> — 4️⃣ 학습: 셀 25(build_batches) · 셀 26(모델 만들고 학습하기) · 체크포인트 셀 27<br>
+  loss 곡선은 동일 코드를 <span class="inline">torch.manual_seed(42)</span>로 실제 재실행하여 얻은 값입니다.<br>
+  함께 보기: <a href="attention.html">어텐션(부품②)</a> · <a href="multi-head-attention.html">멀티헤드 어텐션(부품③)</a> ·
+  <a href="encoder-layer.html">인코더 블록(부품⑤)</a> · <a href="decoder-block.html">디코더 블록(부품⑥)</a> ·
+  <a href="positional-encoding.html">위치 인코딩</a> · <a href="vocab.html">어휘 사전</a></p>
+</footer>
+
+</div>
+
+<script>
+/* ================= 3. 배치 패딩 그리드 (실제 tgt_ids) ================= */
+// 노트북을 실제로 실행해 얻은 tgt_ids 6개 행(각 6칸). <sos>=1, <eos>=2, <pad>=0 위치는 실제 텐서와 동일.
+const PAD_ROWS = [
+  {label:'DATA[0]', cells:['<sos>','비가','올','것','같아','<eos>']},
+  {label:'DATA[1]', cells:['<sos>','밤이','깊었나','봐','<eos>','<pad>']},
+  {label:'DATA[2]', cells:['<sos>','아침이','밝았구나','<eos>','<pad>','<pad>']},
+  {label:'DATA[3]', cells:['<sos>','비가','그쳤나','봐','<eos>','<pad>']},
+  {label:'DATA[4]', cells:['<sos>','겨울이','왔구나','<eos>','<pad>','<pad>']},
+  {label:'DATA[5]', cells:['<sos>','저녁이','되었네','<eos>','<pad>','<pad>']},
+];
+(function renderPadGrid(){
+  const el = document.getElementById('padgrid');
+  let h = '';
+  PAD_ROWS.forEach(r=>{
+    h += `<div class="rlabel">${r.label}</div>`;
+    r.cells.forEach(c=>{
+      const isPad = c === '<pad>';
+      const isSpec = c === '<sos>' || c === '<eos>';
+      h += `<div class="padcell ${isPad?'pad':''} ${isSpec?'spec':''}">${c}</div>`;
+    });
+  });
+  el.innerHTML = h;
+})();
+
+/* ================= 4. 티처 포싱 시프트 그리드 (실제 tgt_ids[0]) ================= */
+(function renderShiftGrid(){
+  const el = document.getElementById('shiftgrid');
+  const full = ['<sos>','비가','올','것','같아','<eos>'];
+  const decIn  = full.slice(0, 5);   // tgt_ids[:, :-1]
+  const decTgt = full.slice(1, 6);   // tgt_ids[:, 1:]
+  let h = '<div class="rlabel">dec_in</div>';
+  decIn.forEach(c=> h += `<div class="shiftcell">${c}</div>`);
+  h += '<div class="shiftcell empty">-</div>'; // 열 수 맞춤(6칸 중 5칸만 사용)
+  h += '<div class="rlabel">↓ 맞혀야 할 정답 ↓</div>';
+  for(let i=0;i<6;i++) h += '<div class="shiftarrow">↓</div>';
+  h += '<div class="rlabel">dec_tgt</div>';
+  h += '<div class="shiftcell empty">-</div>';
+  decTgt.forEach(c=> h += `<div class="shiftcell tgt">${c}</div>`);
+  el.innerHTML = h;
+})();
+
+/* ================= 6. 실제 loss 곡선 (노트북 재실행 결과) ================= */
+// example-detailed.ipynb 셀 25~27을 그대로 재현해 실행, torch.manual_seed(42), 5에폭 간격 샘플 + 마지막(400) 값.
+const LOSS = [48.8795,32.0526,17.5418,13.0992,10.6521,8.0042,6.263,5.6091,4.3059,4.1061,4.0724,3.2017,3.6531,2.8165,3.1738,2.3522,2.9698,2.84,2.17,2.1318,2.573,2.381,1.8325,1.7629,2.4724,1.4464,1.8703,1.4081,1.2101,1.1482,1.1127,1.2028,0.8065,0.893,0.6547,0.6607,0.7442,0.8548,0.4907,0.6322,0.359,0.3603,0.1745,0.1548,0.2944,0.2963,0.1936,0.0381,0.0442,0.1032,0.129,0.0651,0.0736,0.0406,0.0125,0.1814,0.0088,0.006,0.0163,0.0128,0.0537,0.03,0.0785,0.011,0.0318,0.01,0.0064,0.0043,0.0416,0.0059,0.0052,0.0037,0.0099,0.0184,0.004,0.0029,0.0277,0.0051,0.0012,0.005,0.0063];
+const EPOCHS = Array.from({length:80}, (_,j)=> j*5+1).concat([400]); // [1,6,...,396,400]
+
+const cv = document.getElementById('lossCv'), ctx = cv.getContext('2d');
+const epR = document.getElementById('epR'), epLabel = document.getElementById('epLabel'), lossLabel = document.getElementById('lossLabel');
+const dartDot = document.getElementById('dartDot'), dartCaption = document.getElementById('dartCaption');
+
+const LOG_LO = Math.log10(0.001), LOG_HI = Math.log10(50);
+function normT(loss){ // 0(=낮은 loss) .. 1(=높은 loss)
+  const clamped = Math.max(Math.min(loss, 50), 0.001);
+  return (Math.log10(clamped) - LOG_LO) / (LOG_HI - LOG_LO);
+}
+function drawChart(curIdx){
+  const W=cv.width, H=cv.height, padL=46, padR=14, padT=14, padB=26;
+  ctx.clearRect(0,0,W,H);
+  // 기준선(loss=0.5, 체크포인트)
+  const yRef = padT + (1-normT(0.5))*(H-padT-padB);
+  ctx.strokeStyle='rgba(244,114,182,.45)'; ctx.setLineDash([5,4]); ctx.lineWidth=1.5;
+  ctx.beginPath(); ctx.moveTo(padL,yRef); ctx.lineTo(W-padR,yRef); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle='#f472b6'; ctx.font='11px sans-serif'; ctx.textAlign='left';
+  ctx.fillText('기준선 0.5 (체크포인트)', padL+4, yRef-6);
+  // 곡선
+  ctx.strokeStyle='#38bdf8'; ctx.lineWidth=2.5; ctx.beginPath();
+  LOSS.forEach((v,i)=>{
+    const x = padL + i/(LOSS.length-1)*(W-padL-padR);
+    const y = padT + (1-normT(v))*(H-padT-padB);
+    i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+  });
+  ctx.stroke();
+  // x축 라벨(에폭)
+  ctx.fillStyle='#94a3b8'; ctx.font='11px sans-serif'; ctx.textAlign='center';
+  [0,20,40,60,80].forEach(i=>{
+    const x = padL + i/(LOSS.length-1)*(W-padL-padR);
+    ctx.fillText('e'+EPOCHS[i], x, H-8);
+  });
+  // 현재 위치 마커
+  const cx = padL + curIdx/(LOSS.length-1)*(W-padL-padR);
+  const cy = padT + (1-normT(LOSS[curIdx]))*(H-padT-padB);
+  ctx.strokeStyle='rgba(251,191,36,.55)'; ctx.lineWidth=1.5; ctx.beginPath();
+  ctx.moveTo(cx,padT); ctx.lineTo(cx,H-padB); ctx.stroke();
+  ctx.fillStyle='#fbbf24'; ctx.beginPath(); ctx.arc(cx,cy,5.5,0,Math.PI*2); ctx.fill();
+}
+function renderAll(){
+  const idx = +epR.value;
+  const ep = EPOCHS[idx], loss = LOSS[idx];
+  epLabel.textContent = ep;
+  lossLabel.textContent = loss.toFixed(4);
+  drawChart(idx);
+  // 다트: t=0(낮은 loss)→중앙, t=1(높은 loss)→가장자리. 각도는 인덱스로 결정(장식용, 방향은 의미 없음).
+  const t = normT(loss);
+  const angle = (idx*53) * Math.PI/180;
+  const r = t*46; // % 단위 반지름(0~46%)
+  const cxp = 50 + r*Math.cos(angle);
+  const cyp = 50 + r*Math.sin(angle);
+  dartDot.style.left = cxp+'%';
+  dartDot.style.top = cyp+'%';
+  dartCaption.innerHTML = `${ep}번째 에폭 — ${loss<0.5? '<b style="color:var(--good)">과녁 중앙 근처 ✅</b>':'과녁에서 아직 먼 상태'} (loss ${loss.toFixed(4)})`;
+}
+epR.oninput = renderAll;
+renderAll();
+</script>
+</body>
+</html>
