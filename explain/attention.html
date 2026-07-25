@@ -506,9 +506,28 @@
     <tr><td>%로 읽으면</td><td>1.46%</td><td><b class="hlt">93.11%</b></td><td>1.98%</td><td>1.66%</td><td>1.79%</td><td>100%</td></tr>
   </table>
   <div class="callout"><span class="emoji">🔢</span>
-    <b>dim=-1이 왜 중요한가요?</b> 만약 <span class="inline">dim=-2</span>로 잘못 주면 <b>"질문 단어 하나가 답 단어들에 준 비율"</b>의 합이 1이 되어
-    의미가 <b>뒤집힙니다.</b> 우리가 원하는 건 <b class="hlt">"답 단어 하나가 질문을 어떻게 나눠 보는지"</b>이므로
-    <b>Key 방향(마지막 축)</b>이 맞습니다.</div>
+    <b>dim=-1이 왜 중요한가요?</b> attn의 <b>마지막 축은 Key(질문 5단어)</b>, 그 앞 축은 <b>Query(답 6칸)</b>입니다.
+    <span class="inline">dim=-1</span>은 <b class="hlt">"한 답 단어가 질문 5단어에 나눠 준 비율"</b>을 합 1로 만듭니다 — 우리가 원하는 것이죠.<br>
+    <span class="inline">dim=-2</span>로 잘못 주면 <b>정규화 방향이 세로로 바뀌어</b> 열(질문 단어)마다 합이 1이 됩니다.
+    <b>Q·K의 역할이 뒤바뀌는 것이 아니라 정규화하는 축만</b> 바뀌는 것이니, "의미가 반대가 된다"기보다
+    <b class="hlt">"비율"이라 부를 수 없는 표가 되어 계산이 망가진다</b>고 보는 게 정확합니다.</div>
+  <p>실제로 <span class="inline">dim=-2</span>로 바꿔 계산해 보면 이렇게 됩니다(헤드0 크로스 어텐션).</p>
+  <table>
+    <tr><th>답 단어 ↓</th><th>하늘에</th><th>먹구름이</th><th>보이면</th><th>뭐가</th><th>생각나</th><th>행 합</th></tr>
+    <tr><td>&lt;sos&gt;</td><td>3.5%</td><td>24.8%</td><td>4.9%</td><td>3.9%</td><td>3.4%</td><td><b>0.40</b></td></tr>
+    <tr><td>비가</td><td>4.0%</td><td>29.7%</td><td>5.4%</td><td>5.2%</td><td>5.9%</td><td><b>0.50</b></td></tr>
+    <tr><td>올</td><td>13.4%</td><td>10.4%</td><td>13.3%</td><td>11.0%</td><td>13.0%</td><td><b>0.61</b></td></tr>
+    <tr><td>것</td><td>17.2%</td><td>18.3%</td><td>18.7%</td><td>13.7%</td><td>16.4%</td><td><b>0.84</b></td></tr>
+    <tr><td>같아</td><td>26.0%</td><td>8.6%</td><td>25.0%</td><td>26.3%</td><td>24.5%</td><td><b>1.10</b></td></tr>
+    <tr><td>&lt;eos&gt;</td><td>35.9%</td><td>8.2%</td><td>32.8%</td><td>39.9%</td><td>36.8%</td><td><b>1.54</b></td></tr>
+    <tr><th>열 합</th><th>1.00</th><th>1.00</th><th>1.00</th><th>1.00</th><th>1.00</th><th>—</th></tr>
+  </table>
+  <div class="callout warn"><span class="emoji">💥</span>
+    <b>열 합은 1이 되었지만 행 합이 0.40 ~ 1.54로 제각각입니다.</b>
+    ⑧에서 V를 섞을 때 <b class="hlt">행마다 결과의 전체 크기가 멋대로 줄거나 커져 가중평균이 깨집니다.</b>
+    "먹구름이"가 1등이던 순위도 아래쪽 행에서는 뒤집혀 버리죠(같아·&lt;eos&gt; 행을 보세요).<br>
+    <b>덤으로 한 가지 더</b> — 패딩 때문에 <b>어떤 열이 전부 −inf</b>이면 <span class="inline">dim=-2</span>는
+    0/0이 되어 <b>NaN</b>이 됩니다. <span class="inline">dim=-1</span>은 같은 상황에서도 그 자리만 0%로 두고 정상 동작합니다.</div>
   <figure>
     <img src="https://raw.githubusercontent.com/unicorn-campus/mini-transformer/main/explain/images/attn-step6-softmax.webp"
          alt="음수까지 있는 점수 5개가 softmax를 지나 합이 100%인 비율 5개로 바뀌는 막대그래프 그림">
