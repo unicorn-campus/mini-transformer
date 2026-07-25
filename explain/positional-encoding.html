@@ -117,7 +117,8 @@
   <a href="#p4">4. 부드럽게 = sin·cos</a>
   <a href="#p5">5. 전체 그림(히트맵)</a>
   <a href="#p6">6. 코드</a>
-  <a href="#p7">7. 요약</a>
+  <a href="#p7">7. 한 줄씩 따라가기</a>
+  <a href="#p8">8. 요약</a>
 </div></nav>
 
 <div class="wrap">
@@ -447,7 +448,117 @@ self.<span class="fn">register_buffer</span>(<span class="str">"pe"</span>, pe.<
 
 <!-- 7 -->
 <section id="p7">
-  <h2><span class="num">7</span> 30초 요약</h2>
+  <h2><span class="num">7</span> 코드 한 줄씩 따라가기</h2>
+  <p>앞에서 배운 원리가 코드 <b class="hlt">어느 줄에 들어 있는지</b> 하나씩 짚어 봅니다.
+  우리 예제 값(<span class="inline">d_model=64</span>, <span class="inline">max_len=22</span>)을 넣었을 때
+  <b>표가 어떻게 채워져 가는지</b>를 따라가 보세요.</p>
+
+<pre><code><span class="cmt">①</span> <span class="kw">class</span> <span class="fn">PositionalEncoding</span>(nn.Module):
+<span class="cmt">②</span>     <span class="kw">def</span> <span class="fn">__init__</span>(self, d_model, max_len=<span class="num2">128</span>, dropout=<span class="num2">0.1</span>):
+<span class="cmt">③</span>         <span class="fn">super</span>().<span class="fn">__init__</span>()
+<span class="cmt">④</span>         self.dropout = nn.<span class="fn">Dropout</span>(dropout)
+<span class="cmt">⑤</span>         pe  = torch.<span class="fn">zeros</span>(max_len, d_model)
+<span class="cmt">⑥</span>         pos = torch.<span class="fn">arange</span>(<span class="num2">0</span>, max_len).<span class="fn">float</span>().<span class="fn">unsqueeze</span>(<span class="num2">1</span>)
+<span class="cmt">⑦</span>         div = torch.<span class="fn">exp</span>(torch.<span class="fn">arange</span>(<span class="num2">0</span>, d_model, <span class="num2">2</span>).<span class="fn">float</span>() * (-math.<span class="fn">log</span>(<span class="num2">10000.0</span>) / d_model))
+<span class="cmt">⑧</span>         pe[:, <span class="num2">0</span>::<span class="num2">2</span>] = torch.<span class="fn">sin</span>(pos * div)
+<span class="cmt">⑨</span>         pe[:, <span class="num2">1</span>::<span class="num2">2</span>] = torch.<span class="fn">cos</span>(pos * div)
+<span class="cmt">⑩</span>         self.<span class="fn">register_buffer</span>(<span class="str">"pe"</span>, pe.<span class="fn">unsqueeze</span>(<span class="num2">0</span>))
+<span class="cmt">⑪</span>     <span class="kw">def</span> <span class="fn">forward</span>(self, x):
+<span class="cmt">⑫</span>         <span class="kw">return</span> self.<span class="fn">dropout</span>(x + self.pe[:, :x.<span class="fn">size</span>(<span class="num2">1</span>)])</code></pre>
+
+  <h3>전체 흐름 한눈에</h3>
+  <table>
+    <tr><th>#</th><th>하는 일</th><th>우리 예제에서의 결과</th></tr>
+    <tr><td>①</td><td><span class="inline">nn.Module</span>을 상속해 <b>"부품" 자격</b>을 얻음</td><td>Encoder·Decoder가 조립해 쓸 수 있게 됨</td></tr>
+    <tr><td>②</td><td>필요한 값 3개를 받음</td><td><b>(64, 22, 0.1)</b> 로 호출됨</td></tr>
+    <tr><td>③</td><td>부모 클래스 초기화</td><td>없으면 <b>에러</b> (아래 설명)</td></tr>
+    <tr><td>④</td><td>드롭아웃 준비</td><td>학습 중 10% 끄기</td></tr>
+    <tr><td>⑤</td><td><b>0으로 채운 빈 표</b> 만들기</td><td>(22, 64) — 22줄 × 64칸</td></tr>
+    <tr><td>⑥</td><td>위치 번호를 <b>세로로</b> 세우기</td><td>(22, 1) — 0,1,2,…,21</td></tr>
+    <tr><td>⑦</td><td>차원별 <b>파도 속도(주파수)</b> 만들기</td><td>(32,) — 1.0 ~ 0.000133</td></tr>
+    <tr><td>⑧</td><td>짝수칸에 sin 채우기</td><td>32칸 (dim 0,2,…,62)</td></tr>
+    <tr><td>⑨</td><td>홀수칸에 cos 채우기</td><td>32칸 (dim 1,3,…,63)</td></tr>
+    <tr><td>⑩</td><td><b>학습하지 않는 상수</b>로 등록</td><td>(1, 22, 64) 완성</td></tr>
+    <tr><td>⑪</td><td>여기까지가 <b>준비</b>. 이제부터는 <b>실행</b>될 때마다 도는 부분</td><td>Encoder가 <span class="inline">self.pos(...)</span>로 호출</td></tr>
+    <tr><td>⑫</td><td>단어 벡터에 <b>더하고</b> 드롭아웃</td><td>(6, 5, 64) → (6, 5, 64)</td></tr>
+  </table>
+
+  <div class="big-idea">⑤ 빈 표 → ⑥ 세로 번호 → ⑦ 가로 속도 → ⑧⑨ <span>표 채우기</span> → ⑩ 상수로 보관 → ⑫ 더하기</div>
+
+  <h3>③ <span class="inline">super().__init__()</span> — 빼면 바로 죽습니다</h3>
+  <p>PyTorch가 <b>"어떤 부품을 갖고 있는지" 장부를 준비하는 줄</b>입니다. 이 줄 없이 ④에서 드롭아웃을 대입하면 이렇게 됩니다.</p>
+<pre><code><span class="cmt"># super().__init__() 를 지우고 실행하면</span>
+AttributeError: cannot assign module before Module.__init__() call</code></pre>
+  <p class="muted">"장부를 만들기 전에 부품을 등록하려 했다"는 뜻입니다. <b>모든 <span class="inline">nn.Module</span>의 첫 줄에 반드시 필요합니다.</b></p>
+
+  <h3>⑤⑥⑦ 빈 표 + 세로 번호 + 가로 속도</h3>
+  <p>3장의 <b>이진수 계수기</b>를 그대로 코드로 옮긴 부분입니다. 표를 만들고, 세로축(위치)과 가로축(속도)을 각각 준비합니다.</p>
+  <table>
+    <tr><th>줄</th><th>비유</th><th>shape</th><th>실제 값</th></tr>
+    <tr><td>⑤ <span class="inline">zeros</span></td><td>빈 모눈종이</td><td>(22, 64)</td><td>전부 0</td></tr>
+    <tr><td>⑥ <span class="inline">pos</span></td><td>세로줄 번호표</td><td>(22, <b>1</b>)</td><td>0, 1, 2, … 21</td></tr>
+    <tr><td>⑦ <span class="inline">div</span></td><td>가로줄 속도표</td><td>(<b>32</b>,)</td><td>1.0, 0.75, … 0.000133</td></tr>
+  </table>
+  <div class="callout"><span class="emoji">🧮</span>
+    <b>⑦은 왜 <span class="inline">exp</span>와 <span class="inline">log</span>로 복잡하게 쓸까요?</b>
+    사실 <b class="hlt">10000<sup>−2i/64</sup></b> 을 계산하는 것과 <b>똑같습니다</b>(직접 대조해 보니 오차 3e-08).
+    거듭제곱을 직접 쓰면 큰 수를 다루다 값이 튈 수 있어, <b>지수·로그 형태로 바꿔 안전하게 계산</b>하는 관례적인 표현입니다.
+    읽을 때는 그냥 "10000의 마이너스 몇 제곱"으로 읽으세요.</div>
+
+  <h3>⑧⑨ 표 채우기 — 여기가 핵심입니다</h3>
+  <p>세로 번호 <b>(22, 1)</b> 와 가로 속도 <b>(32,)</b> 를 곱하면, <b class="hlt">구구단표처럼 모든 조합</b>이 한 번에 만들어집니다.</p>
+<pre><code>pos * div  →  (<span class="num2">22</span>, <span class="num2">1</span>) × (<span class="num2">32</span>,)  =  (<span class="num2">22</span>, <span class="num2">32</span>)
+<span class="cmt">#             세로 22개      가로 32개      22×32 = 704개 값이 한 번에</span></code></pre>
+  <p>이렇게 만든 704개 값에 sin을 씌워 <b>짝수칸 32개</b>를, cos를 씌워 <b>홀수칸 32개</b>를 채웁니다. 32 + 32 = <b>64칸 완성</b>.</p>
+  <table>
+    <tr><th>슬라이싱</th><th>고르는 칸</th><th>칸 수</th></tr>
+    <tr><td><span class="inline">pe[:, 0::2]</span></td><td>0번부터 2칸씩 → 0, 2, 4, … 62</td><td><b>32칸</b></td></tr>
+    <tr><td><span class="inline">pe[:, 1::2]</span></td><td>1번부터 2칸씩 → 1, 3, 5, … 63</td><td><b>32칸</b></td></tr>
+  </table>
+  <div class="callout good"><span class="emoji">✅</span>
+    이 두 줄을 실행한 직후 표의 <b>2번째 줄(= "먹구름이" 자리)</b>을 찍어 보면
+    <span class="inline">[0.841, 0.540, 0.682, 0.732, …]</span> — <b>4장에서 본 표와 정확히 같은 값</b>입니다.
+    원리 설명과 코드가 같은 것을 가리키고 있다는 확인이죠.</div>
+
+  <h3>⑩ <span class="inline">register_buffer</span> — "학습하지 않는 상수"로 도장 찍기</h3>
+  <p>위치 표는 sin·cos 공식으로 <b>이미 정답이 정해진 값</b>이라 학습으로 바꿀 필요가 없습니다.
+  그렇다고 <span class="inline">self.pe = pe</span>처럼 평범하게 두면 <b>모델을 저장할 때 빠져 버립니다.</b></p>
+  <table>
+    <tr><th>방식</th><th>학습되나?</th><th>저장(state_dict)되나?</th><th>GPU로 함께 이동?</th></tr>
+    <tr><td><span class="inline">nn.Parameter</span></td><td>⭕ 됨</td><td>⭕ 됨</td><td>⭕</td></tr>
+    <tr><td><b><span class="inline">register_buffer</span></b></td><td><b>❌ 안 됨</b>(원하는 것)</td><td><b>⭕ 됨</b></td><td>⭕</td></tr>
+    <tr><td><span class="inline">self.pe = pe</span> (그냥 대입)</td><td>❌ 안 됨</td><td><b>❌ 안 됨</b></td><td>❌ 직접 옮겨야 함</td></tr>
+  </table>
+  <p class="muted">실제로 확인해 보면 <span class="inline">register_buffer</span>를 쓴 경우 저장 목록에 <span class="inline">['pe']</span>가 들어가고
+  <b>학습 파라미터는 0개</b>입니다. 그냥 대입한 경우 저장 목록이 <b>비어 있습니다.</b></p>
+  <p>마지막 <span class="inline">unsqueeze(0)</span>은 맨 앞에 <b>배치 축</b>을 끼워 <b>(22, 64) → (1, 22, 64)</b>로 만듭니다.
+  다음 줄에서 배치 여러 개에 한 번에 더하기 위한 준비입니다.</p>
+
+  <h3>⑫ 실제로 더하는 순간</h3>
+<pre><code><span class="kw">return</span> self.<span class="fn">dropout</span>(x + self.pe[:, :x.<span class="fn">size</span>(<span class="num2">1</span>)])</code></pre>
+  <p>우리 예제에서 이 한 줄이 하는 일을 쪼개 보면 이렇습니다.</p>
+  <table>
+    <tr><th>조각</th><th>값</th><th>의미</th></tr>
+    <tr><td><span class="inline">x</span></td><td>(6, 5, 64)</td><td>질문 6개 × 5단어 × 64칸</td></tr>
+    <tr><td><span class="inline">x.size(1)</span></td><td><b>5</b></td><td>지금 문장 길이</td></tr>
+    <tr><td><span class="inline">self.pe[:, :5]</span></td><td>(1, 5, 64)</td><td>22줄 중 <b>앞 5줄만 잘라 씀</b></td></tr>
+    <tr><td><span class="inline">x + …</span></td><td>(6, 5, 64)</td><td>배치 6개에 <b>같은 위치 벡터</b>가 더해짐</td></tr>
+    <tr><td><span class="inline">dropout</span></td><td>(6, 5, 64)</td><td>학습 중에만 10% 끄기</td></tr>
+  </table>
+  <div class="callout"><span class="emoji">✂️</span>
+    <b><span class="inline">:x.size(1)</span> 이 왜 필요한가요?</b> 표는 22줄이지만 지금 문장은 5단어뿐입니다.
+    길이를 코드에 <b>5로 박아두지 않고 입력에서 읽어오기</b> 때문에,
+    같은 부품이 <b class="hlt">질문(5칸)에도 답(5칸)에도 그대로</b> 쓰입니다.</div>
+  <div class="callout good"><span class="emoji">🔁</span>
+    <b>"배치 6개에 같은 값"이 정말 맞나?</b> 직접 확인해 보니
+    6개 배치에 더해진 위치 벡터가 <b>전부 완전히 동일</b>했습니다.
+    <b>(1, 5, 64)</b> 의 맨 앞 <b>1</b> 이 <b>6</b> 으로 자동 복사되는 <b>브로드캐스팅</b> 덕분입니다 —
+    표를 6번 복사해 저장할 필요가 없죠.</div>
+</section>
+
+<!-- 8 -->
+<section id="p8">
+  <h2><span class="num">8</span> 30초 요약</h2>
   <div class="card" style="text-align:center;padding:30px">
     <p style="font-size:21px;font-weight:800;margin:0;line-height:1.7">
       "어텐션은 순서를 모른다.<br>
