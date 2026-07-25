@@ -590,18 +590,105 @@ AttributeError: cannot assign module before Module.__init__() call</code></pre>
     <tr><td><span class="inline">x</span></td><td>(6, 5, 64)</td><td>질문 6개 × 5단어 × 64칸</td></tr>
     <tr><td><span class="inline">x.size(1)</span></td><td><b>5</b></td><td>지금 문장 길이</td></tr>
     <tr><td><span class="inline">self.pe[:, :5]</span></td><td>(1, 5, 64)</td><td>22줄 중 <b>앞 5줄만 잘라 씀</b></td></tr>
-    <tr><td><span class="inline">x + …</span></td><td>(6, 5, 64)</td><td>배치 6개에 <b>같은 위치 벡터</b>가 더해짐</td></tr>
+    <tr><td><span class="inline">x + …</span></td><td>(6, 5, 64)</td><td>배치 6개에 <b>같은 위치 벡터</b>가 더해짐 <span class="muted">(바로 아래에서 실제 값으로 확인)</span></td></tr>
     <tr><td><span class="inline">dropout</span></td><td>(6, 5, 64)</td><td>학습 중에만 10% 끄기</td></tr>
   </table>
   <div class="callout"><span class="emoji">✂️</span>
     <b><span class="inline">:x.size(1)</span> 이 왜 필요한가요?</b> 표는 22줄이지만 지금 문장은 5단어뿐입니다.
     길이를 코드에 <b>5로 박아두지 않고 입력에서 읽어오기</b> 때문에,
     같은 부품이 <b class="hlt">질문(5칸)에도 답(5칸)에도 그대로</b> 쓰입니다.</div>
-  <div class="callout good"><span class="emoji">🔁</span>
-    <b>"배치 6개에 같은 값"이 정말 맞나?</b> 직접 확인해 보니
-    6개 배치에 더해진 위치 벡터가 <b>전부 완전히 동일</b>했습니다.
-    <b>(1, 5, 64)</b> 의 맨 앞 <b>1</b> 이 <b>6</b> 으로 자동 복사되는 <b>브로드캐스팅</b> 덕분입니다 —
-    표를 6번 복사해 저장할 필요가 없죠.</div>
+  <h3>🔁 "배치 6개에 같은 위치 벡터가 더해짐" — 실제 숫자로 보기</h3>
+  <p>위 표의 이 한 줄이 처음엔 잘 안 읽힙니다. <b class="hlt">실제 값을 늘어놓고 보면 아주 단순합니다.</b></p>
+
+  <div class="big-idea">위치 표는 <span>딱 한 장</span>인데 문장은 6개<br>→ 그 한 장을 <span>6개 문장에 똑같이 복사해서</span> 더한다</div>
+
+  <p>모양(shape)의 <b>맨 앞자리</b>만 보면 이유가 바로 보입니다.</p>
+  <table>
+    <tr><th>이름</th><th>shape</th><th>읽는 법</th></tr>
+    <tr><td><span class="inline">x</span> (단어 벡터)</td><td>(<b>6</b>, 5, 64)</td><td>문장 <b>6개</b> × 5단어 × 64칸 — 문장마다 내용이 <b>다름</b></td></tr>
+    <tr><td><span class="inline">self.pe[:, :5]</span></td><td>(<b>1</b>, 5, 64)</td><td>문장 <b>1개분</b> × 5단어 × 64칸 — <b class="hlt">세상에 딱 한 장</b></td></tr>
+  </table>
+  <p>맨 앞자리가 <b>1</b>이면 PyTorch는 <b class="hlt">"이건 모두에게 공통이구나"</b>로 알아듣고
+  <b>6번 복사해서 더합니다.</b> 이것이 <b>브로드캐스팅</b> — <b>도장 하나를 종이 6장에 똑같이 찍는 것</b>과 같습니다.</p>
+
+  <h4>① 더하기 전 — 단어 벡터 <span class="inline">x</span></h4>
+  <p>64칸을 다 보면 눈이 아프니 <b>dim0(첫 칸) 하나만</b> 뽑았습니다. 6개 문장 × 5단어 = 30개 숫자입니다.</p>
+  <table>
+    <tr><th>문장</th><th>pos0<br>하늘에</th><th>pos1<br>(대상 단어)</th><th>pos2<br>보이면</th><th>pos3<br>뭐가</th><th>pos4<br>생각나</th></tr>
+    <tr><td>① 먹구름이</td><td>+2.755</td><td><b>+5.331</b></td><td>−10.230</td><td>−10.910</td><td>+2.576</td></tr>
+    <tr><td>② 별이</td><td>+2.755</td><td><b>−6.426</b></td><td>−10.230</td><td>−10.910</td><td>+2.576</td></tr>
+    <tr><td>③ 해가</td><td>+2.755</td><td><b>−1.765</b></td><td>−10.230</td><td>−10.910</td><td>+2.576</td></tr>
+    <tr><td>④ 무지개가</td><td>+2.755</td><td><b>−11.071</b></td><td>−10.230</td><td>−10.910</td><td>+2.576</td></tr>
+    <tr><td>⑤ 눈송이가</td><td>+2.755</td><td><b>+3.468</b></td><td>−10.230</td><td>−10.910</td><td>+2.576</td></tr>
+    <tr><td>⑥ 노을이</td><td>+2.755</td><td><b>−5.484</b></td><td>−10.230</td><td>−10.910</td><td>+2.576</td></tr>
+  </table>
+  <p class="muted">가운데 <b>pos1 열만 6개가 다르고</b> 나머지 열은 6줄이 전부 같습니다.
+  문장 틀이 똑같아서 <span class="inline">하늘에 / 보이면 / 뭐가 / 생각나</span>는 여섯 문장이 같은 단어를 쓰기 때문입니다.</p>
+
+  <h4>② 더할 것 — 위치 벡터 <span class="inline">pe</span> (딱 한 줄!)</h4>
+  <p>같은 dim0 기준으로, 위치 표에서 잘라 온 <b>5개 값</b>입니다. <b class="hlt">문장 번호가 없습니다</b> — 한 벌뿐이니까요.</p>
+  <table>
+    <tr><th></th><th>pos0</th><th>pos1</th><th>pos2</th><th>pos3</th><th>pos4</th></tr>
+    <tr><td><span class="inline">pe[0, :, 0]</span></td><td>+0.000</td><td><b>+0.841</b></td><td>+0.909</td><td>+0.141</td><td>−0.757</td></tr>
+  </table>
+  <p class="muted">4장의 표에서 본 <b>+0.841</b>(먹구름이 자리)이 그대로 나왔죠. 같은 값입니다.</p>
+
+  <h4>③ 더한 뒤 — <span class="inline">x + pe</span></h4>
+  <p><b>위 5개 값이 6줄 전부에 똑같이</b> 더해집니다. 예를 들어 pos1 열에는 여섯 줄 모두 <b class="hlt">+0.841</b>이 더해집니다.</p>
+  <table>
+    <tr><th>문장</th><th>pos0<br>+0.000</th><th>pos1<br><b>+0.841</b></th><th>pos2<br>+0.909</th><th>pos3<br>+0.141</th><th>pos4<br>−0.757</th></tr>
+    <tr><td>① 먹구름이</td><td>+2.755</td><td><b>+6.172</b></td><td>−9.320</td><td>−10.769</td><td>+1.819</td></tr>
+    <tr><td>② 별이</td><td>+2.755</td><td><b>−5.584</b></td><td>−9.320</td><td>−10.769</td><td>+1.819</td></tr>
+    <tr><td>③ 해가</td><td>+2.755</td><td><b>−0.923</b></td><td>−9.320</td><td>−10.769</td><td>+1.819</td></tr>
+    <tr><td>④ 무지개가</td><td>+2.755</td><td><b>−10.230</b></td><td>−9.320</td><td>−10.769</td><td>+1.819</td></tr>
+    <tr><td>⑤ 눈송이가</td><td>+2.755</td><td><b>+4.309</b></td><td>−9.320</td><td>−10.769</td><td>+1.819</td></tr>
+    <tr><td>⑥ 노을이</td><td>+2.755</td><td><b>−4.642</b></td><td>−9.320</td><td>−10.769</td><td>+1.819</td></tr>
+  </table>
+  <p>한 칸만 손으로 따라가 봅시다. <b>①번 문장 pos1</b>은
+  <span class="inline">+5.331 (먹구름이) + 0.841 (2번째 자리) ≈ +6.172</span>,
+  <b>②번 문장 pos1</b>은 <span class="inline">−6.426 (별이) + 0.841 (2번째 자리) ≈ −5.584</span>.
+  <b class="hlt">단어는 달라도 더한 0.841은 같습니다.</b></p>
+  <p class="muted">표의 숫자는 소수점 3자리로 반올림한 값이라 손으로 더하면 맨 끝자리가 1 정도 다를 수 있습니다
+  (실제 pe 값은 <span class="inline">0.84147…</span>).</p>
+
+  <div class="callout good"><span class="emoji">👀</span>표 세 개를 비교하면 세 가지가 보입니다.<br>
+    <b>①</b> <b>pos2 열</b>: 더하기 전 6줄 전부 −10.230 → 더한 뒤에도 6줄 전부 −9.320.
+    <b class="hlt">여섯 줄이 여전히 똑같습니다</b> = 같은 값이 더해졌다는 증거.<br>
+    <b>②</b> <b>pos0 열</b>: 하필 <span class="inline">pe = +0.000</span>이라 값이 안 변했습니다
+    (<span class="inline">sin(0) = 0</span>이라서 — 4장 표의 첫 줄과 같음).<br>
+    <b>③</b> <b>①번과 ②번 문장의 pos1 차이</b>는 더하기 전 <b>11.757</b>, 더한 뒤에도 <b>11.757</b>.
+    같은 값을 더했으니 <b>문장끼리의 차이는 조금도 훼손되지 않습니다.</b></div>
+
+  <div class="callout"><span class="emoji">🤔</span>
+    <b>여섯 문장에 다 같은 걸 더해도 괜찮은가요?</b> 네, 오히려 그래야 맞습니다.
+    위치 벡터가 전하는 정보는 <b>"너는 2번째 자리야"</b>일 뿐, 그 자리에 무슨 단어가 있는지와는 무관하니까요.
+    어느 문장이든 <b>2번째 자리는 그냥 2번째 자리</b>입니다.
+    그래서 표를 문장 수만큼 복사해 들고 있을 필요가 없고, <b class="hlt">한 장만 만들어 돌려 쓰면</b> 됩니다.</div>
+
+  <div class="callout warn"><span class="emoji">↔️</span>
+    <b>반대로 "같은 단어"가 다른 자리에 오면?</b> 이번엔 <b>결과가 달라집니다.</b>
+    <span class="inline">하늘에</span>의 dim0 값 <b>+2.755</b>가 0번째 자리에 있으면 <b>+2.755</b>(+0.000),
+    3번째 자리에 있으면 <b>+2.896</b>(+0.141)이 되죠.
+    <b class="hlt">문장이 달라도 자리가 같으면 같은 값을, 단어가 같아도 자리가 다르면 다른 값을</b> 더한다 —
+    이게 위치 인코딩이 하는 일 전부입니다.</div>
+
+  <h4>노트북에서 직접 확인하기</h4>
+  <p>학습 셀을 실행한 뒤 아래를 새 셀에 붙여 넣으면 위 숫자를 눈으로 확인할 수 있습니다.</p>
+<pre><code>enc = model.encoder
+x  = enc.<span class="fn">emb</span>(src_ids) * math.<span class="fn">sqrt</span>(enc.d_model)   <span class="cmt"># (6, 5, 64) 문장 6개</span>
+pe = enc.pos.pe[:, :x.<span class="fn">size</span>(<span class="num2">1</span>)]                    <span class="cmt"># (1, 5, 64) 딱 한 장</span>
+
+<span class="fn">print</span>(x.shape, pe.shape, (x + pe).shape)      <span class="cmt"># (6,5,64) (1,5,64) (6,5,64)</span>
+<span class="fn">print</span>(pe[<span class="num2">0</span>, :, <span class="num2">0</span>])                            <span class="cmt"># 위 ② 표 — 이 5개가 6줄에 재사용됨</span>
+<span class="fn">print</span>(x[:, :, <span class="num2">0</span>])                             <span class="cmt"># 위 ① 표 — pos1 열만 6개가 다름</span>
+<span class="fn">print</span>((x + pe)[:, :, <span class="num2">0</span>])                      <span class="cmt"># 위 ③ 표</span>
+<span class="cmt"># pos2 열이 6줄 모두 같은 값이면 = 같은 위치 벡터가 더해진 것</span>
+<span class="fn">print</span>((x + pe)[:, <span class="num2">2</span>, <span class="num2">0</span>])                      <span class="cmt"># 여섯 개가 전부 동일</span></code></pre>
+  <div class="callout"><span class="emoji">🎲</span>
+    <b>숫자가 조금 다르게 나올 수 있어요.</b> 위 <b>단어 벡터(x) 값은 노트북과 똑같이
+    <span class="inline">torch.manual_seed(42)</span>로 모델을 만든 <b>직후(학습 전)</b>의 실제 값</b>이라,
+    학습을 진행하면 x는 바뀝니다. 하지만 <b class="hlt">위치 벡터 <span class="inline">pe</span>는 ⑩에서 학습하지 않는 상수로
+    등록했으므로 처음부터 끝까지 그대로</b>입니다. "6줄에 같은 값이 더해진다"는 성질도 물론 그대로입니다.</div>
 
   <h3>📖 이 코드에 쓰인 함수 한눈에</h3>
   <p class="muted">나중에 다시 볼 때를 위한 정리입니다. 위에서 이미 본 것들이니 훑어보기만 하세요.</p>
