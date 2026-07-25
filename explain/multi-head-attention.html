@@ -33,6 +33,7 @@
   h2 .num{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:12px;
     background:linear-gradient(135deg,var(--brand),var(--brand2));color:#06121f;font-size:18px;font-weight:900;flex:0 0 auto}
   h3{font-size:19px;margin:26px 0 6px}
+  h4{font-size:17px;margin:22px 0 4px;color:#fff;font-weight:700}
   p{margin:.6em 0}
   .muted{color:var(--sub)}
   b.hlt{color:#fff}
@@ -130,7 +131,7 @@
   <a href="#p3">3. 쪼개기(split)</a>
   <a href="#p4">4. 왜 헤드마다 다르게 볼까</a>
   <a href="#p5">5. 직접 해보기</a>
-  <a href="#p6">6. 합치기 & 코드</a>
+  <a href="#p6">6. 코드 라인별 설명</a>
   <a href="#p7">7. 헷갈리기 쉬운 점</a>
   <a href="#p8">8. 요약</a>
 </div></nav>
@@ -220,7 +221,7 @@
   헤드별로 <b>따로 만든 작은 Linear가 있는 게 아니에요.</b> 대신 이 큰 변환의 출력을 <span class="inline">split</span> 으로 조각냅니다.</p>
   <div class="callout"><span class="emoji">🧩</span>
   그런데 학습이 진행되면, <span class="inline">wq</span>(과 wk, wv)의 <b>각 조각(헤드 몫)</b>은 서로 다른 방향으로 값이 조정됩니다.
-  그 결과 헤드 1은 우연히 "의미 관련성"에 민감해지고, 헤드 2는 "문장 위치"에 민감해지는 식으로 <b class="hlt">자연히 역할이 나뉘는 경향</b>이 생깁니다.
+  그 결과 어떤 조각은 우연히 "의미 관련성"에 민감해지고, 다른 조각은 "문장 위치"에 민감해지는 식으로 <b class="hlt">자연히 역할이 나뉘는 경향</b>이 생깁니다.
   누가 정해준 게 아니라 <b>학습이 알아서</b> 다른 관점을 만들어내는 거예요.</div>
   <figure>
     <img src="https://raw.githubusercontent.com/unicorn-campus/mini-transformer/main/explain/images/mha-why-different.webp"
@@ -270,54 +271,371 @@
     세로로 보면 <b>같은 관점의 두 단어</b>가 비교됩니다.
     별표가 붙은 칸을 보세요 — <b class="hlt">"비가"는 왼쪽(헤드 A)에, "같아"는 오른쪽(헤드 B)에</b> 대각선으로 놓여 있습니다.
     <b>헤드 하나만 있었다면 이 대각선의 한쪽은 통째로 놓쳤을 것</b>이고, 그것이 헤드를 여러 개 두는 이유입니다.
-    <span class="muted">(이 값들은 5번 데모의 4차원 예시 벡터로 계산한 것입니다. 학습된 실제 모델의 헤드별 값은
-    <a href="attention.html">어텐션 문서 7번</a>의 "헤드 4개를 합치면" 표에서 볼 수 있습니다.)</span></figcaption>
+    <span class="muted">(이 값들은 5번 데모의 <b>4차원 예시 벡터</b>로 계산한 것입니다.
+    <b>학습된 실제 모델</b>의 헤드별 값은 바로 아래 <a href="#p6">6번 섹션 ⑩</a> 표에서 봅니다 — 그쪽이 진짜 숫자예요.)</span></figcaption>
   </figure>
 </section>
 
 <!-- 6 -->
 <section id="p6">
-  <h2><span class="num">6</span> 합치기(merge) & 전체 코드</h2>
-  <p>헤드별 결과 <span class="inline">(B, h, S, dₖ)</span> 를 다시 <span class="inline">(B, S, d_model)</span> 로 이어붙이는 게
-  <span class="inline">merge</span>, split의 역연산입니다. 그 다음 <span class="inline">wo</span> 선형변환이 헤드 경계를 넘어 한 번 더 정보를 섞어 줍니다.</p>
+  <h2><span class="num">6</span> 코드 라인별 설명</h2>
+  <p>노트북 <span class="inline">hands-on/example-explain.ipynb</span> 셀 18의 <span class="inline">MultiHeadAttention</span> 클래스입니다.
+  전체를 <b class="hlt">①~⑫ 열두 덩어리</b>로 쪼개, 각 줄마다 <b>① 함수 자체가 하는 일</b>과
+  <b>② 우리 예제에서 실제로 나온 값</b>을 나란히 봅니다.</p>
 
-  <div class="steps">
-    <span class="step">헤드별 결과<br>(B,h,S,dₖ)</span><span class="arw">→</span>
-    <span class="step">merge<br>(B,S,d_model)</span><span class="arw">→</span>
-    <span class="step" style="border-color:var(--good);color:var(--good)">wo(Linear)<br>최종 출력</span>
-  </div>
+<pre><code><span class="cmt">①</span> <span class="kw">class</span> <span class="fn">MultiHeadAttention</span>(nn.Module):
+<span class="cmt">①</span>     <span class="kw">def</span> <span class="fn">__init__</span>(self, d_model, num_heads, dropout=<span class="num2">0.1</span>):
+<span class="cmt">①</span>         super().<span class="fn">__init__</span>()
+<span class="cmt">②</span>         self.h, self.dk = num_heads, d_model // num_heads
+<span class="cmt">③</span>         self.wq = nn.<span class="fn">Linear</span>(d_model, d_model); self.wk = nn.<span class="fn">Linear</span>(d_model, d_model)
+<span class="cmt">③</span>         self.wv = nn.<span class="fn">Linear</span>(d_model, d_model); self.wo = nn.<span class="fn">Linear</span>(d_model, d_model)
+<span class="cmt">④</span>         self.dropout = nn.<span class="fn">Dropout</span>(dropout)
+<span class="cmt">④</span>         self.last_attn_weights = <span class="kw">None</span>
 
-<pre><code><span class="kw">class</span> <span class="fn">MultiHeadAttention</span>(nn.Module):
-    <span class="kw">def</span> <span class="fn">__init__</span>(self, d_model, num_heads, dropout=<span class="num2">0.1</span>):
-        super().<span class="fn">__init__</span>()
-        self.h, self.dk = num_heads, d_model // num_heads      <span class="cmt"># dk = d_model / h</span>
-        self.wq = nn.<span class="fn">Linear</span>(d_model, d_model); self.wk = nn.<span class="fn">Linear</span>(d_model, d_model)
-        self.wv = nn.<span class="fn">Linear</span>(d_model, d_model); self.wo = nn.<span class="fn">Linear</span>(d_model, d_model)
-        self.dropout = nn.<span class="fn">Dropout</span>(dropout)
-        self.last_attn_weights = <span class="kw">None</span>                 <span class="cmt"># 시각화용 보관</span>
+<span class="cmt">⑤</span>     <span class="kw">def</span> <span class="fn">split</span>(self, x):
+<span class="cmt">⑤</span>         b, s, _ = x.shape
+<span class="cmt">⑥</span>         <span class="kw">return</span> x.<span class="fn">view</span>(b, s, self.h, self.dk).<span class="fn">transpose</span>(<span class="num2">1</span>, <span class="num2">2</span>)
 
-    <span class="kw">def</span> <span class="fn">split</span>(self, x):                                   <span class="cmt"># (B,S,d_model)→(B,h,S,dk)</span>
-        b, s, _ = x.shape
-        <span class="kw">return</span> x.<span class="fn">view</span>(b, s, self.h, self.dk).<span class="fn">transpose</span>(<span class="num2">1</span>, <span class="num2">2</span>)
+<span class="cmt">⑦</span>     <span class="kw">def</span> <span class="fn">merge</span>(self, x):
+<span class="cmt">⑦</span>         b, _, s, _ = x.shape
+<span class="cmt">⑦</span>         <span class="kw">return</span> x.<span class="fn">transpose</span>(<span class="num2">1</span>, <span class="num2">2</span>).<span class="fn">contiguous</span>().<span class="fn">view</span>(b, s, self.h * self.dk)
 
-    <span class="kw">def</span> <span class="fn">merge</span>(self, x):                                   <span class="cmt"># (B,h,S,dk)→(B,S,d_model)</span>
-        b, _, s, _ = x.shape
-        <span class="kw">return</span> x.<span class="fn">transpose</span>(<span class="num2">1</span>, <span class="num2">2</span>).<span class="fn">contiguous</span>().<span class="fn">view</span>(b, s, self.h * self.dk)
+<span class="cmt">⑧</span>     <span class="kw">def</span> <span class="fn">forward</span>(self, q, k, v, mask=<span class="kw">None</span>):
+<span class="cmt">⑨</span>         q, k, v = self.<span class="fn">split</span>(self.<span class="fn">wq</span>(q)), self.<span class="fn">split</span>(self.<span class="fn">wk</span>(k)), self.<span class="fn">split</span>(self.<span class="fn">wv</span>(v))
+<span class="cmt">⑩</span>         ctx, attn = <span class="fn">scaled_dot_product_attention</span>(q, k, v, mask, self.dropout)
+<span class="cmt">⑪</span>         self.last_attn_weights = attn.<span class="fn">detach</span>()
+<span class="cmt">⑫</span>         <span class="kw">return</span> self.<span class="fn">wo</span>(self.<span class="fn">merge</span>(ctx))</code></pre>
 
-    <span class="kw">def</span> <span class="fn">forward</span>(self, q, k, v, mask=<span class="kw">None</span>):
-        q, k, v = self.<span class="fn">split</span>(self.<span class="fn">wq</span>(q)), self.<span class="fn">split</span>(self.<span class="fn">wk</span>(k)), self.<span class="fn">split</span>(self.<span class="fn">wv</span>(v))
-        ctx, attn = <span class="fn">scaled_dot_product_attention</span>(q, k, v, mask, self.dropout)   <span class="cmt"># 헤드별 독립 계산</span>
-        self.last_attn_weights = attn.<span class="fn">detach</span>()
-        <span class="kw">return</span> self.<span class="fn">wo</span>(self.<span class="fn">merge</span>(ctx))                       <span class="cmt"># 합친 뒤 한 번 더 섞기</span></code></pre>
+  <div class="callout"><span class="emoji">🧾</span>
+    <b>아래 모든 숫자는 실제로 학습시킨 모델에서 뽑았습니다.</b>
+    <span class="inline">torch.manual_seed(42)</span>로 400에폭 학습(loss <b>0.0035</b>) 후,
+    질문 <b>"하늘에 먹구름이 보이면 뭐가 생각나"</b>를 넣어 답 <b>"비가 올 것 같아"</b>를 생성한 뒤
+    <b>마지막 디코더 층의 크로스 어텐션</b>에서 측정한 값입니다.
+    <b class="hlt">5번 섹션의 데모와는 출처가 다릅니다</b> — 5번은 손으로 만든 4차원 예시 벡터,
+    여기는 <b>학습으로 얻은 16차원 실제 벡터</b>입니다. 두 곳의 비율이 비슷해 보여도 우연입니다.
+    <span class="muted">(파이토치 버전이 다르면 소수점은 달라집니다)</span></div>
+  <div class="callout"><span class="emoji">🔢</span>
+    <b>헤드 번호를 두 가지로 세는 점만 미리 짚어 둡니다.</b>
+    <b class="hlt">코드와 표는 0부터</b>(헤드0·헤드1·헤드2·헤드3) 세고,
+    <b class="hlt">그림은 1부터</b>(헤드 1~4) 셉니다. 파이썬 인덱스가 0부터 시작하기 때문입니다.
+    <span class="inline">q[0,<b>0</b>,1]</span> 은 <b>첫 번째 헤드</b>이고, 그림에서는 "헤드 1"로 적힌 그 조각입니다.</div>
 
+  <h3>__init__ — 부품을 미리 만들어 두는 곳</h3>
+
+  <h4>① <span class="inline">class MultiHeadAttention(nn.Module)</span> · <span class="inline">super().__init__()</span></h4>
+<pre><code><span class="cmt">①</span> <span class="kw">class</span> <span class="fn">MultiHeadAttention</span>(nn.Module):
+<span class="cmt">①</span>     <span class="kw">def</span> <span class="fn">__init__</span>(self, d_model, num_heads, dropout=<span class="num2">0.1</span>):
+<span class="cmt">①</span>         super().<span class="fn">__init__</span>()</code></pre>
   <table>
-    <tr><th>코드</th><th>단계</th><th>쉬운 말</th></tr>
-    <tr><td><span class="inline">wq/wk/wv(x)</span></td><td>①</td><td>Q·K·V를 각각 만드는 큰 선형변환 (d_model→d_model)</td></tr>
-    <tr><td><span class="inline">split(...)</span></td><td>②</td><td>헤드 수만큼 조각내 (B,h,S,dₖ)로</td></tr>
-    <tr><td><span class="inline">scaled_dot_product_attention</span></td><td>③</td><td>헤드마다 독립적으로 이전 문서의 어텐션 공식 적용</td></tr>
-    <tr><td><span class="inline">merge(ctx)</span></td><td>④</td><td>헤드 결과를 다시 (B,S,d_model)로 이어붙임</td></tr>
-    <tr><td><span class="inline">wo(...)</span></td><td>⑤</td><td>합친 결과를 한 번 더 선형변환해 최종 출력</td></tr>
+    <tr><th>문법·함수</th><th>기능</th><th>우리 예제에서</th></tr>
+    <tr><td><span class="inline">class ...(nn.Module)</span></td><td>파이토치가 <b>학습 대상 부품</b>으로 인정하는 클래스 만들기</td><td>카메라 여러 대를 한 세트로 묶은 부품</td></tr>
+    <tr><td><span class="inline">__init__</span></td><td>부품을 <b>만들 때 딱 한 번</b> 실행되는 준비 작업</td><td><span class="inline">MultiHeadAttention(64, 4)</span> 호출 시 1회</td></tr>
+    <tr><td><span class="inline">self</span></td><td>만들어진 <b>부품 자기 자신</b></td><td><span class="inline">self.wq</span> = 이 부품의 wq</td></tr>
+    <tr><td><span class="inline">dropout=0.1</span></td><td><b>기본값</b>. 안 넘기면 0.1을 씀</td><td>0.1 그대로 사용</td></tr>
+    <tr><td><span class="inline">super().__init__()</span></td><td>부품들을 담을 <b>내부 장부</b>를 먼저 만듦</td><td>이게 있어야 ③의 대입이 성공</td></tr>
   </table>
+  <div class="callout warn"><span class="emoji">🧯</span>
+    <b>"<span class="inline">super().__init__()</span>은 형식적인 줄 아닌가요?"</b> — 지우면 <b class="hlt">부품을 아예 못 만듭니다.</b>
+    실제로 이 줄을 지우고 실행하면 ③의 <span class="inline">self.wq = nn.Linear(...)</span> <b>대입 자체가</b> 이렇게 실패합니다.
+<pre style="margin:8px 0 4px"><code>AttributeError: cannot assign module before Module.__init__() call</code></pre>
+    <b>"학습이 안 되는" 에러가 아니라 "객체를 못 만드는" 에러</b>입니다. 장부가 없어서 부품을 등록할 곳이 없기 때문이죠.</div>
+
+  <h4>② <span class="inline">self.h, self.dk = num_heads, d_model // num_heads</span></h4>
+<pre><code><span class="cmt">②</span> self.h, self.dk = num_heads, d_model // num_heads   <span class="cmt"># 4,  64 // 4 = 16</span></code></pre>
+  <table>
+    <tr><th>문법·함수</th><th>기능</th><th>우리 예제에서</th></tr>
+    <tr><td><span class="inline">a, b = x, y</span></td><td>두 값을 <b>한 줄에 나눠 담기</b></td><td><span class="inline">self.h=4</span>, <span class="inline">self.dk=16</span></td></tr>
+    <tr><td><span class="inline">//</span></td><td><b>정수 나눗셈</b> (소수점 버림)</td><td><span class="inline">64 // 4</span> = <b>16</b> (16.0이 아님)</td></tr>
+  </table>
+  <div class="callout"><span class="emoji">🔢</span>
+    <b><span class="inline">/</span> 를 쓰면 어떻게 되나요?</b> <span class="inline">self.dk</span> 가 <b>16.0</b>(소수)이 됩니다.
+    그런데 <b class="hlt">여기서는 에러가 나지 않습니다</b> — 부품은 멀쩡히 만들어지고,
+    나중에 ⑥의 <span class="inline">view</span> 가 호출될 때야 터집니다.
+<pre style="margin:8px 0 4px"><code>TypeError: view(): argument 'size' failed to unpack the object at pos 4
+           with error "type must be tuple of ints,but got float"</code></pre>
+    <b>모양을 나타내는 숫자는 반드시 정수여야</b> 하기 때문입니다.<br>
+    <b>덤으로 한 가지 더</b> — <span class="inline">//</span> 를 써도 안전이 보장되진 않습니다.
+    <span class="inline">d_model=64, num_heads=5</span> 로 두면 <span class="inline">64//5=12</span>, <span class="inline">5×12=60 ≠ 64</span> 가 되어
+    <span class="inline">RuntimeError: shape '[1, 6, 5, 12]' is invalid for input of size 384</span> 가 납니다.
+    그래서 <b class="hlt">d_model 은 헤드 수로 나누어떨어져야</b> 합니다(2번 섹션의 <span class="inline">d_model = h × dₖ</span>).</div>
+
+  <h4>③ <span class="inline">wq · wk · wv · wo</span> — 변환기 네 대</h4>
+<pre><code><span class="cmt">③</span> self.wq = nn.<span class="fn">Linear</span>(d_model, d_model); self.wk = nn.<span class="fn">Linear</span>(d_model, d_model)
+<span class="cmt">③</span> self.wv = nn.<span class="fn">Linear</span>(d_model, d_model); self.wo = nn.<span class="fn">Linear</span>(d_model, d_model)</code></pre>
+  <table>
+    <tr><th>문법·함수</th><th>기능</th><th>우리 예제에서</th></tr>
+    <tr><td><span class="inline">nn.Linear(64, 64)</span></td><td>64칸을 받아 64칸을 내보내는 <b>학습 가능한 변환기</b>. 내부에 weight·bias를 가짐</td><td><span class="inline">weight(64,64)</span> + <span class="inline">bias(64,)</span> = <b>4,160개</b></td></tr>
+    <tr><td><span class="inline">;</span></td><td>한 줄에 <b>두 문장</b> 쓰기 (줄 수를 줄이려는 것뿐)</td><td>의미상 4줄</td></tr>
+  </table>
+  <p><b>이 부품의 학습 파라미터는 이 네 대가 전부입니다.</b></p>
+  <table>
+    <tr><th>이름</th><th>역할</th><th>파라미터 수</th></tr>
+    <tr><td><span class="inline">wq</span></td><td>Q(검색어) 만들기</td><td>4,160</td></tr>
+    <tr><td><span class="inline">wk</span></td><td>K(색인) 만들기</td><td>4,160</td></tr>
+    <tr><td><span class="inline">wv</span></td><td>V(내용) 만들기</td><td>4,160</td></tr>
+    <tr><td><span class="inline">wo</span></td><td>합친 뒤 <b>섞기</b> (⑫에서 씀)</td><td>4,160</td></tr>
+    <tr><th colspan="2">합계</th><th><b>16,640개</b></th></tr>
+  </table>
+  <div class="callout warn"><span class="emoji">🎥</span>
+    <b>"헤드가 4개니 Linear도 4개씩 = 12개 있어야 하지 않나요?"</b> — 아닙니다.
+    <b class="hlt">Q용 변환기는 딱 한 대(64→64)</b>이고, 그 출력 64칸을 16칸씩 4조각으로 자른 것이 헤드입니다.
+    4번 섹션의 그림이 바로 이 이야기예요. <span class="inline">scaled_dot_product_attention</span> 에는 학습값이 <b>0개</b>,
+    <span class="inline">dropout</span> 과 <span class="inline">last_attn_weights</span> 도 <b>0개</b>입니다.</div>
+
+  <h4>④ <span class="inline">dropout</span> · <span class="inline">last_attn_weights</span></h4>
+<pre><code><span class="cmt">④</span> self.dropout = nn.<span class="fn">Dropout</span>(dropout)
+<span class="cmt">④</span> self.last_attn_weights = <span class="kw">None</span>              <span class="cmt"># 시각화용 빈 상자</span></code></pre>
+  <table>
+    <tr><th>문법·함수</th><th>기능</th><th>우리 예제에서</th></tr>
+    <tr><td><span class="inline">nn.Dropout(0.1)</span></td><td>값의 <b>10%를 무작위로 0</b>으로 떨구는 부품 (학습 중에만)</td><td>p=0.1 · 추론에선 <span class="inline">training=False</span> → 통과</td></tr>
+    <tr><td><span class="inline">None</span></td><td>"아직 아무것도 없음"</td><td>⑪에서 비율표로 채워짐</td></tr>
+  </table>
+  <div class="callout good"><span class="emoji">🎲</span>
+    <b>드롭아웃이 있으니 답이 매번 달라지지 않나요?</b> 아닙니다.
+    <span class="inline">model.eval()</span> 에서는 <span class="inline">training=False</span> 가 되어 <b>아무 일도 하지 않습니다.</b>
+    그래서 같은 질문에 답이 매번 같습니다.</div>
+
+  <h3>split — 쪼개기</h3>
+
+  <h4>⑤ <span class="inline">b, s, _ = x.shape</span> — 지금 모양 읽기</h4>
+<pre><code><span class="cmt">⑤</span> <span class="kw">def</span> <span class="fn">split</span>(self, x):
+<span class="cmt">⑤</span>     b, s, _ = x.shape        <span class="cmt"># (1, 6, 64) → b=1, s=6, 64는 버림</span></code></pre>
+  <table>
+    <tr><th>문법·함수</th><th>기능</th><th>우리 예제에서</th></tr>
+    <tr><td><span class="inline">x.shape</span></td><td>텐서의 <b>모양</b>(숫자 세 개)</td><td><span class="inline">(1, 6, 64)</span></td></tr>
+    <tr><td><span class="inline">b, s, _ = ...</span></td><td>세 개 중 앞 두 개만 쓰고 마지막은 버림</td><td>b=<b>1</b>(문장 수), s=<b>6</b>(답 길이)</td></tr>
+  </table>
+  <p class="muted"><span class="inline">_</span> 는 특별한 문법이 아니라 <b>그냥 변수 이름</b>입니다.
+  <span class="inline">d</span> 라고 써도 동작은 같고, "이 값은 쓰지 않겠다"는 표시일 뿐이에요.</p>
+
+  <h4>⑥ <span class="inline">view(b, s, h, dk).transpose(1, 2)</span> — 자르고 자리 바꾸기</h4>
+<pre><code><span class="cmt">⑥</span> <span class="kw">return</span> x.<span class="fn">view</span>(b, s, self.h, self.dk).<span class="fn">transpose</span>(<span class="num2">1</span>, <span class="num2">2</span>)
+   <span class="cmt">#      (1,6,64) → view → (1,6,4,16) → transpose → (1,4,6,16)</span></code></pre>
+  <table>
+    <tr><th>문법·함수</th><th>기능</th><th>우리 예제에서</th></tr>
+    <tr><td><span class="inline">view(b,s,h,dk)</span></td><td>숫자 개수는 그대로 두고 <b>모양만 다시 끼우기</b></td><td>64 → <b>4×16</b> (1,6,64)→(1,6,4,16)</td></tr>
+    <tr><td><span class="inline">transpose(1, 2)</span></td><td><b>1번 축과 2번 축의 순서를 맞바꾸기</b> (0부터 셈)</td><td>(1,<b>6,4</b>,16) → (1,<b>4,6</b>,16)</td></tr>
+  </table>
+  <p><b>실제로 값이 안 바뀌는지</b> 확인해 봤습니다. 답 단어 <b class="hlt">"비가"</b>(1행) 기준입니다.</p>
+  <table>
+    <tr><th>비교</th><th>결과</th></tr>
+    <tr><td><span class="inline">q[0,0,1]</span> == <span class="inline">wq출력[0,1, 0:16]</span></td><td><b class="hlt">True</b></td></tr>
+    <tr><td><span class="inline">q[0,1,1]</span> == <span class="inline">wq출력[0,1,16:32]</span></td><td><b class="hlt">True</b></td></tr>
+    <tr><td><span class="inline">q[0,2,1]</span> == <span class="inline">wq출력[0,1,32:48]</span></td><td><b class="hlt">True</b></td></tr>
+    <tr><td><span class="inline">q[0,3,1]</span> == <span class="inline">wq출력[0,1,48:64]</span></td><td><b class="hlt">True</b></td></tr>
+  </table>
+  <table>
+    <tr><th>텐서</th><th>앞 8칸 실제 값</th></tr>
+    <tr><td><span class="inline">wq출력[0,1]</span></td><td>0.7915, 0.5677, −1.9192, −2.5759, −0.3240, 0.6711, 1.1627, −0.7428</td></tr>
+    <tr><td><span class="inline">q[0,<b>0</b>,1]</span> (헤드0)</td><td><b class="hlt">0.7915, 0.5677, −1.9192, −2.5759, −0.3240, 0.6711, 1.1627, −0.7428</b> ← 똑같음</td></tr>
+    <tr><td><span class="inline">q[0,<b>1</b>,1]</span> (헤드1)</td><td>−0.6737, 1.2853, 0.0428, 0.8567, 0.0803, 1.2535, −0.0185, −0.1265 ← 완전히 다름</td></tr>
+  </table>
+  <div class="callout good"><span class="emoji">🗄️</span>
+    <b>쪼개면 정보가 나뉘어 손실될까요?</b> 아닙니다. <b class="hlt">숫자 384개(=1×6×64)가 384개 그대로</b> 있습니다.
+    <b>서랍 칸막이를 바꿔 끼운 것</b>일 뿐이에요.
+    실제로 <span class="inline">split</span> 결과는 원본과 <b>같은 메모리를 공유</b>합니다(복사조차 안 함).
+    헤드0과 헤드1의 값이 다른 것은 <b>서로 다른 구간을 본 것</b>이지 값이 변한 게 아닙니다.</div>
+  <div class="callout warn"><span class="emoji">🔀</span>
+    <b>왜 <span class="inline">transpose</span> 를 따로 하나요? 처음부터 <span class="inline">view(b, h, s, dk)</span> 로 쓰면 안 될까요?</b><br>
+    안 됩니다. 그런데 <b class="hlt">모양은 똑같이 나오고 에러도 안 나서</b> 더 위험합니다 — <b>값만 조용히 뒤섞입니다.</b>
+    <span class="inline">view</span> 는 숫자를 <b>일렬로 늘어놓은 순서대로</b> 새 칸에 채우기 때문에,
+    한 단어의 64칸이 아니라 <b>여러 단어의 값이 한 헤드에 섞여 들어갑니다.</b>
+    쪼개는 순서는 반드시 <b>"단어별로 4×16으로 자른 뒤, 헤드축을 앞으로"</b> 여야 합니다.</div>
+
+  <h3>merge — 합치기</h3>
+
+  <h4>⑦ <span class="inline">transpose(1,2).contiguous().view(b, s, h*dk)</span></h4>
+<pre><code><span class="cmt">⑦</span> <span class="kw">def</span> <span class="fn">merge</span>(self, x):
+<span class="cmt">⑦</span>     b, _, s, _ = x.shape
+<span class="cmt">⑦</span>     <span class="kw">return</span> x.<span class="fn">transpose</span>(<span class="num2">1</span>, <span class="num2">2</span>).<span class="fn">contiguous</span>().<span class="fn">view</span>(b, s, self.h * self.dk)
+   <span class="cmt">#      (1,4,6,16) → (1,6,4,16) → 복사 → (1,6,64)</span></code></pre>
+  <table>
+    <tr><th>문법·함수</th><th>기능</th><th>우리 예제에서</th></tr>
+    <tr><td><span class="inline">transpose(1,2)</span></td><td>⑥에서 바꾼 축 순서를 <b>되돌림</b></td><td>(1,4,6,16) → (1,6,4,16)</td></tr>
+    <tr><td><span class="inline">contiguous()</span></td><td>메모리에 <b>어긋나 있는 값을 순서대로 다시 복사</b></td><td>여기서 실제 복사 1회 발생</td></tr>
+    <tr><td><span class="inline">view(b, s, h*dk)</span></td><td>16칸 4조각을 <b>64칸 하나로</b> 이어붙임</td><td><span class="inline">4 × 16 = 64</span> → (1,6,64)</td></tr>
+  </table>
+  <p><b>merge 도 자리만 옮깁니다.</b> "비가"(1행) 기준 실측입니다.</p>
+  <table>
+    <tr><th>비교</th><th>결과</th></tr>
+    <tr><td><span class="inline">merged[0,1, 0:16]</span> == <span class="inline">ctx[0,0,1]</span></td><td><b class="hlt">True</b></td></tr>
+    <tr><td><span class="inline">merged[0,1,16:32]</span> == <span class="inline">ctx[0,1,1]</span></td><td><b class="hlt">True</b></td></tr>
+    <tr><td><span class="inline">merged[0,1,32:48]</span> == <span class="inline">ctx[0,2,1]</span></td><td><b class="hlt">True</b></td></tr>
+    <tr><td><span class="inline">merged[0,1,48:64]</span> == <span class="inline">ctx[0,3,1]</span></td><td><b class="hlt">True</b></td></tr>
+  </table>
+  <p class="muted"><span class="inline">ctx[0,0,1]</span> 앞 6칸 = <b>−0.6680, −0.4473, −0.5389, 1.1198, 0.3051, −0.7114</b><br>
+  <span class="inline">merged[0,1]</span> 앞 6칸 = <b>−0.6680, −0.4473, −0.5389, 1.1198, 0.3051, −0.7114</b> ← 그대로 이어붙음</p>
+  <figure>
+    <img src="https://raw.githubusercontent.com/unicorn-campus/mini-transformer/main/explain/images/mha-split-merge.webp"
+         alt="변환 출력 64칸을 4색 구간으로 나눠 헤드 4개로 쪼갠 뒤, 어텐션 결과를 다시 같은 색 순서로 64칸에 이어붙이는 왕복 과정을 좌우로 비교한 그림">
+    <figcaption><b>쪼개기와 합치기는 정확히 서로의 역순입니다.</b>
+    왼쪽은 <span class="inline">split</span>, 오른쪽은 <span class="inline">merge</span>이고 <b>색 순서가 양쪽에서 똑같이 유지</b>됩니다.
+    <b class="hlt">색이 한 번도 섞이지 않는다</b>는 점을 보세요 — merge 까지 와도 헤드 4개는 여전히 서로 남남입니다.
+    섞이는 곳은 ⑫의 <span class="inline">wo</span>예요.
+    <span class="muted">(그림의 <b>"헤드 1"</b>은 코드의 <span class="inline">헤드0</span> 입니다 — 아래 번호 안내 참고.
+    왼쪽 첫 조각의 0.7915는 ⑥의 <span class="inline">q[0,0,1]</span> 첫 칸,
+    오른쪽 첫 조각의 −0.6680은 ⑦의 <span class="inline">ctx[0,0,1]</span> 첫 칸입니다)</span></figcaption>
+  </figure>
+  <div class="callout warn"><span class="emoji">💥</span>
+    <b><span class="inline">contiguous()</span> 는 빼도 되는 최적화처럼 보이지만, <span class="inline">view</span> 를 쓰는 한 필수입니다.</b>
+    <span class="inline">transpose</span> 는 값을 실제로 옮기지 않고 <b>"보는 순서"만</b> 바꿉니다.
+    그 상태로 <span class="inline">view</span> 를 부르면 이렇게 실패합니다.
+<pre style="margin:8px 0 4px"><code>RuntimeError: view size is not compatible with input tensor's size and stride
+    (at least one dimension spans across two contiguous subspaces).
+    Use .reshape(...) instead.</code></pre>
+    실측: <span class="inline">transpose(1,2)</span> 직후 <span class="inline">is_contiguous = False</span> →
+    <span class="inline">contiguous()</span> 후 <span class="inline">True</span> → <span class="inline">view</span> 성공.<br>
+    <b>에러 메시지가 알려주듯 방법은 두 가지입니다.</b>
+    ① <span class="inline">contiguous().view(...)</span>  ② <span class="inline">reshape(...)</span> —
+    <b class="hlt">둘의 결과는 완전히 같고, 이 경우 <span class="inline">reshape</span> 도 내부에서 똑같이 복사합니다.</b>
+    즉 <span class="inline">contiguous()</span> 는 "<span class="inline">view</span> 를 쓰기로 정했으니 필요한 것"이지,
+    공짜로 복사를 없애 주는 최적화가 아닙니다.</div>
+  <figure>
+    <img src="https://raw.githubusercontent.com/unicorn-campus/mini-transformer/main/explain/images/mha-contiguous.webp"
+         alt="메모리에 순서대로 놓인 띠, 자리 바꾸기 후 읽는 순서만 건너뛰어 view가 실패하는 상태, 새 띠에 다시 복사해 view가 성공하는 상태를 3단계로 비교한 그림">
+    <figcaption><b>가운데 칸이 핵심입니다.</b> 자리를 바꿔도 <b>메모리의 띠는 첫 칸과 완전히 똑같습니다</b> —
+    바뀐 것은 <b class="hlt">"어떤 순서로 읽을지"</b>뿐이죠. 그래서 읽는 화살표가 껑충껑충 건너뜁니다.
+    <span class="inline">view</span> 는 <b>일자로 이어진 값만</b> 다룰 수 있어서 이 상태를 거부합니다.
+    <span class="inline">contiguous()</span> 가 <b>새 띠에 값을 순서대로 다시 복사</b>해 주면 비로소 통과합니다.
+    <b>모양(shape)만 봐서는 이 문제가 전혀 안 보인다</b>는 것이 초심자가 가장 많이 막히는 지점입니다.</figcaption>
+  </figure>
+
+  <h3>forward — 실제로 실행되는 본체</h3>
+
+  <h4>⑧ <span class="inline">def forward(self, q, k, v, mask=None)</span></h4>
+<pre><code><span class="cmt">⑧</span> <span class="kw">def</span> <span class="fn">forward</span>(self, q, k, v, mask=<span class="kw">None</span>):</code></pre>
+  <table>
+    <tr><th>문법·함수</th><th>기능</th><th>우리 예제에서 (크로스 어텐션)</th></tr>
+    <tr><td><span class="inline">forward</span></td><td>파이토치가 정한 <b>약속된 이름</b>. <span class="inline">mha(q,k,v,mask)</span> 로 부르면 자동 실행</td><td><span class="inline">cross_attn(x, enc_out, enc_out, src_mask)</span></td></tr>
+    <tr><td><span class="inline">q</span></td><td>Query 쪽 입력</td><td><b>(1, 6, 64)</b> — 답 6칸</td></tr>
+    <tr><td><span class="inline">k</span>, <span class="inline">v</span></td><td>Key·Value 쪽 입력</td><td><b>(1, 5, 64)</b> — 인코더 출력(질문 5단어)</td></tr>
+    <tr><td><span class="inline">mask=None</span></td><td>마스크는 <b>안 넘겨도 됨</b></td><td><b>(1, 1, 1, 5)</b> · 전부 True(패딩 없음)</td></tr>
+  </table>
+  <div class="callout"><span class="emoji">📏</span>
+    <b>q 는 6, k·v 는 5로 길이가 달라도 정상입니다.</b> 답 6칸이 질문 5단어를 보는 상황이니까요.
+    단 <b class="hlt">k 와 v 는 길이가 반드시 같아야</b> 합니다 — 색인과 내용이 같은 목록이어야 하니까요.</div>
+
+  <h4>⑨ <span class="inline">split(wq(q)), split(wk(k)), split(wv(v))</span></h4>
+<pre><code><span class="cmt">⑨</span> q, k, v = self.<span class="fn">split</span>(self.<span class="fn">wq</span>(q)), self.<span class="fn">split</span>(self.<span class="fn">wk</span>(k)), self.<span class="fn">split</span>(self.<span class="fn">wv</span>(v))</code></pre>
+  <table>
+    <tr><th>문법·함수</th><th>기능</th><th>우리 예제에서</th></tr>
+    <tr><td><span class="inline">self.split(self.wq(q))</span></td><td><b>안쪽부터 실행</b>. <span class="inline">wq(q)</span> 가 먼저, 그 결과가 <span class="inline">split</span> 으로</td><td>(1,6,64) → (1,6,64) → (1,4,6,16)</td></tr>
+    <tr><td><span class="inline">a, b, c = x, y, z</span></td><td>세 결과를 각각 담기</td><td>q, k, v 세 벌을 한 줄에</td></tr>
+  </table>
+  <table>
+    <tr><th>변수</th><th>wq/wk/wv 통과 후</th><th>split 후</th></tr>
+    <tr><td><span class="inline">q</span></td><td>(1, 6, 64) <span class="muted">모양 그대로, 값만 바뀜</span></td><td><b>(1, 4, 6, 16)</b></td></tr>
+    <tr><td><span class="inline">k</span></td><td>(1, 5, 64)</td><td><b>(1, 4, 5, 16)</b></td></tr>
+    <tr><td><span class="inline">v</span></td><td>(1, 5, 64)</td><td><b>(1, 4, 5, 16)</b></td></tr>
+  </table>
+  <div class="callout good"><span class="emoji">🎯</span>
+    <b>값을 바꾸는 것은 <span class="inline">wq</span> 하나뿐입니다.</b> <span class="inline">split</span> 은 그 결과를 자르기만 합니다(⑥의 True 4줄).
+    <b class="hlt">헤드마다 관점이 달라지는 원인은 전부 <span class="inline">wq·wk·wv</span> 안에 있습니다</b> — 4번 섹션에서 본 그대로예요.</div>
+
+  <h4>⑩ <span class="inline">scaled_dot_product_attention(q, k, v, mask, self.dropout)</span></h4>
+<pre><code><span class="cmt">⑩</span> ctx, attn = <span class="fn">scaled_dot_product_attention</span>(q, k, v, mask, self.dropout)</code></pre>
+  <table>
+    <tr><th>문법·함수</th><th>기능</th><th>우리 예제에서</th></tr>
+    <tr><td><span class="inline">ctx, attn = 함수(...)</span></td><td>결과를 <b>두 개</b> 돌려받아 각각 담기</td><td>ctx <b>(1,4,6,16)</b> · attn <b>(1,4,6,5)</b></td></tr>
+    <tr><td><span class="inline">self.dropout</span> 을 인자로</td><td><b>부품을 값처럼 전달</b></td><td>추론에선 통과</td></tr>
+  </table>
+  <p><a href="attention.html">이전 문서</a>의 그 함수를 <b>딱 한 번</b> 부릅니다. 답 <b class="hlt">"비가"</b> 행의 실제 비율입니다.</p>
+  <table>
+    <tr><th>헤드</th><th>하늘에</th><th>먹구름이</th><th>보이면</th><th>뭐가</th><th>생각나</th></tr>
+    <tr><td>헤드 0</td><td>0.9%</td><td><b class="hlt">95.6%</b></td><td>1.7%</td><td>0.6%</td><td>1.1%</td></tr>
+    <tr><td>헤드 1</td><td>9.5%</td><td><b>51.9%</b></td><td>14.2%</td><td>11.1%</td><td>13.3%</td></tr>
+    <tr><td>헤드 2</td><td>17.1%</td><td><b>34.4%</b></td><td>23.7%</td><td>10.3%</td><td>14.4%</td></tr>
+    <tr><td>헤드 3</td><td>4.4%</td><td><b>73.7%</b></td><td>10.7%</td><td>5.3%</td><td>5.9%</td></tr>
+    <tr><th>4헤드 평균</th><td>8.0%</td><td><b class="hlt">63.9%</b></td><td>12.6%</td><td>6.8%</td><td>8.7%</td></tr>
+  </table>
+  <div class="callout good"><span class="emoji">🔁</span>
+    <b>"헤드가 4개니 <span class="inline">for</span> 문으로 4번 돌아야 하지 않나요?"</b> — <b class="hlt">반복문이 한 줄도 없습니다.</b>
+    어텐션 함수는 <b>뒤쪽 두 축만</b> 보고 계산하고, 앞의 <span class="inline">(1, 4)</span> 는
+    <b>배치 차원으로 자동 반복</b>됩니다. 실제로 헤드별로 따로 계산한 결과와 한 번에 계산한 결과를 비교하면
+    <b>오차 0.0으로 완전히 같습니다.</b><br>
+    <span class="muted">두 가지만 짚어 둡니다. ① 파이썬 코드에 <span class="inline">for</span> 가 없다는 뜻이고,
+    <b>계산량이 4벌인 사실은 그대로</b>입니다. ② 헤드는 서로 완전히 독립입니다 —
+    헤드0의 q 값만 흔들어 보면 헤드0의 결과만 변하고 <b>나머지 세 헤드의 변화량은 정확히 0</b>이었습니다
+    (여러 방식으로 흔들어 봐도 모두 0).</span></div>
+
+  <h4>⑪ <span class="inline">self.last_attn_weights = attn.detach()</span></h4>
+<pre><code><span class="cmt">⑪</span> self.last_attn_weights = attn.<span class="fn">detach</span>()</code></pre>
+  <table>
+    <tr><th>문법·함수</th><th>기능</th><th>우리 예제에서</th></tr>
+    <tr><td><span class="inline">detach()</span></td><td>값은 그대로 두고 <b>계산 기록만 떼어냄</b></td><td><span class="inline">requires_grad</span>: True → <b>False</b><br><span class="inline">grad_fn</span>: SoftmaxBackward0 → <b>None</b></td></tr>
+  </table>
+  <div class="callout"><span class="emoji">✂️</span>
+    <b><span class="inline">detach()</span> 는 값을 복사하는 게 아닙니다.</b> 떼어낸 뒤에도 <b class="hlt">원본과 같은 메모리를 공유</b>합니다 —
+    줄어드는 것은 <b>딸려 있던 계산 기록(계산그래프)</b>이에요.
+    떼지 않고 보관하면 이 텐서에 매달린 상류 계산 기록이 <b>함께 살아남습니다</b>(실측으로 확인).
+    <span class="muted">단 <span class="inline">backward()</span> 를 부르면 저장된 중간값은 해제되므로,
+    문제가 되는 쪽은 주로 <span class="inline">no_grad</span> 없이 추론만 반복하는 경우입니다.</span><br>
+    <b>이 값은 학습에 쓰이지 않습니다</b> — 오직 노트북 히트맵과 5번 데모를 위한 구경용이에요.</div>
+  <div class="callout warn"><span class="emoji">🌡️</span>
+    <b>히트맵은 반드시 <span class="inline">model.eval()</span> 에서 그리세요.</b>
+    이 줄은 <b class="hlt">드롭아웃을 통과한 뒤의 값</b>을 저장합니다.
+    그래서 <span class="inline">train()</span> 모드에서 꺼내 보면 <b>행의 합이 1이 아닙니다</b> —
+    실측하니 행 합이 <span class="inline">1.1111</span> 처럼 1을 넘거나 1보다 작은 값으로 흔들리고,
+    <b>120칸(=4×6×5) 중 10여 칸</b>이 정확히 0이었습니다.
+    <span class="muted">(0이 되는 칸의 개수는 무작위라 실행마다 달라집니다. 시드를 바꿔 재보니 15·10·13·16칸이었습니다.)</span><br>
+    <span class="inline">eval()</span> 에서는 드롭아웃이 통과하므로 <b>모든 행의 합이 정확히 1.0</b> 입니다.
+    ⑩ 표의 비율들도 그래서 합이 100%가 됩니다.</div>
+
+  <h4>⑫ <span class="inline">return self.wo(self.merge(ctx))</span></h4>
+<pre><code><span class="cmt">⑫</span> <span class="kw">return</span> self.<span class="fn">wo</span>(self.<span class="fn">merge</span>(ctx))
+   <span class="cmt">#      (1,4,6,16) → merge → (1,6,64) → wo → (1,6,64)</span></code></pre>
+  <table>
+    <tr><th>문법·함수</th><th>기능</th><th>우리 예제에서</th></tr>
+    <tr><td><span class="inline">self.wo(self.merge(ctx))</span></td><td><b>안쪽 merge 가 먼저</b>, 그 결과가 wo 로</td><td>(1,4,6,16) → (1,6,64) → (1,6,64)</td></tr>
+    <tr><td><span class="inline">return</span></td><td>이 값을 부른 쪽에 돌려주기</td><td>디코더 층의 다음 단계로</td></tr>
+  </table>
+  <table>
+    <tr><th>텐서</th><th>"비가" 행 앞 6칸</th></tr>
+    <tr><td><span class="inline">merged[0,1]</span> (wo 전)</td><td>−0.6680, −0.4473, −0.5389, 1.1198, 0.3051, −0.7114</td></tr>
+    <tr><td><span class="inline">out[0,1]</span> (wo 후)</td><td><b class="hlt">0.3923, 0.4293, −0.0277, 0.0279, −0.3732, 0.2272</b> ← 완전히 달라짐</td></tr>
+  </table>
+  <div class="callout good"><span class="emoji">🧪</span>
+    <b>"이어붙였으니 이미 합쳐진 거 아닌가요? <span class="inline">wo</span> 는 형식적인 마무리 같은데요."</b><br>
+    직접 실험해 봤습니다. <span class="inline">merged</span> 에서 <b>헤드0 몫(앞 16칸)만 0으로</b> 바꾼 뒤 결과를 비교했습니다.
+    <table style="margin-top:10px">
+      <tr><th>어디까지 통과시켰나</th><th>출력 64칸 중 바뀐 칸</th><th>뜻</th></tr>
+      <tr><td><span class="inline">merge</span> 까지만</td><td><b>16칸</b> (앞 16칸만)</td><td>헤드 경계가 <b>그대로 남아 있음</b></td></tr>
+      <tr><td><span class="inline">wo</span> 까지</td><td><b class="hlt">64칸 전부</b></td><td>헤드들이 <b>서로 섞였음</b></td></tr>
+    </table>
+    <b class="hlt">헤드가 섞이는 곳은 merge 가 아니라 wo 입니다.</b>
+    merge 는 그냥 <b>나란히 놓기</b>일 뿐이에요.<br>
+    <span class="muted">다만 <b>wo 에 특별한 장치가 있는 것은 아닙니다.</b>
+    <span class="inline">nn.Linear</span> 는 출력 한 칸이 <b>입력 64칸 전부의 가중합</b>이므로,
+    완전연결층이면 어느 것이든 이렇게 됩니다(<span class="inline">wo</span> 의 4,096개 weight 중 정확히 0인 값은 0개).
+    멀티헤드가 <b>이 층을 마지막에 두는 이유</b>가 바로 "따로 본 관점들을 여기서 한 번 섞기" 위해서입니다.</span></div>
+  <figure>
+    <img src="https://raw.githubusercontent.com/unicorn-campus/mini-transformer/main/explain/images/mha-wo-mixing.webp"
+         alt="첫 조각만 0으로 바꾼 뒤 합치기까지만 통과시키면 앞부분만 바뀌고, 마지막 변환까지 통과시키면 전체가 바뀌는 것을 위아래로 비교한 그림">
+    <figcaption><b>같은 실험을 단계만 달리한 것입니다.</b>
+    위는 <span class="inline">merge</span> 까지만 — 첫 조각만 0으로 바꿨더니 <b>앞부분만</b> 바뀝니다(헤드 경계가 살아 있음).
+    아래는 <span class="inline">wo</span> 까지 — <b class="hlt">전체가 바뀝니다.</b>
+    <span class="inline">wo</span> 상자 안의 선들이 보여주듯 <b>출력 한 칸이 입력 전부의 영향</b>을 받기 때문이죠.
+    <b>모양은 64 → 64로 그대로인데 하는 일은 "섞기"</b>라는 것이 이 층의 정체입니다.</figcaption>
+  </figure>
+
+  <h3>①~⑫ 전체를 한 표로</h3>
+  <table>
+    <tr><th>#</th><th>코드</th><th>하는 일</th><th>우리 예제에서</th></tr>
+    <tr><td>①</td><td><span class="inline">super().__init__()</span></td><td>부품 담을 장부 만들기</td><td>없으면 <b>AttributeError</b></td></tr>
+    <tr><td>②</td><td><span class="inline">d_model // num_heads</span></td><td>헤드당 칸 수 정하기</td><td><b>16</b> (64 // 4)</td></tr>
+    <tr><td>③</td><td><span class="inline">nn.Linear ×4</span></td><td>변환기 네 대 만들기</td><td>학습 파라미터 <b>16,640개</b>가 전부</td></tr>
+    <tr><td>④</td><td><span class="inline">Dropout</span> · <span class="inline">None</span></td><td>드롭아웃 + 시각화용 빈 상자</td><td>둘 다 파라미터 <b>0개</b></td></tr>
+    <tr><td>⑤</td><td><span class="inline">b, s, _ = x.shape</span></td><td>지금 모양 읽기</td><td>b=1, s=6</td></tr>
+    <tr><td>⑥</td><td><span class="inline">view + transpose</span></td><td>64를 4×16으로 자르고 헤드축 앞으로</td><td>(1,6,64) → <b>(1,4,6,16)</b> · 값 불변</td></tr>
+    <tr><td>⑦</td><td><span class="inline">transpose + contiguous + view</span></td><td>⑥의 역순으로 되돌려 이어붙임</td><td>(1,4,6,16) → <b>(1,6,64)</b></td></tr>
+    <tr><td>⑧</td><td><span class="inline">forward(q,k,v,mask)</span></td><td>실행 입구</td><td>q(1,6,64) · k·v(1,5,64)</td></tr>
+    <tr><td>⑨</td><td><span class="inline">split(wq(q))</span> …</td><td>변환 후 곧바로 쪼개기</td><td>q(1,4,6,16) · k·v(1,4,5,16)</td></tr>
+    <tr><td>⑩</td><td><span class="inline">scaled_dot_product_attention</span></td><td>헤드 4개를 <b>한 번에</b> 계산</td><td>먹구름이 95.6/51.9/34.4/73.7%</td></tr>
+    <tr><td>⑪</td><td><span class="inline">attn.detach()</span></td><td>비율표를 구경용으로 보관</td><td>(1,4,6,5) · requires_grad=False</td></tr>
+    <tr><td>⑫</td><td><span class="inline">wo(merge(ctx))</span></td><td>이어붙인 뒤 <b>섞어서</b> 반환</td><td>(1,6,64) — <b>입력과 같은 모양</b></td></tr>
+  </table>
+  <div class="big-idea">들어갈 때 <span>(1, 6, 64)</span> · 나올 때 <span>(1, 6, 64)</span><br>
+  <span>모양은 그대로, 내용은 "네 관점으로 보고 섞은 것"</span></div>
 </section>
 
 <!-- 7 -->
@@ -334,7 +652,7 @@
     <b>헤드 1개</b>는 관점이 하나뿐이고, <b>헤드 16개</b>는 한 헤드가 겨우 4칸만 담당해 <b class="hlt">관점 하나가 너무 좁아집니다.</b>
     그래서 이 노트북은 가운데 <b>헤드 4개(각 16칸)</b>를 골랐습니다 —
     <b>많을수록 좋은 게 아니라 "적당히"가 있는 값</b>이에요.
-    <span class="muted">(3번 섹션의 슬라이더로 h를 1·2·4·8로 바꿔 보면 같은 일이 일어납니다. 거기서는 전체 폭이 8이라 각 8·4·2·1칸이 됩니다)</span></figcaption>
+    <span class="muted">(3번 섹션의 <b>h 버튼</b>으로 1·2·4·8을 눌러 보면 같은 일이 일어납니다. 거기서는 전체 폭이 8이라 각 8·4·2·1칸이 됩니다)</span></figcaption>
   </figure>
   <div class="callout"><span class="emoji">🧪</span><b>체크포인트가 실제로 확인하는 것:</b>
   <span class="inline">MultiHeadAttention(8, 4, 0.0)</span> 에 모양 <span class="inline">(1,3,8)</span> 짜리 Q,K,V를 넣으면
