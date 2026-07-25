@@ -105,12 +105,13 @@
     <div class="kicker">Mini-Transformer · 위치 인코딩 다시 쉽게</div>
     <h1>위치 인코딩은<br><span class="hl">"부드러운 이진수 계수기"</span> 입니다</h1>
     <p class="lead">복잡한 sin·cos 공식은 잠깐 잊으세요. 딱 하나만 기억하면 됩니다 —
-    <b>자동차 주행거리계(0000→0001→0010…)를 부드럽게 만든 것</b>. 슬라이더를 직접 움직이며 느껴봅시다.</p>
+    <b>자동차 주행거리계(0000→0001→0010…)를 부드럽게 만든 것</b>.<br>
+    이 문서의 <b>모든 숫자와 그래프는 우리 실습 노트북의 실제 값</b>입니다. 슬라이더를 직접 움직이며 느껴봅시다.</p>
   </div>
 </header>
 
 <nav class="toc"><div class="wrap">
-  <a href="#p1">1. 문제 (30초)</a>
+  <a href="#p1">1. 우리 예제의 문제</a>
   <a href="#p2">2. 첫 시도의 실패</a>
   <a href="#p3">3. 이진수 계수기</a>
   <a href="#p4">4. 부드럽게 = sin·cos</a>
@@ -121,46 +122,83 @@
 
 <div class="wrap">
 
+<!-- 우리 예제 설정 -->
+<div class="card" style="margin-top:34px">
+  <h3 style="margin-top:0">📌 먼저, 우리 예제의 실제 값</h3>
+  <p class="muted" style="margin-top:0">아래 표는 <span class="inline">example-explain.ipynb</span>을 실제로 실행해 확인한 값입니다.
+  이 문서의 슬라이더·그래프는 모두 이 값으로 계산됩니다.</p>
+  <table>
+    <tr><th>항목</th><th>값</th><th>어디서 정해지나</th></tr>
+    <tr><td>학습 데이터</td><td>질문→답 <b>6쌍</b></td><td><span class="inline">DATA</span> (1단계)</td></tr>
+    <tr><td>질문 토큰 수</td><td><b>5개</b> — 하늘에 / 먹구름이 / 보이면 / 뭐가 / 생각나</td><td><span class="inline">src_ids</span> = (6, 5)</td></tr>
+    <tr><td>답 토큰 수</td><td><b>6개</b> — &lt;sos&gt; + 최대 4단어 + &lt;eos&gt;</td><td><span class="inline">tgt_ids</span> = (6, 6)</td></tr>
+    <tr><td><b>d_model = 64</b></td><td>단어 하나를 표현하는 벡터 칸 수</td><td><span class="inline">Transformer(d_model=64)</span></td></tr>
+    <tr><td><b>max_len = 22</b></td><td>위치 표를 몇 줄까지 미리 만들지</td><td><span class="inline">max(5, 6, 20) + 2</span></td></tr>
+  </table>
+  <div class="callout"><span class="emoji">🎯</span>
+    그래서 우리 위치 인코딩 표는 <b class="hlt">(1, 22, 64)</b> 크기입니다 —
+    <b>22줄(위치) × 64칸(차원)</b>. 이 두 숫자만 머리에 넣고 시작하세요.</div>
+</div>
+
 <!-- 1 -->
 <section id="p1">
-  <h2><span class="num">1</span> 문제는 딱 하나 (30초)</h2>
+  <h2><span class="num">1</span> 우리 예제의 문제는 딱 하나 (30초)</h2>
   <p>트랜스포머의 <b class="hlt">어텐션</b>은 단어들을 <b class="hlt">한꺼번에</b> 봅니다. 그래서 순서를 모릅니다.
-  아래 두 문장이 어텐션에게는 <b>똑같이</b> 보입니다.</p>
+  우리 데이터의 첫 질문을 어텐션 눈으로 보면 이렇습니다 — <b>단어가 담긴 자루</b>일 뿐, 몇 번째인지가 없습니다.</p>
   <div class="grid2">
     <div class="card tight">
       <div class="chips">
-        <div class="chip">개가<small>주어</small></div>
-        <div class="chip">고양이를<small>목적어</small></div>
-        <div class="chip">물었다</div>
+        <div class="chip">하늘에<small>1번째</small></div>
+        <div class="chip">먹구름이<small>2번째 ← 정답 단서</small></div>
+        <div class="chip">보이면<small>3번째</small></div>
+        <div class="chip">뭐가<small>4번째</small></div>
+        <div class="chip">생각나<small>5번째</small></div>
       </div>
-      <p class="muted" style="margin:0">🐕 개가 문 쪽</p>
+      <p class="muted" style="margin:0">✅ 우리가 아는 질문 (순서 있음)</p>
     </div>
     <div class="card tight">
       <div class="chips">
-        <div class="chip">고양이가<small>주어</small></div>
-        <div class="chip">개를<small>목적어</small></div>
-        <div class="chip">물었다</div>
+        <div class="chip">생각나<small>?</small></div>
+        <div class="chip">보이면<small>?</small></div>
+        <div class="chip">하늘에<small>?</small></div>
+        <div class="chip">먹구름이<small>?</small></div>
+        <div class="chip">뭐가<small>?</small></div>
       </div>
-      <p class="muted" style="margin:0">🐈 고양이가 문 쪽</p>
+      <p class="muted" style="margin:0">❌ 어텐션이 보는 질문 (순서 없음)</p>
     </div>
   </div>
-  <div class="callout warn"><span class="emoji">⚠️</span>뜻이 정반대인데 순서 정보가 없으면 구별 불가.
-  <b>그래서 단어마다 "너 몇 번째야"를 알려줘야 합니다.</b></div>
+  <p>우리 데이터는 질문 6개가 <b class="hlt">문장 틀이 전부 똑같고 2번째 단어만 다릅니다.</b></p>
+<pre><code>하늘에 <span class="str">먹구름이</span> 보이면 뭐가 생각나  →  비가 올 것 같아
+하늘에 <span class="str">별이</span>     보이면 뭐가 생각나  →  밤이 깊었나 봐
+하늘에 <span class="str">해가</span>     보이면 뭐가 생각나  →  아침이 밝았구나
+<span class="cmt">…                     (6쌍 모두 동일한 틀)</span></code></pre>
+  <div class="callout warn"><span class="emoji">⚠️</span>
+    <b>①</b> 정답을 가르는 단서가 <b>"2번째 자리에 있는 단어"</b> 하나뿐인데, 순서를 모르면 그 자리를 특정할 수 없습니다.<br>
+    <b>②</b> 답을 만들 때도 마찬가지예요. <b>"비가 올 것 같아"</b>와 <b>"같아 올 비가 것"</b>은 단어 집합이 같습니다.<br>
+    <b>그래서 단어마다 "너 몇 번째야"를 알려줘야 합니다.</b></div>
 </section>
 
 <!-- 2 -->
 <section id="p2">
   <h2><span class="num">2</span> 첫 시도: 그냥 번호를 더하자 → 실패</h2>
-  <p>가장 쉬운 생각: 첫째 단어엔 0, 둘째엔 1, 셋째엔 2… 그냥 더하면 되잖아?</p>
+  <p>가장 쉬운 생각: <span class="inline">하늘에</span>엔 0, <span class="inline">먹구름이</span>엔 1,
+  <span class="inline">보이면</span>엔 2… 그냥 더하면 되잖아?</p>
+<pre><code><span class="cmt"># 우리 질문 5단어에 번호를 그대로 더한다면</span>
+하늘에   벡터 + <span class="num2">0</span>
+먹구름이 벡터 + <span class="num2">1</span>
+보이면   벡터 + <span class="num2">2</span>
+뭐가     벡터 + <span class="num2">3</span>
+생각나   벡터 + <span class="num2">4</span></code></pre>
   <div class="callout warn"><span class="emoji">💥</span>
-    문장이 길어지면 <b>500번째 단어엔 500이 더해집니다.</b> 단어의 원래 의미(보통 -1~1 정도)가
-    <b>거대한 숫자에 파묻혀</b> 사라져요. 그리고 학습 때 안 본 긴 문장이 오면 대책이 없습니다.</div>
+    우리 예제는 5단어라 4까지니 괜찮아 보이지만, <b>표는 max_len=22까지 만들어 둡니다.</b>
+    그러면 21번째 자리엔 21이 더해지죠. 단어 의미를 담은 값은 보통 <b>-1~1 정도</b>인데
+    <b>21이라는 큰 숫자에 파묻혀</b> 사라집니다. 실제 문장이 수백 단어면 더 심각해집니다.</div>
   <p>필요한 조건을 정리하면 이렇습니다 👇</p>
   <table>
-    <tr><th>조건</th><th>이유</th></tr>
-    <tr><td>① 값이 항상 작게 (예: -1~1)</td><td>단어 의미를 안 덮으려고</td></tr>
-    <tr><td>② 위치마다 완전히 다른 무늬</td><td>0번과 1번을 구별하려고</td></tr>
-    <tr><td>③ 길이가 길어져도 계속 만들 수 있게</td><td>안 배운 긴 문장도 처리하려고</td></tr>
+    <tr><th>조건</th><th>이유</th><th>우리 예제에선</th></tr>
+    <tr><td>① 값이 항상 작게 (예: -1~1)</td><td>단어 의미를 안 덮으려고</td><td>실제 pe 값 범위 = <b>-1.000 ~ +1.000</b></td></tr>
+    <tr><td>② 위치마다 완전히 다른 무늬</td><td>0번과 1번을 구별하려고</td><td><b>22줄이 모두 서로 다름</b> (실행 확인)</td></tr>
+    <tr><td>③ 길이가 길어져도 계속 만들 수 있게</td><td>안 배운 긴 문장도 처리하려고</td><td>max_len만 키우면 23, 24…도 즉시 생성</td></tr>
   </table>
   <p>이 세 조건을 <b class="hlt">한 방에</b> 만족시키는 게 바로… 다음 장의 <b>이진수 계수기</b>입니다.</p>
 </section>
@@ -177,18 +215,21 @@
 
   <div class="card">
     <div class="controls">
-      <label>위치(position) 슬라이더를 움직여 보세요 — 비트가 어떻게 깜빡이는지 관찰!</label>
-      <input type="range" id="binR" min="0" max="15" step="1" value="5">
+      <label>위치(position) 슬라이더 — 우리 예제 범위 <b style="color:var(--accent)">0 ~ 21</b>(max_len=22)에서 움직여 보세요.
+      0~4는 우리 질문의 실제 단어 자리입니다.</label>
+      <input type="range" id="binR" min="0" max="21" step="1" value="1">
     </div>
-    <div class="pos-big" id="posLabel">5</div>
+    <div class="pos-big" id="posLabel">1</div>
+    <div class="muted" id="posTok" style="text-align:center;margin:-6px 0 4px">↑ 먹구름이 (정답 단서 자리)</div>
     <div class="bits" id="bits"></div>
     <p class="muted" style="text-align:center;margin:6px 0 0">
-      비트0(맨 왼쪽) = 제일 빠름 · 비트3(맨 오른쪽) = 제일 느림</p>
+      22까지 세려면 5비트가 필요합니다 · 비트0(맨 왼쪽) = 제일 빠름 · 비트4(맨 오른쪽) = 제일 느림</p>
   </div>
 
   <div class="callout good"><span class="emoji">✨</span>두 가지를 확인하세요.<br>
     <b>①</b> 위치를 1씩 올릴 때 <b>왼쪽 비트가 제일 자주 깜빡</b>이고, 오른쪽 비트는 가끔만 바뀝니다.<br>
-    <b>②</b> 어떤 위치든 <b>비트 조합(무늬)이 세상에 딱 하나뿐</b>입니다 → 그래서 위치를 구별할 수 있어요.</div>
+    <b>②</b> 어떤 위치든 <b>비트 조합(무늬)이 세상에 딱 하나뿐</b>입니다 → 그래서 위치를 구별할 수 있어요.
+    우리 예제의 <b>0~21 스물두 자리도 전부 다른 조합</b>이라, "먹구름이는 2번째"라는 사실이 흐려지지 않습니다.</div>
 
   <p>바로 이겁니다. <b class="hlt">"서로 다른 속도로 깜빡이는 여러 개의 신호를 겹쳐서 위치를 표현한다."</b>
   위치 인코딩이 하는 일이 정확히 이거예요.</p>
@@ -204,29 +245,61 @@
 
   <p>아래에서 <b>같은 위치 슬라이더</b>가 이번엔 이진수 대신 <b>부드러운 파도 값(위치 인코딩 벡터)</b>을 만듭니다.
   막대가 위(양수)/아래(음수)로 부드럽게 움직이죠. 왼쪽 칸일수록 빨리, 오른쪽 칸일수록 천천히 변합니다 — 이진수와 똑같은 원리!</p>
+  <p class="muted">우리 예제의 위치 벡터는 <b>64칸(d_model=64)</b>이라 화면에 다 넣으면 안 보입니다.
+  그래서 <b class="hlt">앞 8칸(dim0~dim7)만</b> 보여 주지만, <b>값은 d_model=64로 계산한 실제 값</b>입니다.</p>
 
   <div class="card">
     <div class="controls">
-      <label>위치(position) — 움직이면 8칸짜리 위치 벡터가 부드럽게 변합니다</label>
-      <input type="range" id="peR" min="0" max="30" step="1" value="5">
+      <label>위치(position) 0~21 — 움직이면 우리 모델의 위치 벡터가 부드럽게 변합니다</label>
+      <input type="range" id="peR" min="0" max="21" step="1" value="1">
     </div>
-    <div class="pos-big" id="pePos" style="font-size:30px">position = 5</div>
+    <div class="pos-big" id="pePos" style="font-size:30px">position = 1</div>
+    <div class="muted" id="peTok" style="text-align:center;margin:-6px 0 4px">↑ 먹구름이 (정답 단서 자리)</div>
     <div class="pebars" id="pebars"></div>
-    <p class="muted" style="text-align:center;margin:6px 0 0">각 칸 = 벡터의 한 차원(dim0…dim7) · 위=양수, 아래=음수</p>
+    <p class="muted" style="text-align:center;margin:6px 0 0">각 칸 = 벡터의 한 차원(dim0…dim7, 전체 64칸 중 앞 8칸) · 위=양수, 아래=음수</p>
   </div>
 
   <div class="callout"><span class="emoji">🔍</span>
     이진수의 "비트"가 위치 인코딩에선 "차원(dim)"이 됩니다. 0/1 대신 -1~1 사이의 <b>부드러운 값</b>일 뿐,
     <b>"자리마다 속도가 다르다 + 조합이 유일하다"</b>는 성질은 그대로예요.</div>
 
-  <h3>그럼 sin·cos 공식은?</h3>
-  <p class="muted">겁먹지 마세요. 방금 본 걸 수식으로 적은 것뿐입니다.</p>
+  <h3>우리 질문 5단어의 실제 위치 벡터</h3>
+  <p>노트북과 똑같이 계산해 뽑은 <b class="hlt">진짜 숫자</b>입니다. 64칸 중 앞 4칸과 뒤 2칸만 보여드립니다.</p>
   <table>
-    <tr><th>공식 조각</th><th>쉬운 말</th></tr>
-    <tr><td><span class="inline">sin / cos</span></td><td>부드럽게 출렁이는 파도 만들기</td></tr>
-    <tr><td><span class="inline">pos</span></td><td>지금 몇 번째 단어인지 (슬라이더 값)</td></tr>
-    <tr><td><span class="inline">10000^(2i/d)</span></td><td>차원마다 파도 속도를 다르게 (= 비트 자리별 속도)</td></tr>
+    <tr><th>pos</th><th>단어</th><th>dim0</th><th>dim1</th><th>dim2</th><th>dim3</th><th>…</th><th>dim62</th><th>dim63</th></tr>
+    <tr><td>0</td><td>하늘에</td><td>+0.000</td><td>+1.000</td><td>+0.000</td><td>+1.000</td><td>…</td><td>+0.0000</td><td>+1.0000</td></tr>
+    <tr><td>1</td><td><b>먹구름이</b></td><td>+0.841</td><td>+0.540</td><td>+0.682</td><td>+0.732</td><td>…</td><td>+0.0001</td><td>+1.0000</td></tr>
+    <tr><td>2</td><td>보이면</td><td>+0.909</td><td>−0.416</td><td>+0.997</td><td>+0.071</td><td>…</td><td>+0.0003</td><td>+1.0000</td></tr>
+    <tr><td>3</td><td>뭐가</td><td>+0.141</td><td>−0.990</td><td>+0.778</td><td>−0.628</td><td>…</td><td>+0.0004</td><td>+1.0000</td></tr>
+    <tr><td>4</td><td>생각나</td><td>−0.757</td><td>−0.654</td><td>+0.142</td><td>−0.990</td><td>…</td><td>+0.0005</td><td>+1.0000</td></tr>
   </table>
+  <div class="callout good"><span class="emoji">👀</span>표에서 두 가지가 바로 보입니다.<br>
+    <b>①</b> <b>앞칸(dim0~3)은 확 바뀝니다</b> — +0.841 → +0.909 → +0.141 → −0.757. 옆 단어와의 구분을 담당하죠.<br>
+    <b>②</b> <b>뒤칸(dim62~63)은 거의 안 바뀝니다</b> — 0.0000 → 0.0005. 파장이 47,000이라
+    5단어짜리 짧은 문장에서는 <b>느린 파도가 사실상 일을 안 합니다.</b> 긴 문장을 위한 예비 칸인 셈입니다.</div>
+  <p class="muted">참고로 위치 벡터 사이 거리를 재 보면 <span class="inline">pos0 ↔ pos1 = 1.472</span>,
+  <span class="inline">pos0 ↔ pos4 = 4.016</span> — <b>멀리 떨어진 자리일수록 벡터도 더 다릅니다.</b></p>
+
+  <h3>그럼 sin·cos 공식은?</h3>
+  <p class="muted">겁먹지 마세요. 방금 본 걸 수식으로 적은 것뿐입니다. 우리 예제 값을 넣어 보겠습니다.</p>
+  <table>
+    <tr><th>공식 조각</th><th>쉬운 말</th><th>우리 예제에선</th></tr>
+    <tr><td><span class="inline">sin / cos</span></td><td>부드럽게 출렁이는 파도 만들기</td><td>짝수칸 32개=sin, 홀수칸 32개=cos</td></tr>
+    <tr><td><span class="inline">pos</span></td><td>지금 몇 번째 단어인지 (슬라이더 값)</td><td>0~21 (먹구름이 = 1)</td></tr>
+    <tr><td><span class="inline">10000^(2i/d)</span></td><td>차원마다 파도 속도를 다르게 (= 비트 자리별 속도)</td><td><b>d = 64</b>, i = 0, 2, 4, … 62 → <b>주파수 32개</b></td></tr>
+  </table>
+  <p>주파수 32개가 실제로 어떤 속도인지 계산해 보면 이렇습니다.</p>
+  <table>
+    <tr><th>i</th><th>파장 (몇 자리마다 한 바퀴)</th><th>우리 문장(5단어)에서 하는 일</th></tr>
+    <tr><td>0</td><td><b>6.3</b></td><td>바로 옆 단어와 구분 — 가장 열심히 일함</td></tr>
+    <tr><td>2</td><td>8.4</td><td>2~3칸 떨어진 자리 구분</td></tr>
+    <tr><td>30</td><td>471</td><td>거의 변화 없음</td></tr>
+    <tr><td>62</td><td><b>47,117</b></td><td>사실상 상수 — 긴 문장용 예비</td></tr>
+  </table>
+  <div class="callout"><span class="emoji">💡</span>
+    <b>왜 우리 예제엔 쓸데없이 느린 파도까지 있나요?</b> 공식이 <span class="inline">d_model</span>만 보고
+    주파수를 자동으로 펼치기 때문입니다. 문장 길이에 맞춰 손으로 고르지 않아도
+    <b class="hlt">짧은 문장은 앞칸이, 긴 문장은 뒤칸이</b> 알아서 일하게 되는 것이 이 설계의 장점입니다.</div>
 </section>
 
 <!-- 5 -->
@@ -238,46 +311,69 @@
   각 색이 하나의 차원입니다. <b class="hlt">왼쪽 차원(dim0)일수록 빠르게, 오른쪽으로 갈수록 느리게</b> 출렁이죠 — 이진수 비트의 깜빡임 속도와 똑같습니다.</p>
   <div class="card">
     <div class="controls">
-      <label>보여줄 차원 개수 : <b id="wvN" style="color:var(--accent)">4</b></label>
+      <label>보여줄 차원 개수 : <b id="wvN" style="color:var(--accent)">4</b> <span class="muted">(전체 64칸 중)</span></label>
       <input type="range" id="wvNr" min="2" max="8" step="1" value="4">
     </div>
     <canvas id="waves" width="880" height="300"></canvas>
-    <div class="legend"><span>가로축 = 위치(pos) →</span><span>·</span><span>세로축 = 값(-1 ~ +1)</span></div>
+    <div class="legend"><span>가로축 = 위치(pos) 0~21 →</span><span>·</span><span>세로축 = 값(-1 ~ +1)</span>
+      <span style="margin-left:auto">회색 구간 = 우리 질문이 실제로 쓰는 0~4</span></div>
   </div>
   <div class="callout"><span class="emoji">🌊</span>
     이 곡선들을 세로로 세워서 색으로 칠하면 → 바로 아래 <b>히트맵</b>이 됩니다.
     (한 위치에서 모든 파도 값을 뽑은 게 4번 섹션의 "막대", 그걸 위→아래로 쌓은 게 히트맵)</div>
 
-  <h3>이제: 전체를 한 장으로 (히트맵)</h3>
-  <p>모든 위치(세로)와 모든 차원(가로)의 값을 한 장에 그리면 이렇게 됩니다.
-  <b>"부드러운 이진 계수기를 위에서 내려다본 사진"</b>이라고 보면 돼요.</p>
+  <h3>이제: 우리 위치 표 전체를 한 장으로 (히트맵)</h3>
+  <p>아래 그림이 바로 <b class="hlt">우리 모델이 실제로 들고 있는 위치 표 <span class="inline">(1, 22, 64)</span></b>입니다.
+  세로 22줄 = 위치, 가로 64칸 = 차원. <b>"부드러운 이진 계수기를 위에서 내려다본 사진"</b>이라고 보면 돼요.</p>
   <div class="card">
     <div class="controls">
-      <label style="display:block;margin-bottom:6px">아래 슬라이더로 노란 줄(현재 위치)을 움직여 보세요.</label>
-      <input type="range" id="hlR" min="0" max="39" step="1" value="5">
+      <label style="display:block;margin-bottom:6px">아래 슬라이더로 노란 줄(현재 위치)을 움직여 보세요 — 0~4에는 우리 질문 단어가 표시됩니다.</label>
+      <input type="range" id="hlR" min="0" max="21" step="1" value="1">
     </div>
     <canvas id="heat" width="880" height="420"></canvas>
     <div class="legend">
       <span>낮음(-1)</span><span class="barleg"></span><span>높음(+1)</span>
-      <span style="margin-left:auto">가로 → 차원(dim) · 세로 ↓ 위치(pos)</span>
+      <span style="margin-left:auto">가로 → 차원(dim) 0~63 · 세로 ↓ 위치(pos) 0~21</span>
     </div>
   </div>
-  <div class="callout good"><span class="emoji">👀</span>
-    <b>왼쪽 차원</b>은 세로 줄무늬가 <b>촘촘</b>(빨리 깜빡 = 빠른 비트),
-    <b>오른쪽 차원</b>은 <b>넓고 완만</b>(천천히 = 느린 비트). 그리고 <b>모든 가로줄(위치)의 무늬가 다 다릅니다.</b>
-    딱 이진수 계수기 그대로죠!</div>
+  <div class="callout good"><span class="emoji">👀</span>세 가지를 확인하세요.<br>
+    <b>①</b> <b>왼쪽(dim0~15)</b>은 아래로 내려갈 때 색이 <b>정신없이 바뀝니다</b> — 빠른 파도(= 빠른 비트).<br>
+    <b>②</b> <b>오른쪽(dim32~63)</b>은 아래로 내려가도 <b>색이 그대로 이어집니다</b> —
+    위치가 바뀌어도 값이 안 변한다는 뜻이고, 앞서 표에서 본 <b>dim62 ≈ 0.0000</b>이 그림으로는 이렇게 보입니다.<br>
+    <b>③</b> 그래도 <b>22개 가로줄의 무늬는 전부 다릅니다.</b> 왼쪽 칸들만으로 이미 구별이 되니까요.</div>
+  <div class="callout"><span class="emoji">🦓</span>
+    <b>오른쪽에 세로 줄무늬가 번갈아 보이는 건 왜인가요?</b> 색이 이상한 게 아니라
+    <b>짝수칸 = sin, 홀수칸 = cos</b>이 번갈아 놓여 있기 때문입니다.
+    느린 파도 구간에서는 <span class="inline">sin(≈0) = 0</span>(중간색),
+    <span class="inline">cos(≈0) = 1</span>(밝은색)이 되어 <b class="hlt">한 칸씩 교대하는 세로 띠</b>가 생깁니다.</div>
+  <div class="callout warn"><span class="emoji">✂️</span>
+    <b>그런데 학습 때 실제로 쓰이는 건 위 5줄뿐입니다.</b> 질문이 5단어(<span class="inline">src_ids = (6, 5)</span>),
+    디코더 입력도 5칸이라 코드가 <span class="inline">pe[:, :5]</span>만 잘라 씁니다.
+    나머지 17줄은 <b>더 긴 문장이 들어올 때를 위한 예비</b>입니다.</div>
 </section>
 
 <!-- 6 -->
 <section id="p6">
-  <h2><span class="num">6</span> 코드는 이 3줄이 전부</h2>
-  <p>노트북 <span class="inline">example-detailed.ipynb</span>에서 실제로 표를 채우는 부분입니다.</p>
-<pre><code><span class="cmt"># 차원마다 다른 "깜빡임 속도" (오른쪽 dim일수록 느리게)</span>
-div = torch.<span class="fn">exp</span>(torch.<span class="fn">arange</span>(<span class="num2">0</span>, d_model, <span class="num2">2</span>).<span class="fn">float</span>() * (-math.<span class="fn">log</span>(<span class="num2">10000.0</span>) / d_model))
+  <h2><span class="num">6</span> 코드에 우리 값을 대입해 보기</h2>
+  <p>노트북 <span class="inline">example-explain.ipynb</span> 3단계에서 실제로 표를 채우는 부분입니다.
+  오른쪽 주석에 <b class="hlt">우리 예제 값(d_model=64, max_len=22)</b>을 대입해 뒀습니다.</p>
+<pre><code><span class="cmt"># 빈 표 만들기 — 우리 예제에선 (22, 64)</span>
+pe  = torch.<span class="fn">zeros</span>(max_len, d_model)                       <span class="cmt"># (22, 64)</span>
+pos = torch.<span class="fn">arange</span>(<span class="num2">0</span>, max_len).<span class="fn">float</span>().<span class="fn">unsqueeze</span>(<span class="num2">1</span>)         <span class="cmt"># (22, 1) ← 0,1,2,…,21</span>
 
-<span class="cmt"># 짝수 칸엔 sin 파도, 홀수 칸엔 cos 파도를 채운다</span>
-pe[:, <span class="num2">0</span>::<span class="num2">2</span>] = torch.<span class="fn">sin</span>(pos * div)
-pe[:, <span class="num2">1</span>::<span class="num2">2</span>] = torch.<span class="fn">cos</span>(pos * div)</code></pre>
+<span class="cmt"># 차원마다 다른 "깜빡임 속도" (오른쪽 dim일수록 느리게)</span>
+div = torch.<span class="fn">exp</span>(torch.<span class="fn">arange</span>(<span class="num2">0</span>, d_model, <span class="num2">2</span>).<span class="fn">float</span>() * (-math.<span class="fn">log</span>(<span class="num2">10000.0</span>) / d_model))
+<span class="cmt">#                    ↑ arange(0, 64, 2) = [0,2,4,…,62] → 주파수 32개, div shape (32,)</span>
+
+<span class="cmt"># 짝수 칸엔 sin 파도, 홀수 칸엔 cos 파도를 채운다 (32칸 + 32칸 = 64칸)</span>
+pe[:, <span class="num2">0</span>::<span class="num2">2</span>] = torch.<span class="fn">sin</span>(pos * div)                    <span class="cmt"># dim 0,2,4,…,62</span>
+pe[:, <span class="num2">1</span>::<span class="num2">2</span>] = torch.<span class="fn">cos</span>(pos * div)                    <span class="cmt"># dim 1,3,5,…,63</span>
+
+self.<span class="fn">register_buffer</span>(<span class="str">"pe"</span>, pe.<span class="fn">unsqueeze</span>(<span class="num2">0</span>))              <span class="cmt"># (1, 22, 64) 완성</span></code></pre>
+  <div class="callout"><span class="emoji">🔢</span><b>이 값들은 어디서 왔나요?</b> 노트북의 다른 셀에서 정해집니다.<br>
+  <span class="inline">d_model=64</span> → 9번 부품 <span class="inline">Transformer(..., d_model=64, num_heads=4, ...)</span> 기본값<br>
+  <span class="inline">max_len=22</span> → 4단계 <span class="inline">max_len = max(src_ids.size(1), tgt_ids.size(1), 20) + 2</span>
+  = <span class="inline">max(5, 6, 20) + 2</span></div>
   <h3>잠깐 — 코드에 나오는 <span class="inline">dropout</span>이 뭐죠?</h3>
   <p>다음 코드에 <span class="inline">self.dropout(...)</span>이 나오는데, 위치 인코딩과는 별개인 <b class="hlt">"공부 습관 교정 장치"</b>입니다.
   딱 한 문장으로 먼저 잡고 갑시다.</p>
@@ -315,11 +411,24 @@ pe[:, <span class="num2">1</span>::<span class="num2">2</span>] = torch.<span cl
   원논문(Attention Is All You Need)도 바로 이 자리에 드롭아웃을 둡니다.</div>
 
   <p>그리고 실제로 쓸 때는 <b class="hlt">단어 벡터에 그냥 더합니다.</b></p>
-<pre><code><span class="kw">def</span> <span class="fn">forward</span>(self, x):
+<pre><code><span class="kw">def</span> <span class="fn">forward</span>(self, x):                    <span class="cmt"># 우리 예제 x = (6, 5, 64)</span>
     <span class="kw">return</span> self.<span class="fn">dropout</span>(x + self.pe[:, :x.<span class="fn">size</span>(<span class="num2">1</span>)])
-    <span class="cmt">#              ↑ 단어 의미(x) + 위치 무늬(pe) = "세 번째 단어인 '개'"</span></code></pre>
-  <div class="callout"><span class="emoji">➕</span><b>왜 더하기?</b> 이어붙이면(concat) 벡터가 길어져 계산이 늘어요.
-  그냥 더하면 같은 크기 안에서 "의미 + 위치"가 섞이고, 나머지는 모델이 알아서 분리해 씁니다.</div>
+    <span class="cmt">#                        ↑ x.size(1)=5 이므로 22줄 중 앞 5줄만 사용</span>
+    <span class="cmt">#              ↑ 단어 의미(x) + 위치 무늬(pe) = "2번째 자리에 있는 '먹구름이'"</span></code></pre>
+  <p>우리 예제 질문 한 배치가 이 부품을 통과하는 전 과정입니다.</p>
+  <table>
+    <tr><th>단계</th><th>shape</th><th>설명</th></tr>
+    <tr><td><span class="inline">src_ids</span></td><td>(6, 5)</td><td>질문 6개 × 5단어의 단어 번호</td></tr>
+    <tr><td><span class="inline">emb(src)</span></td><td>(6, 5, <b>64</b>)</td><td>번호 → 64칸 벡터</td></tr>
+    <tr><td><span class="inline">× √64 = ×8</span></td><td>(6, 5, 64)</td><td>위치 무늬(진폭 ~1)에 묻히지 않게 의미 신호를 키움</td></tr>
+    <tr><td><span class="inline">+ pe[:, :5]</span></td><td>(6, 5, 64)</td><td><b>위치 정보 주입</b> — (1, 5, 64)이 배치 6개에 브로드캐스팅</td></tr>
+    <tr><td><span class="inline">dropout</span></td><td>(6, 5, 64)</td><td>학습 중에만 10% 끄기</td></tr>
+  </table>
+  <div class="callout"><span class="emoji">➕</span><b>왜 더하기?</b> 이어붙이면(concat) 벡터가 128칸으로 늘어 계산이 두 배가 돼요.
+  그냥 더하면 <b>64칸 그대로</b> "의미 + 위치"가 섞이고, 나머지는 모델이 알아서 분리해 씁니다.</div>
+  <div class="callout good"><span class="emoji">🎯</span><b>여기까지가 우리 예제에서 위치 인코딩이 하는 일 전부입니다.</b>
+  덕분에 어텐션은 <b>"먹구름이는 2번째 자리 단어"</b>라는 것을 알게 되고,
+  6개 질문에서 <b class="hlt">2번째 자리만 다르다</b>는 규칙을 찾아낼 수 있습니다.</div>
 </section>
 
 <!-- 7 -->
@@ -339,11 +448,25 @@ pe[:, <span class="num2">1</span>::<span class="num2">2</span>] = torch.<span cl
     <div class="card tight"><b>🎯 성질</b><br><span class="muted">값 작음 + 위치마다 유일한 무늬</span></div>
     <div class="card tight"><b>➕ 사용</b><br><span class="muted">단어 벡터에 그냥 더하기</span></div>
   </div>
+
+  <h3>우리 예제 숫자로 다시 한 번</h3>
+  <table>
+    <tr><th>질문</th><th>답</th></tr>
+    <tr><td>위치 표 크기는?</td><td><b>(1, 22, 64)</b> — 22줄(max_len) × 64칸(d_model)</td></tr>
+    <tr><td>64칸은 어떻게 채우나?</td><td>주파수 <b>32개</b> × (sin, cos) = 64</td></tr>
+    <tr><td>파도 속도 범위는?</td><td>파장 <b>6.3</b>(dim0) ~ <b>47,117</b>(dim62)</td></tr>
+    <tr><td>학습 때 실제로 쓰는 줄은?</td><td>질문·답 모두 5칸이라 <b>앞 5줄</b>(<span class="inline">pe[:, :5]</span>)</td></tr>
+    <tr><td>왜 필요했나?</td><td>6개 질문이 <b>2번째 자리 단어만 다르므로</b> "몇 번째"가 결정적</td></tr>
+  </table>
+  <div class="callout"><span class="emoji">🧪</span><b>직접 확인해 보세요.</b> 노트북에서
+  <span class="inline">Transformer(..., d_model=32)</span>로 바꾸면 주파수가 16개로 줄고,
+  위치 표는 <span class="inline">(1, 22, 32)</span>가 됩니다. 학습이 여전히 되는지 비교해 보면 감이 빨리 옵니다.</div>
 </section>
 
 <footer>
   <p>Mini-Transformer 실습 교재 · 위치 인코딩 쉬운 설명판<br>
-  코드 출처: <span class="inline">example-detailed.ipynb</span> — 부품 ① 위치 인코딩</p>
+  코드 출처: <span class="inline">hands-on/example-explain.ipynb</span> — 3단계 부품 ① 위치 인코딩<br>
+  이 문서의 모든 수치(d_model=64, max_len=22, pe 값, 파장)는 해당 노트북을 실행해 확인한 값입니다.</p>
 </footer>
 
 </div>
@@ -358,15 +481,29 @@ function viridis(t){t=Math.max(0,Math.min(1,t));const x=t*(VIRIDIS.length-1);
 
 const WCOL=['#38bdf8','#818cf8','#34d399','#fbbf24','#f472b6','#f87171','#a78bfa','#22d3ee'];
 
+/* ---------- 우리 예제(example-explain.ipynb)의 실제 설정 ---------- */
+const DMODEL = 64;    // Transformer(d_model=64)
+const MAXLEN = 22;    // max(src=5, tgt=6, 20) + 2
+const TOKENS = ['하늘에','먹구름이','보이면','뭐가','생각나'];   // 첫 질문의 5개 토큰
+const SRCLEN = TOKENS.length;                                  // 실제 사용되는 위치 수 = 5
+// 위치 p에 해당하는 우리 예제 단어 이름(범위를 넘으면 '예비 자리')
+function tokLabel(p){
+  return p < SRCLEN ? TOKENS[p] + (p===1 ? ' (정답 단서 자리)' : '')
+                    : '(우리 질문에는 없는 예비 자리)';
+}
+
 /* ---------- 5-1. sin·cos 파도 그래프 ---------- */
 const wv=document.getElementById('waves');const wctx=wv.getContext('2d');
 const wvNr=document.getElementById('wvNr'),wvN=document.getElementById('wvN');
 function drawWaves(){
   const n=+wvNr.value; wvN.textContent=n;
-  const d=32, maxPos=40;
+  const d=DMODEL, maxPos=MAXLEN;          // 우리 예제: d_model=64, 위치 0~21
   const W=wv.width,H=wv.height,padL=42,padR=12,padT=28,padB=26;
   const gw=W-padL-padR,gh=H-padT-padB;
   wctx.clearRect(0,0,W,H);
+  // 우리 질문이 실제로 쓰는 구간(0~4)을 회색으로 표시
+  wctx.fillStyle='rgba(148,163,184,.14)';
+  wctx.fillRect(padL,padT,gw*(SRCLEN-1)/maxPos,gh);
   // 0선
   wctx.strokeStyle='#334155';wctx.lineWidth=1;
   wctx.beginPath();wctx.moveTo(padL,padT+gh/2);wctx.lineTo(W-padR,padT+gh/2);wctx.stroke();
@@ -400,11 +537,13 @@ wvNr.oninput=drawWaves; drawWaves();
 const binR=document.getElementById('binR');
 const bitsEl=document.getElementById('bits');
 const posLabel=document.getElementById('posLabel');
+const posTok=document.getElementById('posTok');
 function drawBits(){
   const v=+binR.value; posLabel.textContent=v;
-  const nbits=4; let html='';
+  posTok.textContent='↑ '+tokLabel(v);
+  const nbits=5; let html='';           // 0~21을 세려면 5비트 필요
   // 비트0(LSB)=제일 빠름 을 왼쪽에 배치
-  const speeds=['제일 빠름','빠름','느림','제일 느림'];
+  const speeds=['제일 빠름','빠름','보통','느림','제일 느림'];
   for(let b=0;b<nbits;b++){
     const on=(v>>b)&1;
     html+=`<div class="bit ${on?'on':''}"><div class="box">${on}</div>
@@ -429,10 +568,12 @@ function peRow(pos,d){
 const peR=document.getElementById('peR');
 const pebars=document.getElementById('pebars');
 const pePos=document.getElementById('pePos');
-const PED=8;
+const peTok=document.getElementById('peTok');
+const PED=8;              // 화면에 보여줄 칸 수(전체 64칸 중 앞 8칸)
 function drawPeBars(){
   const pos=+peR.value; pePos.textContent='position = '+pos;
-  const row=peRow(pos,PED);
+  peTok.textContent='↑ '+tokLabel(pos);
+  const row=peRow(pos,DMODEL);   // 값은 d_model=64 기준 실제 값으로 계산
   let html='';
   for(let i=0;i<PED;i++){
     const v=row[i];               // -1..1
@@ -452,7 +593,7 @@ peR.oninput=drawPeBars; drawPeBars();
 /* ---------- 5. 히트맵 (현재 위치 하이라이트) ---------- */
 const heat=document.getElementById('heat');const hctx=heat.getContext('2d');
 const hlR=document.getElementById('hlR');
-const HD=32, HM=40;
+const HD=DMODEL, HM=MAXLEN;   // 우리 예제 위치 표 그대로: 64칸 × 22줄
 function drawHeat(){
   const hl=+hlR.value;
   const padL=44,padT=10,padB=28,padR=10;
@@ -466,17 +607,31 @@ function drawHeat(){
       hctx.fillRect(padL+i*cw,padT+pos*ch,Math.ceil(cw),Math.ceil(ch));
     }
   }
+  // 학습 때 실제로 쓰이는 앞 5줄(pe[:, :5]) 경계 표시
+  hctx.strokeStyle='#34d399';hctx.lineWidth=2;hctx.setLineDash([6,4]);
+  hctx.strokeRect(padL,padT,gw,SRCLEN*ch);
+  hctx.setLineDash([]);
+  // 라벨은 점선 박스 '아래'에 놓고, 읽히도록 어두운 배경 칩을 깔아 준다
+  hctx.font='11px sans-serif';hctx.textAlign='left';hctx.textBaseline='top';
+  const gl='pe[:, :5] ← 학습에 실제로 쓰이는 5줄', glx=padL+6, gly=padT+SRCLEN*ch+4;
+  const glw=hctx.measureText(gl).width;
+  hctx.fillStyle='rgba(11,18,32,.82)';hctx.fillRect(glx-4,gly-2,glw+8,15);
+  hctx.fillStyle='#34d399';hctx.fillText(gl,glx,gly);
   // highlight current position
   hctx.strokeStyle='#fbbf24';hctx.lineWidth=3;
   hctx.strokeRect(padL,padT+hl*ch,gw,ch);
   // labels
   hctx.fillStyle='#94a3b8';hctx.font='12px sans-serif';
   hctx.textAlign='right';hctx.textBaseline='middle';
-  for(let p=0;p<=HM;p+=5) hctx.fillText(p,padL-6,padT+p*ch);
+  for(let p=0;p<HM;p+=5) hctx.fillText(p,padL-6,padT+(p+0.5)*ch);
   hctx.textAlign='center';hctx.textBaseline='top';
-  for(let i=0;i<=HD;i+=4) hctx.fillText(i,padL+i*cw,H-padB+6);
-  hctx.textAlign='left';hctx.fillStyle='#fbbf24';
-  hctx.fillText('◀ 지금 위치 '+hl,padL+gw-140,padT+hl*ch<H-40?padT+hl*ch-14:padT+hl*ch+14);
+  for(let i=0;i<=HD;i+=8) hctx.fillText(i,padL+i*cw,H-padB+6);
+  // 노란 글씨가 밝은 칸 위에서 안 보이므로 어두운 칩을 깔고 그린다
+  hctx.font='12px sans-serif';hctx.textAlign='right';hctx.textBaseline='middle';
+  const lab=(hl<SRCLEN?TOKENS[hl]+' ':'')+'◀ 위치 '+hl;
+  const lw=hctx.measureText(lab).width, lx=padL+gw-8, ly=padT+(hl+0.5)*ch;
+  hctx.fillStyle='rgba(11,18,32,.85)';hctx.fillRect(lx-lw-6,ly-9,lw+12,18);
+  hctx.fillStyle='#fbbf24';hctx.fillText(lab,lx,ly);
 }
 hlR.oninput=drawHeat; drawHeat();
 </script>
