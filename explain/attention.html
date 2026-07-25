@@ -296,6 +296,38 @@
     <tr><td rowspan="2"><b>출력</b></td><td><span class="inline">context</span></td><td>(B, h, S_q, <b>d_k</b>)</td><td>(1, 4, 6, <b>16</b>) — 섞은 결과</td></tr>
     <tr><td><span class="inline">attn</span></td><td>(B, h, S_q, <b>S_k</b>)</td><td>(1, 4, 6, <b>5</b>) — 주목 비율(히트맵 재료)</td></tr>
   </table>
+
+  <h4>위 표의 기호 풀이 — B · h · S_q · S_k · d_k</h4>
+  <p>shape에 나오는 알파벳은 <b>"이 축의 길이가 무엇으로 정해지는가"</b>를 나타내는 약속된 이름입니다.
+  우리 예제에서 각각 무엇이었는지 확인하세요.</p>
+  <table>
+    <tr><th>기호</th><th>원래 말</th><th>뜻</th><th>우리 예제 값</th><th>어디서 정해지나</th></tr>
+    <tr><td><b>B</b></td><td><b>B</b>atch</td><td>한 번에 처리하는 <b>문장 개수</b></td><td><b>1</b> (추론)<br><span class="muted">학습 때는 6</span></td><td>추론은 질문 1개씩,<br>학습은 <span class="inline">DATA</span> 6쌍을 한 번에</td></tr>
+    <tr><td><b>h</b></td><td><b>h</b>eads</td><td><b>헤드(관점) 개수</b> — 같은 계산을 몇 갈래로 나눠서 할지</td><td><b>4</b></td><td><span class="inline">Transformer(..., num_heads=4)</span></td></tr>
+    <tr><td><b>S_q</b></td><td><b>S</b>equence length of <b>q</b>uery</td><td><b>Query 쪽 길이</b> — 지금 "보려는 쪽"의 토큰 수</td><td><b>6</b></td><td>답 <span class="inline">&lt;sos&gt; 비가 올 것 같아 &lt;eos&gt;</span> = 6칸</td></tr>
+    <tr><td><b>S_k</b></td><td><b>S</b>equence length of <b>k</b>ey</td><td><b>Key·Value 쪽 길이</b> — "보이는 쪽"의 토큰 수</td><td><b>5</b></td><td>질문 <span class="inline">하늘에 먹구름이 보이면 뭐가 생각나</span> = 5단어</td></tr>
+    <tr><td><b>d_k</b></td><td><b>d</b>imension of <b>k</b>ey</td><td><b>벡터 한 개의 칸 수</b> — 단어 하나를 숫자 몇 개로 표현하는지 (헤드 하나 기준)</td><td><b>16</b></td><td><span class="inline">d_model 64 ÷ h 4 = 16</span></td></tr>
+  </table>
+  <div class="callout"><span class="emoji">🔤</span>
+    <b>읽는 요령 두 가지.</b><br>
+    <b>①</b> <b>S</b>는 <b>길이(Sequence length)</b>, 아래 첨자 <b>q/k</b> 는 <b>"어느 쪽 길이인가"</b>를 구분하는 표시입니다.
+    <b class="hlt">S_q ≠ S_k 여도 정상</b>이에요 — 답 6칸이 질문 5단어를 보는 상황이니까요.
+    (반대로 <b>k와 v는 S_k가 반드시 같아야</b> 합니다. 색인과 내용이 같은 책 목록이어야 하니까요.)<br>
+    <b>②</b> <b>d_k</b> 의 <b>k</b>는 Key에서 온 이름이지만, 우리 코드에서는 <b>q·k·v 세 벡터의 칸 수가 모두 16으로 같습니다.</b>
+    그래서 ②의 <span class="inline">q.size(-1)</span> 로 읽어도 문제가 없죠.</div>
+  <div class="callout"><span class="emoji">1️⃣</span>
+    <b>mask의 shape에 있는 <span class="inline">1</span> 은 뭔가요?</b> "이 축은 <b class="hlt">전부 공통</b>"이라는 뜻입니다.
+    <span class="inline">(1, 1, 1, 5)</span> 를 풀어 읽으면 — <b>문장 1개 · 헤드 전부 공통 · Query 행 전부 공통 · Key 5칸</b>.
+    질문의 패딩 자리는 <b>어느 헤드에서 보든, 어느 답 단어가 보든 똑같기</b> 때문에 한 벌만 만들어
+    브로드캐스팅으로 <b>(1,4,6,5)</b> 점수표 전체에 적용합니다.
+    <span class="muted">(코드에서는 <span class="inline">make_padding_mask</span>가
+    <span class="inline">unsqueeze</span>를 두 번 써서 (B,S) → (B,1,1,S)로 만듭니다)</span></div>
+  <div class="callout"><span class="emoji">🧩</span>
+    <b>왜 축 순서가 <span class="inline">(B, h, S, d_k)</span> 인가요?</b> 원래 단어 벡터는 <span class="inline">(B, S, 64)</span> 였는데,
+    멀티헤드가 64를 <b>4×16으로 쪼갠 뒤 헤드축을 앞으로 빼</b> 이 순서로 바꿔서 넘깁니다.
+    이렇게 하면 뒤쪽 두 축 <b class="hlt">(S, d_k)</b> 만 보고 계산하면 되므로,
+    <b>4개 헤드 × 문장들이 자동으로 한꺼번에</b> 처리됩니다.</div>
+
   <div class="callout"><span class="emoji">📐</span>
     <b>shape만 봐도 흐름이 읽힙니다.</b> 들어올 때 <b>d_k(16)</b> 였던 마지막 축이 ③에서 <b>S_k(5)</b> 로 바뀌고(점수표),
     ⑧에서 다시 <b>d_k(16)</b> 로 돌아옵니다. <b class="hlt">"16칸 → 5개 점수 → 다시 16칸"</b> 이 이 함수의 전부예요.</div>
