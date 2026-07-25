@@ -275,6 +275,42 @@ div = torch.<span class="fn">exp</span>(torch.<span class="fn">arange</span>(<sp
 <span class="cmt"># 짝수 칸엔 sin 파도, 홀수 칸엔 cos 파도를 채운다</span>
 pe[:, <span class="num2">0</span>::<span class="num2">2</span>] = torch.<span class="fn">sin</span>(pos * div)
 pe[:, <span class="num2">1</span>::<span class="num2">2</span>] = torch.<span class="fn">cos</span>(pos * div)</code></pre>
+  <h3>잠깐 — 코드에 나오는 <span class="inline">dropout</span>이 뭐죠?</h3>
+  <p>다음 코드에 <span class="inline">self.dropout(...)</span>이 나오는데, 위치 인코딩과는 별개인 <b class="hlt">"공부 습관 교정 장치"</b>입니다.
+  딱 한 문장으로 먼저 잡고 갑시다.</p>
+
+  <div class="big-idea">📖 시험공부할 때 <span>교재의 일부를 매번 다르게 가려버리는 것</span><br>→ 통암기를 못 하니, 어쩔 수 없이 원리를 이해하게 된다</div>
+
+  <p>항상 똑같은 페이지·똑같은 표만 보고 공부하면 <b>내용이 아니라 페이지 배치까지 외워버립니다</b>(=과적합).
+  그런데 매번 다른 곳이 가려지면 특정 단서에 기댈 수 없어 <b class="hlt">여러 근거를 골고루 쓰게</b> 되죠.
+  신경망도 똑같아서, 몇몇 뉴런에만 의존하는 게으른 학습을 막아 줍니다.</p>
+
+  <h3>실제로는 이렇게 계산합니다</h3>
+  <p>숫자 벡터에서 <b>일부를 무작위로 0으로 만들고, 살아남은 값은 조금 키웁니다.</b>
+  (<span class="inline">dropout=0.1</span>이면 10%를 끕니다)</p>
+<pre><code><span class="cmt"># 입력 (값 10개)</span>
+[<span class="num2">1.0</span>, <span class="num2">1.0</span>, <span class="num2">1.0</span>, <span class="num2">1.0</span>, <span class="num2">1.0</span>, <span class="num2">1.0</span>, <span class="num2">1.0</span>, <span class="num2">1.0</span>, <span class="num2">1.0</span>, <span class="num2">1.0</span>]
+
+<span class="cmt"># 출력 — 하나가 0이 되고, 나머지는 1/(1-0.1) ≈ 1.11배로 보정</span>
+[<span class="num2">1.11</span>, <span class="num2">1.11</span>, <span class="str">0.0</span>, <span class="num2">1.11</span>, <span class="num2">1.11</span>, <span class="num2">1.11</span>, <span class="num2">1.11</span>, <span class="num2">1.11</span>, <span class="num2">1.11</span>, <span class="num2">1.11</span>]</code></pre>
+  <div class="callout"><span class="emoji">🤔</span><b>왜 남은 값을 키우나요?</b>
+  10%를 지우면 전체 신호 세기도 10% 줄어들어, 다음 층이 받는 값이 평소보다 약해집니다.
+  <b>1/(1-p)배로 보정</b>해 평균 크기를 원래대로 맞춰 주는 것이죠. 끄는 자리는 <b>매번 새로 무작위 선택</b>됩니다.</div>
+
+  <div class="callout good"><span class="emoji">🔀</span><b>가장 중요한 성질 — 학습할 때만 작동합니다.</b>
+  답을 만들 때도 무작위로 값을 지우면 결과가 매번 달라지니까요.</div>
+  <table>
+    <tr><th>모드</th><th>전환</th><th>드롭아웃 동작</th></tr>
+    <tr><td>학습 (공부 중)</td><td><span class="inline">model.train()</span></td><td>무작위로 일부를 0으로</td></tr>
+    <tr><td>추론 (시험 볼 때)</td><td><span class="inline">model.eval()</span></td><td><b>아무것도 안 함</b> — 그대로 통과</td></tr>
+  </table>
+  <p class="muted">이 자동 전환을 대신 해 주는 것이 <span class="inline">nn.Dropout</span>을 쓰는 이유입니다. 직접 만들면 이 스위치를 손으로 챙겨야 합니다.</p>
+
+  <div class="callout"><span class="emoji">📍</span><b>왜 하필 위치 인코딩 뒤에 붙였나요?</b>
+  <span class="inline">pe</span>는 sin·cos로 만든 <b>고정된 상수 무늬</b>라 모든 문장에 똑같이 더해집니다.
+  그대로 두면 모델이 이 규칙적인 무늬를 지나치게 믿게 되니, 일부를 지워 <b class="hlt">위치 단서 하나에만 매달리지 않게</b> 합니다.
+  원논문(Attention Is All You Need)도 바로 이 자리에 드롭아웃을 둡니다.</div>
+
   <p>그리고 실제로 쓸 때는 <b class="hlt">단어 벡터에 그냥 더합니다.</b></p>
 <pre><code><span class="kw">def</span> <span class="fn">forward</span>(self, x):
     <span class="kw">return</span> self.<span class="fn">dropout</span>(x + self.pe[:, :x.<span class="fn">size</span>(<span class="num2">1</span>)])
