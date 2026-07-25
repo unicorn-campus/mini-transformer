@@ -33,6 +33,7 @@
   h2 .num{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:12px;
     background:linear-gradient(135deg,var(--brand),var(--brand2));color:#06121f;font-size:18px;font-weight:900;flex:0 0 auto}
   h3{font-size:19px;margin:26px 0 6px}
+  h4{font-size:17px;margin:22px 0 4px;color:#fff;font-weight:700}
   p{margin:.6em 0}
   .muted{color:var(--sub)}
   b.hlt{color:#fff}
@@ -267,23 +268,206 @@
 <!-- 7 -->
 <section id="p7">
   <h2><span class="num">7</span> 코드는 이 다섯 줄이 전부</h2>
-  <p>노트북 <span class="inline">example-detailed.ipynb</span> 의 <span class="inline">scaled_dot_product_attention</span> 함수입니다.
+  <p>노트북 <span class="inline">example-explain.ipynb</span> 3단계 <b>부품 ②</b>의 <span class="inline">scaled_dot_product_attention</span> 함수입니다.
   지금까지 본 4단계가 그대로 한 줄씩 들어 있어요.</p>
-<pre><code><span class="kw">def</span> <span class="fn">scaled_dot_product_attention</span>(q, k, v, mask=<span class="kw">None</span>, dropout=<span class="kw">None</span>):
-    d_k = q.<span class="fn">size</span>(-<span class="num2">1</span>)                                        <span class="cmt"># 벡터 차원 dₖ</span>
-    scores = torch.<span class="fn">matmul</span>(q, k.<span class="fn">transpose</span>(-<span class="num2">2</span>,-<span class="num2">1</span>)) / math.<span class="fn">sqrt</span>(d_k)  <span class="cmt"># ①②: QKᵀ ÷ √dₖ</span>
-    <span class="kw">if</span> mask <span class="kw">is not</span> <span class="kw">None</span>:
-        scores = scores.<span class="fn">masked_fill</span>(mask==<span class="num2">0</span>, <span class="fn">float</span>(<span class="str">"-inf"</span>))     <span class="cmt"># 가릴 곳은 -무한대</span>
-    attn = torch.<span class="fn">softmax</span>(scores, dim=-<span class="num2">1</span>)                   <span class="cmt"># ③: 비율(%)로</span>
-    <span class="kw">if</span> dropout <span class="kw">is not</span> <span class="kw">None</span>: attn = <span class="fn">dropout</span>(attn)
-    context = torch.<span class="fn">matmul</span>(attn, v)                       <span class="cmt"># ④: 비율대로 V 섞기</span>
-    <span class="kw">return</span> context, attn</code></pre>
+<pre><code><span class="cmt">①</span> <span class="kw">def</span> <span class="fn">scaled_dot_product_attention</span>(q, k, v, mask=<span class="kw">None</span>, dropout=<span class="kw">None</span>):
+<span class="cmt">②</span>     d_k = q.<span class="fn">size</span>(-<span class="num2">1</span>)
+<span class="cmt">③</span>     scores = torch.<span class="fn">matmul</span>(q, k.<span class="fn">transpose</span>(-<span class="num2">2</span>,-<span class="num2">1</span>)) / math.<span class="fn">sqrt</span>(d_k)
+<span class="cmt">④</span>     <span class="kw">if</span> mask <span class="kw">is not</span> <span class="kw">None</span>:
+<span class="cmt">⑤</span>         scores = scores.<span class="fn">masked_fill</span>(mask==<span class="num2">0</span>, <span class="fn">float</span>(<span class="str">"-inf"</span>))
+<span class="cmt">⑥</span>     attn = torch.<span class="fn">softmax</span>(scores, dim=-<span class="num2">1</span>)
+<span class="cmt">⑦</span>     <span class="kw">if</span> dropout <span class="kw">is not</span> <span class="kw">None</span>: attn = <span class="fn">dropout</span>(attn)
+<span class="cmt">⑧</span>     context = torch.<span class="fn">matmul</span>(attn, v)
+<span class="cmt">⑨</span>     <span class="kw">return</span> context, attn</code></pre>
+
+  <h3>이 함수 자체의 기능 — 한 문장으로</h3>
+  <div class="big-idea">Q·K·V 세 묶음을 받아 → <span>"누구를 몇 % 볼지"(attn)</span> 를 정하고<br>→ 그 비율로 V를 섞은 <span>결과(context)</span> 를 돌려주는 함수</div>
+  <p>중요한 성질이 있습니다. 이 함수 안에는 <b class="hlt">학습되는 값(가중치)이 하나도 없습니다.</b>
+  <span class="inline">nn.Module</span>이 아니라 그냥 <span class="inline">def</span> 함수인 이유죠 —
+  넘겨받은 세 텐서로 <b>정해진 계산만 수행하는 계산기</b>입니다.
+  Q·K·V를 만드는 학습 가능한 부분은 이 함수를 <b>호출하는 쪽</b>(멀티헤드 어텐션의 <span class="inline">wq·wk·wv</span>)에 있습니다.</p>
   <table>
-    <tr><th>코드</th><th>단계</th><th>쉬운 말</th></tr>
-    <tr><td><span class="inline">matmul(q, kᵀ)</span></td><td>①</td><td>검색어 Q와 색인 K의 유사도 점수</td></tr>
-    <tr><td><span class="inline">/ sqrt(d_k)</span></td><td>②</td><td>점수가 너무 커지지 않게 눌러줌 (Scaled)</td></tr>
-    <tr><td><span class="inline">softmax(...)</span></td><td>③</td><td>점수를 합 100%의 비율로 변환</td></tr>
-    <tr><td><span class="inline">matmul(attn, v)</span></td><td>④</td><td>비율대로 내용 V를 섞어 결과 만들기</td></tr>
+    <tr><th>구분</th><th>이름</th><th>shape 규칙</th><th>우리 예제 값</th></tr>
+    <tr><td rowspan="5"><b>입력</b></td><td><span class="inline">q</span> (Query·검색어)</td><td>(B, h, <b>S_q</b>, d_k)</td><td>(1, 4, <b>6</b>, 16) — 답 6칸</td></tr>
+    <tr><td><span class="inline">k</span> (Key·색인)</td><td>(B, h, <b>S_k</b>, d_k)</td><td>(1, 4, <b>5</b>, 16) — 질문 5단어</td></tr>
+    <tr><td><span class="inline">v</span> (Value·내용)</td><td>(B, h, <b>S_k</b>, d_k)</td><td>(1, 4, <b>5</b>, 16) — k와 길이 같아야 함</td></tr>
+    <tr><td><span class="inline">mask</span> (선택)</td><td>(B, 1, S_q 또는 1, S_k)</td><td>(1, 1, 1, 5) — 질문 패딩 가림용</td></tr>
+    <tr><td><span class="inline">dropout</span> (선택)</td><td>—</td><td>학습 중에만 전달됨</td></tr>
+    <tr><td rowspan="2"><b>출력</b></td><td><span class="inline">context</span></td><td>(B, h, S_q, <b>d_k</b>)</td><td>(1, 4, 6, <b>16</b>) — 섞은 결과</td></tr>
+    <tr><td><span class="inline">attn</span></td><td>(B, h, S_q, <b>S_k</b>)</td><td>(1, 4, 6, <b>5</b>) — 주목 비율(히트맵 재료)</td></tr>
+  </table>
+  <div class="callout"><span class="emoji">📐</span>
+    <b>shape만 봐도 흐름이 읽힙니다.</b> 들어올 때 <b>d_k(16)</b> 였던 마지막 축이 ③에서 <b>S_k(5)</b> 로 바뀌고(점수표),
+    ⑧에서 다시 <b>d_k(16)</b> 로 돌아옵니다. <b class="hlt">"16칸 → 5개 점수 → 다시 16칸"</b> 이 이 함수의 전부예요.</div>
+
+  <h3>전체 흐름 한눈에</h3>
+  <table>
+    <tr><th>#</th><th>하는 일</th><th>우리 예제에서의 결과</th></tr>
+    <tr><td>①</td><td>Q·K·V(+마스크·드롭아웃)를 받는 <b>일반 함수</b></td><td>학습 파라미터 <b>0개</b></td></tr>
+    <tr><td>②</td><td>벡터 한 개의 칸 수 <b>d_k</b>를 읽음</td><td><b>16</b> (= d_model 64 ÷ 헤드 4)</td></tr>
+    <tr><td>③</td><td><b>QKᵀ ÷ √d_k</b> — 관련도 점수표 만들기</td><td>(1,4,6,5) — 답 6칸 × 질문 5단어</td></tr>
+    <tr><td>④⑤</td><td>가릴 자리를 <b>−무한대</b>로 (마스크가 있을 때만)</td><td>패딩·미래 단어 차단</td></tr>
+    <tr><td>⑥</td><td><b>softmax</b> — 점수를 합 100% 비율로</td><td>각 행의 합이 정확히 <b>1.0</b></td></tr>
+    <tr><td>⑦</td><td>비율 일부를 무작위로 0 (학습 중만)</td><td>추론 때는 통과</td></tr>
+    <tr><td>⑧</td><td>비율대로 <b>V를 가중합</b></td><td>(1,4,6,5)·(1,4,5,16) → (1,4,6,<b>16</b>)</td></tr>
+    <tr><td>⑨</td><td>결과와 <b>비율표를 함께</b> 반환</td><td>attn은 히트맵 그리는 데 쓰임</td></tr>
+  </table>
+
+  <h3>🔍 우리 예제로 한 줄씩 — "비가"가 질문을 보는 순간</h3>
+  <p>6번 섹션에서 눌러 본 그 계산을, 이번엔 <b>함수 내부의 실제 숫자</b>로 따라갑니다. 상황은 이렇습니다.</p>
+  <table>
+    <tr><th>항목</th><th>값</th></tr>
+    <tr><td>어떤 호출?</td><td><b>마지막 디코더 층의 크로스 어텐션</b> (답 → 질문)</td></tr>
+    <tr><td>Query</td><td>답 단어 <b class="hlt">"비가"</b> (6칸 중 2번째 행)</td></tr>
+    <tr><td>Key·Value</td><td>질문 5단어 <span class="inline">하늘에 · 먹구름이 · 보이면 · 뭐가 · 생각나</span></td></tr>
+    <tr><td>몇 번째 헤드?</td><td>헤드 4개 중 <b>0번</b> 하나만 (나머지는 맨 아래에서 비교)</td></tr>
+  </table>
+
+  <h4>② <span class="inline">d_k = q.size(-1)</span> — 벡터 칸 수 읽기</h4>
+<pre><code><span class="cmt">②</span> d_k = q.<span class="fn">size</span>(-<span class="num2">1</span>)     <span class="cmt"># q = (1, 4, 6, 16) → d_k = 16 → √16 = 4</span></code></pre>
+  <table>
+    <tr><th>함수</th><th>기능</th><th>우리 예제에서</th></tr>
+    <tr><td><span class="inline">.size(-1)</span></td><td>텐서의 <b>맨 마지막 축</b> 크기를 읽음 (−1 = 뒤에서 첫 번째)</td><td>(1,4,6,<b>16</b>) → <b>16</b></td></tr>
+  </table>
+  <p class="muted">왜 64가 아니고 16일까요? 멀티헤드가 <span class="inline">d_model=64</span>를 <b>헤드 4개로 쪼개</b> 넘기기 때문입니다(64÷4=16).
+  그래서 이 함수가 보는 세계는 항상 <b>헤드 하나 기준</b>이에요. 나눗값도 <span class="inline">√64=8</span>이 아니라 <b class="hlt">√16=4</b>가 됩니다.</p>
+
+  <h4>③ <span class="inline">scores = matmul(q, kᵀ) / sqrt(d_k)</span> — 점수표 만들기</h4>
+<pre><code><span class="cmt">③</span> scores = torch.<span class="fn">matmul</span>(q, k.<span class="fn">transpose</span>(-<span class="num2">2</span>,-<span class="num2">1</span>)) / math.<span class="fn">sqrt</span>(d_k)
+   <span class="cmt">#        (1,4,6,16) × (1,4,16,5) = (1,4,6,5)          ↑ ÷ 4</span></code></pre>
+  <table>
+    <tr><th>함수</th><th>기능</th><th>우리 예제에서의 결과</th></tr>
+    <tr><td><span class="inline">k.transpose(-2,-1)</span></td><td>마지막 두 축을 <b>맞바꿈</b> — 곱셈이 되도록 K를 <b>세워 놓기</b></td><td>(1,4,<b>5,16</b>) → (1,4,<b>16,5</b>)</td></tr>
+    <tr><td><span class="inline">torch.matmul(a, b)</span></td><td>행렬곱. <b>16칸끼리 곱해 더함</b>(=내적) → 유사도 점수</td><td>(1,4,6,16)×(1,4,16,5) = <b>(1,4,6,5)</b></td></tr>
+    <tr><td><span class="inline">math.sqrt(d_k)</span></td><td>√d_k — 점수가 커지는 것을 <b>눌러 주는 나눗값</b></td><td><span class="inline">sqrt(16)</span> = <b>4.0</b></td></tr>
+  </table>
+  <p>"비가" 행(row) 하나만 뽑으면 <b>질문 5단어에 대한 점수 5개</b>가 나옵니다.</p>
+  <table>
+    <tr><th>단계</th><th>하늘에</th><th>먹구름이</th><th>보이면</th><th>뭐가</th><th>생각나</th></tr>
+    <tr><td>QKᵀ (나누기 전)</td><td>−9.978</td><td><b>+6.656</b></td><td>−8.746</td><td>−9.456</td><td>−9.143</td></tr>
+    <tr><td>÷ √16 = ÷4</td><td>−2.494</td><td><b>+1.664</b></td><td>−2.186</td><td>−2.364</td><td>−2.286</td></tr>
+  </table>
+  <div class="callout good"><span class="emoji">🎯</span>
+    <b>"먹구름이" 하나만 양수(+6.656)이고 나머지는 모두 −9 근처</b>입니다.
+    학습이 끝난 모델이 <b class="hlt">"비가를 만들 땐 먹구름이를 봐라"</b>를 이미 알고 있다는 뜻이죠.
+    나누기는 <b>순위를 바꾸지 않습니다</b> — 다섯 개 모두 똑같이 4로 나뉘니 <b>등수는 그대로, 간격만 좁아집니다.</b></div>
+
+  <h4>④⑤ <span class="inline">masked_fill(mask==0, -inf)</span> — "여기는 보지 마"</h4>
+<pre><code><span class="cmt">④</span> <span class="kw">if</span> mask <span class="kw">is not</span> <span class="kw">None</span>:
+<span class="cmt">⑤</span>     scores = scores.<span class="fn">masked_fill</span>(mask==<span class="num2">0</span>, <span class="fn">float</span>(<span class="str">"-inf"</span>))</code></pre>
+  <table>
+    <tr><th>함수·문법</th><th>기능</th><th>우리 예제에서</th></tr>
+    <tr><td><span class="inline">mask == 0</span></td><td><b>False인 자리</b>를 골라내는 조건 (False == 0)</td><td>"가려야 할 자리"만 True가 됨</td></tr>
+    <tr><td><span class="inline">masked_fill(조건, 값)</span></td><td>조건이 True인 칸만 <b>그 값으로 덮어씀</b></td><td>점수를 <b>−inf</b>로 교체</td></tr>
+    <tr><td><span class="inline">float("-inf")</span></td><td><b>−무한대</b>. softmax에서 <span class="inline">exp(−inf)=0</span></td><td>비율이 <b>정확히 0%</b>가 됨</td></tr>
+  </table>
+  <p><b>지금 이 크로스 어텐션 호출에서는 실제로 아무 일도 일어나지 않습니다.</b>
+  질문 6개가 모두 정확히 5단어라 <b class="hlt">패딩이 없어서</b> 마스크가 전부 True이기 때문입니다.</p>
+<pre><code>mask[<span class="num2">0</span>,<span class="num2">0</span>,<span class="num2">0</span>] = [<span class="kw">True</span>, <span class="kw">True</span>, <span class="kw">True</span>, <span class="kw">True</span>, <span class="kw">True</span>]   <span class="cmt"># 가릴 곳이 하나도 없음 → 점수 그대로 통과</span></code></pre>
+  <p>그래서 <b>−inf가 실제로 작동하는 장면</b>은 같은 함수의 <b>다른 호출</b>에서 볼 수 있습니다 —
+  디코더의 <b>마스크드 셀프 어텐션</b>(답이 답을 보는 부분)입니다.
+  아래는 답 <b>"올"</b>(3번째 자리)이 답 단어들을 볼 때의 실제 값입니다.</p>
+  <table>
+    <tr><th>단계</th><th>&lt;sos&gt;</th><th>비가</th><th>올</th><th>것</th><th>같아</th><th>&lt;eos&gt;</th></tr>
+    <tr><td>mask</td><td>True</td><td>True</td><td>True</td><td><b>False</b></td><td><b>False</b></td><td><b>False</b></td></tr>
+    <tr><td>⑤ 전 (scores)</td><td>−2.147</td><td>+0.868</td><td>+1.658</td><td>+0.837</td><td>+1.250</td><td>+1.695</td></tr>
+    <tr><td>⑤ 후</td><td>−2.147</td><td>+0.868</td><td>+1.658</td><td><b>−inf</b></td><td><b>−inf</b></td><td><b>−inf</b></td></tr>
+    <tr><td>⑥ softmax 결과</td><td>1.51%</td><td>30.74%</td><td><b>67.75%</b></td><td><b>0.00%</b></td><td><b>0.00%</b></td><td><b>0.00%</b></td></tr>
+  </table>
+  <div class="callout warn"><span class="emoji">🚫</span>
+    "같아"의 원래 점수 <b>+1.250</b>은 3등짜리 <b>꽤 높은 점수</b>였습니다. 그런데 −inf로 덮어쓰자 <b class="hlt">0.00%</b>가 됐죠.
+    이게 <b>"미래를 못 보게 만든다"</b>의 실제 모습입니다. 점수를 지우는 게 아니라 <b>−무한대로 밀어 버리는</b> 것이 요령이에요 —
+    0으로 바꾸면 exp(0)=1이 되어 <b>오히려 꽤 큰 비율</b>을 받아버립니다.</div>
+
+  <h4>⑥ <span class="inline">attn = softmax(scores, dim=-1)</span> — 점수를 비율로</h4>
+<pre><code><span class="cmt">⑥</span> attn = torch.<span class="fn">softmax</span>(scores, dim=-<span class="num2">1</span>)   <span class="cmt"># (1,4,6,5) → 값만 바뀜, shape 그대로</span></code></pre>
+  <table>
+    <tr><th>함수·인자</th><th>기능</th><th>우리 예제에서</th></tr>
+    <tr><td><span class="inline">torch.softmax(x, dim)</span></td><td>지정한 축의 값들을 <b>합이 1인 비율</b>로 변환 (<span class="inline">exp(xᵢ) / Σexp(x)</span>)</td><td>5개 점수 → 5개 비율</td></tr>
+    <tr><td><span class="inline">dim=-1</span></td><td><b>마지막 축(=Key 방향)</b> 기준으로 계산</td><td><b class="hlt">"한 답 단어가 질문 5단어에 준 비율의 합 = 1"</b></td></tr>
+  </table>
+  <p>③에서 만든 "비가" 행에 실제로 적용한 결과입니다.</p>
+  <table>
+    <tr><th>단계</th><th>하늘에</th><th>먹구름이</th><th>보이면</th><th>뭐가</th><th>생각나</th><th>합</th></tr>
+    <tr><td>③ scores</td><td>−2.494</td><td><b>+1.664</b></td><td>−2.186</td><td>−2.364</td><td>−2.286</td><td>—</td></tr>
+    <tr><td>⑥ attn</td><td>0.0146</td><td><b>0.9311</b></td><td>0.0198</td><td>0.0166</td><td>0.0179</td><td><b>1.0000</b></td></tr>
+    <tr><td>%로 읽으면</td><td>1.46%</td><td><b class="hlt">93.11%</b></td><td>1.98%</td><td>1.66%</td><td>1.79%</td><td>100%</td></tr>
+  </table>
+  <div class="callout"><span class="emoji">🔢</span>
+    <b>dim=-1이 왜 중요한가요?</b> 만약 <span class="inline">dim=-2</span>로 잘못 주면 <b>"질문 단어 하나가 답 단어들에 준 비율"</b>의 합이 1이 되어
+    의미가 <b>뒤집힙니다.</b> 우리가 원하는 건 <b class="hlt">"답 단어 하나가 질문을 어떻게 나눠 보는지"</b>이므로
+    <b>Key 방향(마지막 축)</b>이 맞습니다.</div>
+
+  <h4>⑦ <span class="inline">dropout(attn)</span> — 학습 중에만</h4>
+<pre><code><span class="cmt">⑦</span> <span class="kw">if</span> dropout <span class="kw">is not</span> <span class="kw">None</span>: attn = <span class="fn">dropout</span>(attn)</code></pre>
+  <p>비율 중 일부를 무작위로 0으로 떨궈, <b>특정 연결 하나에만 과의존하지 않게</b> 합니다.
+  <b class="hlt">추론(<span class="inline">model.eval()</span>)에서는 통과</b>하므로 위 93.11%는 그대로 유지됩니다 — 그래서 답이 매번 같습니다.</p>
+  <p class="muted">참고로 여기서 0으로 떨어진 자리는 보정 때문에 합이 정확히 1이 아니게 될 수 있습니다. 학습 중엔 문제되지 않습니다.</p>
+
+  <h4>⑧ <span class="inline">context = matmul(attn, v)</span> — 비율대로 V 섞기</h4>
+<pre><code><span class="cmt">⑧</span> context = torch.<span class="fn">matmul</span>(attn, v)
+   <span class="cmt">#         (1,4,6,5) × (1,4,5,16) = (1,4,6,16)  ← 다시 d_k 칸으로</span></code></pre>
+  <p>말은 행렬곱이지만 하는 일은 <b class="hlt">가중 평균</b>입니다. V의 <b>첫 칸(dim0)</b>만 놓고 손으로 더해 봅시다.</p>
+  <table>
+    <tr><th>질문 단어</th><th>attn (비율)</th><th>v의 dim0</th><th>비율 × 값</th></tr>
+    <tr><td>하늘에</td><td>0.0146</td><td>+0.2034</td><td>+0.0030</td></tr>
+    <tr><td><b>먹구름이</b></td><td><b>0.9311</b></td><td><b>−0.8982</b></td><td><b>−0.8363</b></td></tr>
+    <tr><td>보이면</td><td>0.0198</td><td>+0.1833</td><td>+0.0036</td></tr>
+    <tr><td>뭐가</td><td>0.0166</td><td>+0.4307</td><td>+0.0071</td></tr>
+    <tr><td>생각나</td><td>0.0179</td><td>+0.3917</td><td>+0.0070</td></tr>
+    <tr><th colspan="3">합계 = context의 dim0</th><th>−0.8156</th></tr>
+  </table>
+  <div class="callout good"><span class="emoji">🥤</span>
+    결과 <b>−0.8156</b>은 "먹구름이"의 값 <b>−0.8982</b>과 <b class="hlt">거의 같습니다.</b>
+    93%를 먹구름이에 줬으니 <b>먹구름이 주스에 다른 것 몇 방울</b> 섞은 셈이죠.
+    이 계산을 <b>16칸 전부</b> 똑같이 하면 context 한 줄(16칸)이 완성됩니다.</div>
+
+  <h4>⑨ <span class="inline">return context, attn</span> — 왜 두 개를 돌려주나</h4>
+  <table>
+    <tr><th>반환값</th><th>누가 쓰나</th><th>우리 예제에서</th></tr>
+    <tr><td><span class="inline">context</span></td><td><b>모델이 계산에 사용</b> — merge 후 <span class="inline">wo</span>를 거쳐 다음 층으로</td><td>(1, 4, 6, 16)</td></tr>
+    <tr><td><span class="inline">attn</span></td><td><b>사람이 구경</b> — <span class="inline">last_attn_weights</span>에 저장 → 히트맵</td><td>(1, 4, 6, 5)</td></tr>
+  </table>
+  <p class="muted">attn은 학습에 꼭 필요한 값이 아니지만, 함께 돌려주기 때문에 우리가 6단계 그래프와 노트북 히트맵을 볼 수 있습니다.</p>
+
+  <h4>헤드 4개를 합치면 — 노트북 히트맵의 그 숫자</h4>
+  <p>지금까지 본 <b>93.11%는 헤드 0번의 값</b>입니다. 헤드마다 보는 관점이 달라서 비율도 다릅니다.
+  노트북 히트맵은 이 <b class="hlt">4개의 평균</b>을 씁니다(<span class="inline">.mean(0)</span>).</p>
+  <table>
+    <tr><th>"비가"의 시선</th><th>하늘에</th><th>먹구름이</th><th>보이면</th><th>뭐가</th><th>생각나</th></tr>
+    <tr><td>헤드 0</td><td>1.5%</td><td><b>93.1%</b></td><td>2.0%</td><td>1.7%</td><td>1.8%</td></tr>
+    <tr><td>헤드 1</td><td>10.0%</td><td>44.6%</td><td>16.6%</td><td>16.3%</td><td>12.4%</td></tr>
+    <tr><td>헤드 2</td><td>14.0%</td><td>43.7%</td><td>20.5%</td><td>9.3%</td><td>12.4%</td></tr>
+    <tr><td>헤드 3</td><td>6.1%</td><td>67.8%</td><td>10.1%</td><td>9.0%</td><td>7.1%</td></tr>
+    <tr><th>평균 (히트맵 값)</th><td>7.9%</td><td><b class="hlt">62.3%</b></td><td>12.3%</td><td>9.1%</td><td>8.4%</td></tr>
+  </table>
+  <div class="callout good"><span class="emoji">🌧️</span>
+    <b>네 헤드가 전부 "먹구름이"를 1등으로 꼽았습니다</b>(93/45/44/68%). 강조 정도만 다르죠.
+    그래서 평균도 <b>62.3%</b>로 압도적이고, 노트북 히트맵에서 <b class="hlt">'먹구름이' 열이 가장 환하게</b> 보이는 것입니다.</div>
+
+  <h4>노트북에서 직접 확인하기</h4>
+<pre><code><span class="cmt"># 5단계 answer(...) 를 실행한 뒤, 새 셀에 붙여 넣으세요</span>
+attn = model.decoder.layers[-<span class="num2">1</span>].cross_attn.last_attn_weights   <span class="cmt"># (1, 4, 6, 5)</span>
+<span class="fn">print</span>(attn.shape)
+<span class="fn">print</span>(attn[<span class="num2">0</span>, <span class="num2">0</span>, <span class="num2">1</span>])          <span class="cmt"># 헤드0 · "비가" 행 → 0.0146, 0.9311, …</span>
+<span class="fn">print</span>(attn[<span class="num2">0</span>, <span class="num2">0</span>, <span class="num2">1</span>].<span class="fn">sum</span>())    <span class="cmt"># 1.0  ← softmax(dim=-1)의 증거</span>
+<span class="fn">print</span>(attn[<span class="num2">0</span>].<span class="fn">mean</span>(<span class="num2">0</span>)[<span class="num2">1</span>])      <span class="cmt"># 헤드 평균 → 0.079, 0.623, … (히트맵 값)</span></code></pre>
+  <div class="callout"><span class="emoji">🎲</span>
+    <b>숫자가 조금 다르게 나올 수 있어요.</b> 위 값은 노트북과 똑같이
+    <span class="inline">torch.manual_seed(42)</span>로 <b>400에폭 학습을 마친 뒤</b>(loss 0.0063) 실제로 뽑은 값입니다.
+    파이토치 버전이나 학습 횟수가 다르면 소수점은 달라지지만,
+    <b class="hlt">"먹구름이가 압도적 1등"</b>이라는 결론은 그대로입니다.</div>
+
+  <h3>📖 이 함수에 쓰인 함수 한눈에</h3>
+  <table>
+    <tr><th>코드</th><th>단계</th><th>쉬운 말</th><th>우리 예제</th></tr>
+    <tr><td><span class="inline">q.size(-1)</span></td><td>②</td><td>벡터 한 개의 칸 수 읽기</td><td>16</td></tr>
+    <tr><td><span class="inline">k.transpose(-2,-1)</span></td><td>③</td><td>곱할 수 있게 K를 세우기</td><td>(…,5,16)→(…,16,5)</td></tr>
+    <tr><td><span class="inline">matmul(q, kᵀ)</span></td><td>③</td><td>검색어 Q와 색인 K의 유사도 점수</td><td>먹구름이 +6.656</td></tr>
+    <tr><td><span class="inline">/ sqrt(d_k)</span></td><td>③</td><td>점수가 너무 커지지 않게 눌러줌 (Scaled)</td><td>÷ 4 → +1.664</td></tr>
+    <tr><td><span class="inline">masked_fill(mask==0, -inf)</span></td><td>⑤</td><td>가릴 자리를 −무한대로 (→ 0%)</td><td>미래 3칸 0.00%</td></tr>
+    <tr><td><span class="inline">softmax(..., dim=-1)</span></td><td>⑥</td><td>점수를 합 100%의 비율로 변환</td><td>93.11%</td></tr>
+    <tr><td><span class="inline">matmul(attn, v)</span></td><td>⑧</td><td>비율대로 내용 V를 섞어 결과 만들기</td><td>dim0 = −0.8156</td></tr>
   </table>
 </section>
 
@@ -353,7 +537,7 @@
 
 <footer>
   <p>Mini-Transformer 실습 교재 · 어텐션 쉬운 설명판<br>
-  코드 출처: <span class="inline">example-detailed.ipynb</span> — 부품 ② Scaled Dot-Product Attention</p>
+  코드 출처: <span class="inline">example-explain.ipynb</span> — 부품 ② Scaled Dot-Product Attention</p>
 </footer>
 
 </div>
