@@ -349,7 +349,7 @@
   <p>중요한 성질이 있습니다. 이 함수 안에는 <b class="hlt">학습되는 값(가중치)이 하나도 없습니다.</b>
   <span class="inline">nn.Module</span>이 아니라 그냥 <span class="inline">def</span> 함수인 이유죠 —
   넘겨받은 세 텐서로 <b>정해진 계산만 수행하는 계산기</b>입니다.
-  Q·K·V를 만드는 학습 가능한 부분은 이 함수를 <b>호출하는 쪽</b>(멀티헤드 어텐션의 <span class="inline">w_q·w_k·w_v</span>)에 있습니다.</p>
+  Q·K·V를 만드는 학습 가능한 부분은 이 함수를 <b>호출하는 쪽</b>(멀티헤드 어텐션의 <span class="inline">wq·wk·wv</span>)에 있습니다.</p>
   <table>
     <tr><th>구분</th><th>이름</th><th>shape 규칙</th><th>우리 예제 값</th></tr>
     <tr><td rowspan="5"><b>입력</b></td><td><span class="inline">q</span> (Query·검색어)</td><td>(B, h, <b>S_q</b>, d_k)</td><td>(1, 4, <b>6</b>, 16) — 답 6칸</td></tr>
@@ -414,7 +414,7 @@
     <b>축을 하나씩 움직여 보면 의미가 보입니다.</b><br>
     <b>자리(positions)로 움직이면</b> → 단어가 바뀌므로 값도 바뀝니다("비가" 카드 ≠ "올" 카드).<br>
     <b>헤드로 움직이면</b> → <b class="hlt">같은 "비가"인데도 값이 완전히 다릅니다.</b>
-    <span class="inline">w_q</span>가 만든 64칸을 4등분한 <b>서로 다른 구간</b>이기 때문이죠.
+    <span class="inline">wq</span>가 만든 64칸을 4등분한 <b>서로 다른 구간</b>이기 때문이죠.
     그래서 헤드마다 주목 비율도 달라집니다(맨 아래 표의 93% / 45% / 44% / 68%).</div>
 
   <div class="callout"><span class="emoji">📐</span>
@@ -642,10 +642,58 @@
     <div class="wordmap">그림의 영어 라벨: <span>sky = 하늘에</span><span>dark clouds = 먹구름이</span><span>see = 보이면</span><span>what = 뭐가</span><span>think = 생각나</span></div></figcaption>
   </figure>
 
+  <h4>🤔 잠깐 — 값이 <b>음수</b>인데 괜찮나요?</h4>
+  <p><span class="inline">v</span>의 <b>−0.8982</b>, 결과 <span class="inline">context</span>의 <b>−0.8156</b>.
+  마이너스가 붙으면 뭔가 잘못된 것 같지요? <b class="hlt">전혀 정상입니다.</b> 딱 두 가지만 보면 됩니다.</p>
+
+  <div class="big-idea">음수는 <span>"적다"가 아니라 "반대쪽"</span>이라는 뜻<br>영하 5도도 <span>정상 온도</span>인 것처럼요</div>
+  <figure>
+    <img src="https://raw.githubusercontent.com/unicorn-campus/mini-transformer/main/explain/images/attn-negative-meaning.webp"
+         alt="온도계의 0도 기준선 비유와, 벡터의 각 칸이 음수 절반 양수 절반으로 채워진 그림">
+    <figcaption><b>왼쪽</b>: 온도계에 0이라는 기준선이 있어 아래쪽은 음수가 됩니다 — 이상한 게 아니라 그냥 <b>기준선 반대쪽</b>이죠.
+    <b>오른쪽</b>: 벡터의 각 칸도 똑같습니다. <b class="hlt">개수나 확률이 아니라 좌표</b>라서 음수가 자연스럽게 나옵니다.</figcaption>
+  </figure>
+
+  <h4>① V에 음수가 있는 것은 <b>필연</b>입니다</h4>
+  <p>V는 <span class="inline">wv</span>(선형층)를 지난 숫자일 뿐이고, 어텐션 경로에는 <b>양수를 강제하는 장치가 없습니다</b>
+  (ReLU는 FFN 안에만 있습니다). 게다가 인코더·디코더 블록의 <b class="hlt">LayerNorm이 벡터의 평균을 0으로 맞춥니다.</b>
+  평균이 0이면 <b>절반은 반드시 음수</b>가 되죠.</p>
+  <table>
+    <tr><th>실제로 재 보면</th><th>결과</th></tr>
+    <tr><td>인코더 출력 토큰별 평균</td><td>−0.0006 / −0.0006 / −0.0012 / +0.0007 / −0.0013 <b>≈ 0</b></td></tr>
+    <tr><td>음수 비율</td><td><b>50.4%</b> — 정확히 반반</td></tr>
+    <tr><td><span class="inline">wv</span> 가중치 4,096개</td><td>음수 1,997 / 양수 2,099 <span class="muted">(애초에 반반)</span></td></tr>
+  </table>
+
+  <h4>② context가 음수인 것은 <b>계산이 맞았다는 증거</b>입니다</h4>
+  <p>⑧은 <b class="hlt">무게중심 찾기</b>와 똑같습니다. 시소에 추를 올려 보세요.</p>
+  <figure>
+    <img src="https://raw.githubusercontent.com/unicorn-campus/mini-transformer/main/explain/images/attn-negative-balance.webp"
+         alt="시소 위에 93퍼센트 무게의 큰 추가 -0.90 자리에 있어 무게중심이 -0.82로 쏠리는 그림">
+    <figcaption><b>93%라는 큰 추를 −0.90 자리에 올렸으니 무게중심도 그쪽으로 갑니다</b>(−0.82).
+    나머지 네 추는 2%씩이라 거의 힘을 못 씁니다.
+    비율이 <b>모두 양수이고 합이 1</b>이므로, 결과는 <b class="hlt">절대 V의 최소~최대 밖으로 나갈 수 없습니다.</b></figcaption>
+  </figure>
+  <div class="callout good"><span class="emoji">✅</span>
+    실제로 확인해 보면 dim0의 <b>V 범위는 [−0.8982, +0.4307]</b>이고 결과는 <b>−0.8156</b> — 범위 안입니다.
+    (384개 원소를 전부 검사해도 하나도 벗어나지 않습니다.)<br>
+    그러니 <b class="hlt">여기서 양수가 나왔다면 오히려 계산이 틀린 것</b>입니다.</div>
+
+  <h4>정리 — 무엇이 양수여야 하고, 무엇은 아닌가</h4>
+  <table>
+    <tr><th>값</th><th>부호 제약</th><th>왜</th><th>실측</th></tr>
+    <tr><td><span class="inline">attn</span></td><td><b>양수 필수</b> (0~1, 합 1)</td><td>"몇 % 주목"이라는 <b>해석</b>이 성립해야 하니까</td><td>최소 0.0125, 행 합 1.0</td></tr>
+    <tr><td><span class="inline">v</span> · <span class="inline">context</span></td><td><b>제약 없음</b></td><td>의미를 담은 <b>좌표(방향)</b>일 뿐이니까</td><td>음수 51%</td></tr>
+  </table>
+  <div class="callout"><span class="emoji">🧭</span>
+    <b>한 칸의 부호만 떼어 보면 아무 의미가 없습니다.</b> 의미는 <b class="hlt">16칸(원래는 64칸) 전체가 가리키는 방향</b>에 담깁니다.
+    만약 V를 양수만 쓰게 억지로 막으면(ReLU 등), 3장에서 본 내적의 성질 중
+    <b>"반대 방향 = 음수"</b> 절반을 버리는 셈이라 표현력이 크게 떨어집니다.</div>
+
   <h4>⑨ <span class="inline">return context, attn</span> — 왜 두 개를 돌려주나</h4>
   <table>
     <tr><th>반환값</th><th>누가 쓰나</th><th>우리 예제에서</th></tr>
-    <tr><td><span class="inline">context</span></td><td><b>모델이 계산에 사용</b> — 헤드 합치기(merge) 후 <span class="inline">w_o</span>를 거쳐 다음 층으로</td><td>(1, 4, 6, 16)</td></tr>
+    <tr><td><span class="inline">context</span></td><td><b>모델이 계산에 사용</b> — 헤드 합치기(merge) 후 <span class="inline">wo</span>를 거쳐 다음 층으로</td><td>(1, 4, 6, 16)</td></tr>
     <tr><td><span class="inline">attn</span></td><td><b>사람이 구경</b> — <span class="inline">last_attn_weights</span>에 저장 → 히트맵</td><td>(1, 4, 6, 5)</td></tr>
   </table>
   <p class="muted">attn은 학습에 꼭 필요한 값이 아니지만, 함께 돌려주기 때문에 우리가 6단계 그래프와 노트북 히트맵을 볼 수 있습니다.</p>
@@ -711,6 +759,9 @@ attn = model.decoder.layers[-<span class="num2">1</span>].cross_attn.last_attn_w
     <span class="step" style="border-color:var(--good);color:var(--good)">self_attn · cross_attn<br><span class="muted" style="font-size:.72em;font-weight:400">인코더·디코더가 붙인 인스턴스 이름</span></span>
   </div>
 
+  <p class="muted">📌 이름 표기 참고: <b>노트북</b>(<span class="inline">example-explain.ipynb</span>)은
+  <span class="inline">wq · wk · wv · wo</span>, <b>모듈 파일</b>(<span class="inline">mini_transformer.py</span>)은
+  <span class="inline">w_q · w_k · w_v · w_o</span>를 씁니다. 같은 것이며, 이 문서의 7장은 <b>노트북 표기</b>를 따릅니다.</p>
   <p>실제 코드(<span class="inline">mini_transformer.py</span>)로 보면 이렇습니다 — <span class="inline">self_attn</span>과 <span class="inline">cross_attn</span>은
   똑같은 <span class="inline">MultiHeadAttention</span> 클래스를 <b>서로 다른 속성에 담아둔 것</b>뿐이고, 안에서는 결국 같은 엔진을 호출합니다.</p>
 <pre><code><span class="kw">class</span> <span class="fn">MultiHeadAttention</span>(nn.Module):
