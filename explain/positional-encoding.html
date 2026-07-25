@@ -33,6 +33,7 @@
   h2 .num{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:12px;
     background:linear-gradient(135deg,var(--brand),var(--brand2));color:#06121f;font-size:18px;font-weight:900;flex:0 0 auto}
   h3{font-size:19px;margin:26px 0 6px}
+  h4{font-size:17px;margin:22px 0 4px;color:#fff;font-weight:700}
   p{margin:.6em 0}
   .muted{color:var(--sub)}
   b.hlt{color:#fff}
@@ -485,19 +486,41 @@ self.<span class="fn">register_buffer</span>(<span class="str">"pe"</span>, pe.<
 
   <div class="big-idea">⑤ 빈 표 → ⑥ 세로 번호 → ⑦ 가로 속도 → ⑧⑨ <span>표 채우기</span> → ⑩ 상수로 보관 → ⑫ 더하기</div>
 
-  <h3>③ <span class="inline">super().__init__()</span> — 빼면 바로 죽습니다</h3>
-  <p>PyTorch가 <b>"어떤 부품을 갖고 있는지" 장부를 준비하는 줄</b>입니다. 이 줄 없이 ④에서 드롭아웃을 대입하면 이렇게 됩니다.</p>
+  <h3>③④ 준비 — 장부 만들고 드롭아웃 챙기기</h3>
+<pre><code><span class="cmt">③</span> <span class="fn">super</span>().<span class="fn">__init__</span>()                       <span class="cmt"># 부모(nn.Module) 초기화 — 반드시 첫 줄</span>
+<span class="cmt">④</span> self.dropout = nn.<span class="fn">Dropout</span>(dropout)     <span class="cmt"># dropout=0.1 → 학습 중 10% 끄기 준비</span></code></pre>
+  <table>
+    <tr><th>쓰인 함수</th><th>기능</th><th>우리 예제에서</th></tr>
+    <tr><td><span class="inline">super()</span></td><td><b>부모 클래스</b>(여기선 <span class="inline">nn.Module</span>)를 가리킴</td><td>PyTorch 부품 기능을 물려받음</td></tr>
+    <tr><td><span class="inline">__init__()</span></td><td><b>생성자</b> — 객체가 만들어질 때 자동 실행</td><td>표를 미리 만들어 두는 준비 작업</td></tr>
+    <tr><td><span class="inline">nn.Dropout(p)</span></td><td>값의 <b>p 비율을 무작위로 0</b>으로 (학습 시만)</td><td><b>p=0.1</b> → 10% 끄기 (6장 참고)</td></tr>
+  </table>
+  <p>③은 PyTorch가 <b>"어떤 부품을 갖고 있는지" 장부를 준비하는 줄</b>입니다. 이 줄 없이 ④에서 드롭아웃을 대입하면 이렇게 됩니다.</p>
 <pre><code><span class="cmt"># super().__init__() 를 지우고 실행하면</span>
 AttributeError: cannot assign module before Module.__init__() call</code></pre>
   <p class="muted">"장부를 만들기 전에 부품을 등록하려 했다"는 뜻입니다. <b>모든 <span class="inline">nn.Module</span>의 첫 줄에 반드시 필요합니다.</b></p>
 
   <h3>⑤⑥⑦ 빈 표 + 세로 번호 + 가로 속도</h3>
+<pre><code><span class="cmt">⑤</span> pe  = torch.<span class="fn">zeros</span>(max_len, d_model)                <span class="cmt"># (22, 64) 전부 0</span>
+<span class="cmt">⑥</span> pos = torch.<span class="fn">arange</span>(<span class="num2">0</span>, max_len).<span class="fn">float</span>().<span class="fn">unsqueeze</span>(<span class="num2">1</span>)  <span class="cmt"># (22, 1) ← 0,1,2,…,21</span>
+<span class="cmt">⑦</span> div = torch.<span class="fn">exp</span>(torch.<span class="fn">arange</span>(<span class="num2">0</span>, d_model, <span class="num2">2</span>).<span class="fn">float</span>() * (-math.<span class="fn">log</span>(<span class="num2">10000.0</span>) / d_model))
+                                                     <span class="cmt"># (32,) ← 1.0 … 0.000133</span></code></pre>
   <p>3장의 <b>이진수 계수기</b>를 그대로 코드로 옮긴 부분입니다. 표를 만들고, 세로축(위치)과 가로축(속도)을 각각 준비합니다.</p>
   <table>
     <tr><th>줄</th><th>비유</th><th>shape</th><th>실제 값</th></tr>
     <tr><td>⑤ <span class="inline">zeros</span></td><td>빈 모눈종이</td><td>(22, 64)</td><td>전부 0</td></tr>
     <tr><td>⑥ <span class="inline">pos</span></td><td>세로줄 번호표</td><td>(22, <b>1</b>)</td><td>0, 1, 2, … 21</td></tr>
     <tr><td>⑦ <span class="inline">div</span></td><td>가로줄 속도표</td><td>(<b>32</b>,)</td><td>1.0, 0.75, … 0.000133</td></tr>
+  </table>
+  <h4 style="margin:22px 0 4px;font-size:17px">이 세 줄에 쓰인 함수</h4>
+  <table>
+    <tr><th>함수</th><th>기능</th><th>우리 예제에서의 결과</th></tr>
+    <tr><td><span class="inline">torch.zeros(a, b)</span></td><td><b>0으로 채운</b> a×b 표를 만든다</td><td><span class="inline">zeros(22, 64)</span> → 0이 1,408개</td></tr>
+    <tr><td><span class="inline">torch.arange(시작, 끝, 간격)</span></td><td><b>연속 번호 목록</b>을 만든다 (끝 값은 제외)</td><td><span class="inline">arange(0,22)</span> → 0~21<br><span class="inline">arange(0,64,2)</span> → 0,2,…,62 (<b>32개</b>)</td></tr>
+    <tr><td><span class="inline">.float()</span></td><td>정수를 <b>소수(실수)로</b> 바꾼다</td><td><span class="inline">arange</span>는 정수를 주므로 필수 — 없으면 sin·exp 계산이 깨짐</td></tr>
+    <tr><td><span class="inline">.unsqueeze(1)</span></td><td>축을 하나 끼워 <b>가로줄을 세로줄로</b> 세운다</td><td>(22,) → <b>(22, 1)</b></td></tr>
+    <tr><td><span class="inline">torch.exp(x)</span></td><td>e<sup>x</sup> 를 계산한다</td><td>주파수 32개를 만든다</td></tr>
+    <tr><td><span class="inline">math.log(x)</span></td><td>자연로그 — <span class="inline">exp</span>의 반대</td><td><span class="inline">log(10000)</span> ≈ 9.21</td></tr>
   </table>
   <div class="callout"><span class="emoji">🧮</span>
     <b>⑦은 왜 <span class="inline">exp</span>와 <span class="inline">log</span>로 복잡하게 쓸까요?</b>
@@ -506,6 +529,8 @@ AttributeError: cannot assign module before Module.__init__() call</code></pre>
     읽을 때는 그냥 "10000의 마이너스 몇 제곱"으로 읽으세요.</div>
 
   <h3>⑧⑨ 표 채우기 — 여기가 핵심입니다</h3>
+<pre><code><span class="cmt">⑧</span> pe[:, <span class="num2">0</span>::<span class="num2">2</span>] = torch.<span class="fn">sin</span>(pos * div)     <span class="cmt"># 짝수칸 32개 ← dim 0,2,4,…,62</span>
+<span class="cmt">⑨</span> pe[:, <span class="num2">1</span>::<span class="num2">2</span>] = torch.<span class="fn">cos</span>(pos * div)     <span class="cmt"># 홀수칸 32개 ← dim 1,3,5,…,63</span></code></pre>
   <p>세로 번호 <b>(22, 1)</b> 와 가로 속도 <b>(32,)</b> 를 곱하면, <b class="hlt">구구단표처럼 모든 조합</b>이 한 번에 만들어집니다.</p>
 <pre><code>pos * div  →  (<span class="num2">22</span>, <span class="num2">1</span>) × (<span class="num2">32</span>,)  =  (<span class="num2">22</span>, <span class="num2">32</span>)
 <span class="cmt">#             세로 22개      가로 32개      22×32 = 704개 값이 한 번에</span></code></pre>
@@ -515,12 +540,27 @@ AttributeError: cannot assign module before Module.__init__() call</code></pre>
     <tr><td><span class="inline">pe[:, 0::2]</span></td><td>0번부터 2칸씩 → 0, 2, 4, … 62</td><td><b>32칸</b></td></tr>
     <tr><td><span class="inline">pe[:, 1::2]</span></td><td>1번부터 2칸씩 → 1, 3, 5, … 63</td><td><b>32칸</b></td></tr>
   </table>
+  <h4 style="margin:22px 0 4px;font-size:17px">이 두 줄에 쓰인 함수·문법</h4>
+  <table>
+    <tr><th>함수·문법</th><th>기능</th><th>우리 예제에서의 결과</th></tr>
+    <tr><td><span class="inline">torch.sin(x)</span> / <span class="inline">torch.cos(x)</span></td><td>사인·코사인 <b>파도 값</b>을 계산 (−1 ~ +1)</td><td>(22, 32) 값 704개씩</td></tr>
+    <tr><td><span class="inline">pos * div</span></td><td>모양이 다른 둘을 곱해 <b>표를 만든다</b>(브로드캐스팅)</td><td>(22,1) × (32,) = <b>(22, 32)</b></td></tr>
+    <tr><td><span class="inline">[:, 시작::간격]</span></td><td>슬라이싱 — <b>칸을 건너뛰며 고르기</b>. 콜론 하나는 "전부"</td><td><span class="inline">0::2</span>는 짝수칸, <span class="inline">1::2</span>는 홀수칸</td></tr>
+    <tr><td><span class="inline">pe[...] = 값</span></td><td>고른 자리에 <b>값을 덮어쓰기</b></td><td>0이던 표가 파도 값으로 채워짐</td></tr>
+  </table>
   <div class="callout good"><span class="emoji">✅</span>
     이 두 줄을 실행한 직후 표의 <b>2번째 줄(= "먹구름이" 자리)</b>을 찍어 보면
     <span class="inline">[0.841, 0.540, 0.682, 0.732, …]</span> — <b>4장에서 본 표와 정확히 같은 값</b>입니다.
     원리 설명과 코드가 같은 것을 가리키고 있다는 확인이죠.</div>
 
   <h3>⑩ <span class="inline">register_buffer</span> — "학습하지 않는 상수"로 도장 찍기</h3>
+<pre><code><span class="cmt">⑩</span> self.<span class="fn">register_buffer</span>(<span class="str">"pe"</span>, pe.<span class="fn">unsqueeze</span>(<span class="num2">0</span>))   <span class="cmt"># (22,64) → (1, 22, 64)</span>
+   <span class="cmt">#                 ↑ 이름     ↑ 저장할 텐서</span></code></pre>
+  <table>
+    <tr><th>함수</th><th>기능</th><th>우리 예제에서의 결과</th></tr>
+    <tr><td><span class="inline">register_buffer(이름, 텐서)</span></td><td>텐서를 <b>학습하지 않는 상수</b>로 모듈에 등록</td><td>이후 <span class="inline">self.pe</span>로 꺼내 쓸 수 있음</td></tr>
+    <tr><td><span class="inline">.unsqueeze(0)</span></td><td><b>맨 앞</b>에 축을 하나 끼운다</td><td>(22, 64) → <b>(1, 22, 64)</b> 배치 축 추가</td></tr>
+  </table>
   <p>위치 표는 sin·cos 공식으로 <b>이미 정답이 정해진 값</b>이라 학습으로 바꿀 필요가 없습니다.
   그렇다고 <span class="inline">self.pe = pe</span>처럼 평범하게 두면 <b>모델을 저장할 때 빠져 버립니다.</b></p>
   <table>
@@ -534,8 +574,16 @@ AttributeError: cannot assign module before Module.__init__() call</code></pre>
   <p>마지막 <span class="inline">unsqueeze(0)</span>은 맨 앞에 <b>배치 축</b>을 끼워 <b>(22, 64) → (1, 22, 64)</b>로 만듭니다.
   다음 줄에서 배치 여러 개에 한 번에 더하기 위한 준비입니다.</p>
 
-  <h3>⑫ 실제로 더하는 순간</h3>
-<pre><code><span class="kw">return</span> self.<span class="fn">dropout</span>(x + self.pe[:, :x.<span class="fn">size</span>(<span class="num2">1</span>)])</code></pre>
+  <h3>⑪⑫ 실제로 더하는 순간</h3>
+<pre><code><span class="cmt">⑪</span> <span class="kw">def</span> <span class="fn">forward</span>(self, x):                          <span class="cmt"># x = (6, 5, 64)</span>
+<span class="cmt">⑫</span>     <span class="kw">return</span> self.<span class="fn">dropout</span>(x + self.pe[:, :x.<span class="fn">size</span>(<span class="num2">1</span>)])</code></pre>
+  <table>
+    <tr><th>함수·문법</th><th>기능</th><th>우리 예제에서의 결과</th></tr>
+    <tr><td><span class="inline">forward(self, x)</span></td><td>부품이 <b>실제로 호출될 때</b> 실행되는 함수</td><td><span class="inline">self.pos(임베딩)</span> 형태로 호출됨</td></tr>
+    <tr><td><span class="inline">x.size(1)</span></td><td>텐서의 <b>1번 축 크기</b>를 읽는다 (0부터 셈)</td><td>(6, <b>5</b>, 64) → <b>5</b> = 문장 길이</td></tr>
+    <tr><td><span class="inline">[:, :n]</span></td><td>슬라이싱 — <b>앞에서 n개만</b> 잘라 온다</td><td>22줄 중 <b>앞 5줄</b> → (1, 5, 64)</td></tr>
+    <tr><td><span class="inline">self.dropout(...)</span></td><td>④에서 만든 드롭아웃 부품을 <b>실행</b></td><td>학습 중에만 10% 끄기</td></tr>
+  </table>
   <p>우리 예제에서 이 한 줄이 하는 일을 쪼개 보면 이렇습니다.</p>
   <table>
     <tr><th>조각</th><th>값</th><th>의미</th></tr>
@@ -554,6 +602,28 @@ AttributeError: cannot assign module before Module.__init__() call</code></pre>
     6개 배치에 더해진 위치 벡터가 <b>전부 완전히 동일</b>했습니다.
     <b>(1, 5, 64)</b> 의 맨 앞 <b>1</b> 이 <b>6</b> 으로 자동 복사되는 <b>브로드캐스팅</b> 덕분입니다 —
     표를 6번 복사해 저장할 필요가 없죠.</div>
+
+  <h3>📖 이 코드에 쓰인 함수 한눈에</h3>
+  <p class="muted">나중에 다시 볼 때를 위한 정리입니다. 위에서 이미 본 것들이니 훑어보기만 하세요.</p>
+  <table>
+    <tr><th>함수·문법</th><th>한 줄 기능</th><th>우리 예제</th></tr>
+    <tr><td><span class="inline">torch.zeros(a, b)</span></td><td>0으로 채운 표 만들기</td><td>(22, 64)</td></tr>
+    <tr><td><span class="inline">torch.arange(s, e, step)</span></td><td>연속 번호 목록 (끝 값 제외)</td><td>0~21 / 0,2,…,62</td></tr>
+    <tr><td><span class="inline">.float()</span></td><td>정수 → 소수 변환</td><td>sin·exp 계산을 위해 필수</td></tr>
+    <tr><td><span class="inline">.unsqueeze(n)</span></td><td>n번 자리에 축 끼우기</td><td>(22,)→(22,1) / (22,64)→(1,22,64)</td></tr>
+    <tr><td><span class="inline">torch.exp(x)</span> · <span class="inline">math.log(x)</span></td><td>지수 · 자연로그</td><td>주파수 32개 계산</td></tr>
+    <tr><td><span class="inline">torch.sin</span> · <span class="inline">torch.cos</span></td><td>파도 값 (−1 ~ +1)</td><td>표의 짝수/홀수 칸</td></tr>
+    <tr><td><span class="inline">[시작::간격]</span></td><td>건너뛰며 고르기</td><td><span class="inline">0::2</span> 짝수, <span class="inline">1::2</span> 홀수</td></tr>
+    <tr><td><span class="inline">[:, :n]</span></td><td>앞에서 n개만 자르기</td><td>22줄 → 앞 5줄</td></tr>
+    <tr><td><span class="inline">.size(n)</span></td><td>n번 축의 크기 읽기</td><td>(6,5,64) → 5</td></tr>
+    <tr><td><span class="inline">register_buffer</span></td><td>학습 안 하는 상수로 등록</td><td>위치 표 보관</td></tr>
+    <tr><td><span class="inline">nn.Dropout(p)</span></td><td>p 비율 무작위로 0 (학습 시만)</td><td>p=0.1</td></tr>
+    <tr><td><span class="inline">super().__init__()</span></td><td>부모 클래스 초기화</td><td>모든 부품의 첫 줄</td></tr>
+  </table>
+  <div class="callout good"><span class="emoji">🎓</span>
+    <b>여기 나온 함수 대부분은 다른 부품에서도 그대로 반복됩니다.</b>
+    멀티헤드 어텐션의 <span class="inline">view</span>·<span class="inline">transpose</span>, FFN의 <span class="inline">nn.Linear</span> 정도만 새로 배우면
+    <b class="hlt">노트북 전체 코드를 읽을 수 있습니다.</b></div>
 </section>
 
 <!-- 8 -->
