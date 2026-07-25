@@ -95,6 +95,14 @@
   th,td{border:1px solid var(--line);padding:9px 12px;text-align:left}
   th{background:var(--panel2);color:#fff}
 
+  figure{margin:20px 0}
+  figure img{width:100%;display:block;border:1px solid var(--line);border-radius:14px;background:var(--code)}
+  figcaption{font-size:13.5px;color:var(--sub);margin-top:8px;line-height:1.65}
+  figcaption b{color:#fff}
+  .wordmap{font-size:13px;color:var(--sub);margin-top:6px}
+  .wordmap span{display:inline-block;background:var(--panel2);border:1px solid var(--line);
+    border-radius:8px;padding:2px 8px;margin:2px 4px 2px 0;font-family:"Consolas","D2Coding",monospace}
+
   footer{margin-top:80px;border-top:1px solid var(--line);padding-top:24px;color:var(--sub);font-size:14px}
   .toc{position:sticky;top:0;z-index:5;background:rgba(15,23,42,.85);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
   .toc .wrap{display:flex;gap:6px;flex-wrap:wrap;padding:10px 20px;overflow-x:auto}
@@ -328,6 +336,31 @@
     이렇게 하면 뒤쪽 두 축 <b class="hlt">(S, d_k)</b> 만 보고 계산하면 되므로,
     <b>4개 헤드 × 문장들이 자동으로 한꺼번에</b> 처리됩니다.</div>
 
+  <h4>그림으로 보기 — <span class="inline">(1, 4, 6, 16)</span> 안에 값이 어떻게 들어가나</h4>
+  <p>숫자 네 개는 <b class="hlt">네 겹으로 중첩된 서랍</b>이고, <b>실제 값(실수)은 맨 안쪽에만</b> 들어 있습니다.
+  왼쪽에서 오른쪽으로 한 겹씩 열어 본 그림입니다.</p>
+  <figure>
+    <img src="https://raw.githubusercontent.com/unicorn-campus/mini-transformer/main/explain/images/attn-tensor-shape.webp"
+         alt="(1,4,6,16) 텐서를 배치 1개 → 헤드 4개 → 자리 6개 → 숫자 16개의 중첩 구조로 펼쳐 보여 주는 그림">
+    <figcaption><b>문장 폴더 1개 → 헤드 서랍 4개 → 자리 카드 6장 → 숫자 16개.</b>
+    맨 오른쪽 16칸이 <b>q[0, 0, 1]</b> — 0번 문장 · 헤드0 · 2번째 자리("비가")의 실제 벡터입니다.
+    <span class="muted">(batch=문장 수, heads=헤드 수, positions=자리 수, dims=벡터 칸 수)</span></figcaption>
+  </figure>
+  <p>인덱스를 <b>몇 개까지 쓰느냐</b>에 따라 꺼내지는 것이 달라집니다.</p>
+  <table>
+    <tr><th>코드</th><th>읽는 법</th><th>꺼내지는 것</th></tr>
+    <tr><td><span class="inline">q[0,0,1,0]</span></td><td>문장0 · 헤드0 · "비가" · <b>첫 칸</b></td><td><b>숫자 1개</b> = +0.8518</td></tr>
+    <tr><td><span class="inline">q[0,0,1]</span></td><td>문장0 · 헤드0 · "비가"</td><td><b>벡터 16개</b> (그림의 노란 줄)</td></tr>
+    <tr><td><span class="inline">q[0,0]</span></td><td>문장0 · 헤드0</td><td><b>표 6×16 = 96개</b> (그림의 가운데 패널)</td></tr>
+    <tr><td><span class="inline">q</span></td><td>전체</td><td><b>384개</b> = 1×4×6×16</td></tr>
+  </table>
+  <div class="callout good"><span class="emoji">🔭</span>
+    <b>축을 하나씩 움직여 보면 의미가 보입니다.</b><br>
+    <b>자리(positions)로 움직이면</b> → 단어가 바뀌므로 값도 바뀝니다("비가" 카드 ≠ "올" 카드).<br>
+    <b>헤드로 움직이면</b> → <b class="hlt">같은 "비가"인데도 값이 완전히 다릅니다.</b>
+    <span class="inline">wq</span>가 만든 64칸을 4등분한 <b>서로 다른 구간</b>이기 때문이죠.
+    그래서 헤드마다 주목 비율도 달라집니다(맨 아래 표의 93% / 45% / 44% / 68%).</div>
+
   <div class="callout"><span class="emoji">📐</span>
     <b>shape만 봐도 흐름이 읽힙니다.</b> 들어올 때 <b>d_k(16)</b> 였던 마지막 축이 ③에서 <b>S_k(5)</b> 로 바뀌고(점수표),
     ⑧에서 다시 <b>d_k(16)</b> 로 돌아옵니다. <b class="hlt">"16칸 → 5개 점수 → 다시 16칸"</b> 이 이 함수의 전부예요.</div>
@@ -383,6 +416,14 @@
     <b>"먹구름이" 하나만 양수(+6.656)이고 나머지는 모두 −9 근처</b>입니다.
     학습이 끝난 모델이 <b class="hlt">"비가를 만들 땐 먹구름이를 봐라"</b>를 이미 알고 있다는 뜻이죠.
     나누기는 <b>순위를 바꾸지 않습니다</b> — 다섯 개 모두 똑같이 4로 나뉘니 <b>등수는 그대로, 간격만 좁아집니다.</b></div>
+  <figure>
+    <img src="https://raw.githubusercontent.com/unicorn-campus/mini-transformer/main/explain/images/attn-step3-scores.webp"
+         alt="16칸 Query 벡터와 질문 5단어의 Key 벡터를 내적해 점수 5개를 만들고 4로 나누는 과정 그림">
+    <figcaption><b>16칸 벡터끼리 곱해 더하면(내적) 점수 1개가 나옵니다.</b>
+    Query("비가") 1줄 × Key 5줄 → <b>점수 5개</b>. 그 5개를 √16 = 4로 나눈 것이 아래 줄입니다.
+    <b class="hlt">마지막 축이 16 → 5로 바뀌는 순간</b>이에요.
+    <div class="wordmap">그림의 영어 라벨: <span>sky = 하늘에</span><span>dark clouds = 먹구름이</span><span>see = 보이면</span><span>what = 뭐가</span><span>think = 생각나</span></div></figcaption>
+  </figure>
 
   <h4>④⑤ <span class="inline">masked_fill(mask==0, -inf)</span> — "여기는 보지 마"</h4>
 <pre><code><span class="cmt">④</span> <span class="kw">if</span> mask <span class="kw">is not</span> <span class="kw">None</span>:
@@ -442,6 +483,13 @@
     "같아"의 원래 점수 <b>+1.250</b>은 3등짜리 <b>꽤 높은 점수</b>였습니다. 그런데 −inf로 덮어쓰자 <b class="hlt">0.00%</b>가 됐죠.
     이게 <b>"미래를 못 보게 만든다"</b>의 실제 모습입니다. 점수를 지우는 게 아니라 <b>−무한대로 밀어 버리는</b> 것이 요령이에요 —
     0으로 바꾸면 exp(0)=1이 되어 <b>오히려 꽤 큰 비율</b>을 받아버립니다.</div>
+  <figure>
+    <img src="https://raw.githubusercontent.com/unicorn-campus/mini-transformer/main/explain/images/attn-step45-mask.webp"
+         alt="6x6 하삼각형 마스크와 row2의 점수가 -inf로 덮여 0%가 되는 3단계 변화 그림">
+    <figcaption><b>왼쪽</b>이 6×6 마스크 전체(T=본다, F=가린다)이고, <b>오른쪽</b>은 그중 노란 <b>row2</b> 한 줄이
+    <b class="hlt">점수 → −inf → 0.00%</b> 로 바뀌는 3단계입니다.
+    마스크는 <b>대각선 아래쪽만 T</b>인 삼각형이라 <b>행 번호만 보면 패턴이 정해집니다</b> — 생성 진행도와 무관합니다.</figcaption>
+  </figure>
 
   <h4>⑥ <span class="inline">attn = softmax(scores, dim=-1)</span> — 점수를 비율로</h4>
 <pre><code><span class="cmt">⑥</span> attn = torch.<span class="fn">softmax</span>(scores, dim=-<span class="num2">1</span>)   <span class="cmt"># (1,4,6,5) → 값만 바뀜, shape 그대로</span></code></pre>
@@ -461,6 +509,14 @@
     <b>dim=-1이 왜 중요한가요?</b> 만약 <span class="inline">dim=-2</span>로 잘못 주면 <b>"질문 단어 하나가 답 단어들에 준 비율"</b>의 합이 1이 되어
     의미가 <b>뒤집힙니다.</b> 우리가 원하는 건 <b class="hlt">"답 단어 하나가 질문을 어떻게 나눠 보는지"</b>이므로
     <b>Key 방향(마지막 축)</b>이 맞습니다.</div>
+  <figure>
+    <img src="https://raw.githubusercontent.com/unicorn-campus/mini-transformer/main/explain/images/attn-step6-softmax.webp"
+         alt="음수까지 있는 점수 5개가 softmax를 지나 합이 100%인 비율 5개로 바뀌는 막대그래프 그림">
+    <figcaption><b>왼쪽</b>은 0을 기준으로 양쪽으로 뻗은 <b>점수</b>(음수 가능),
+    <b>오른쪽</b>은 softmax를 지난 <b>비율</b>(모두 양수, 합 = 1.0000)입니다.
+    <b class="hlt">+1.664 하나가 93.11%를 독차지</b>하죠 — softmax는 큰 점수를 더 크게 벌리는 성질이 있습니다.
+    <div class="wordmap">그림의 영어 라벨: <span>sky = 하늘에</span><span>dark clouds = 먹구름이</span><span>see = 보이면</span><span>what = 뭐가</span><span>think = 생각나</span></div></figcaption>
+  </figure>
 
   <h4>⑦ <span class="inline">dropout(attn)</span> — 학습 중에만</h4>
 <pre><code><span class="cmt">⑦</span> <span class="kw">if</span> dropout <span class="kw">is not</span> <span class="kw">None</span>: attn = <span class="fn">dropout</span>(attn)</code></pre>
@@ -485,6 +541,14 @@
     결과 <b>−0.8156</b>은 "먹구름이"의 값 <b>−0.8982</b>과 <b class="hlt">거의 같습니다.</b>
     93%를 먹구름이에 줬으니 <b>먹구름이 주스에 다른 것 몇 방울</b> 섞은 셈이죠.
     이 계산을 <b>16칸 전부</b> 똑같이 하면 context 한 줄(16칸)이 완성됩니다.</div>
+  <figure>
+    <img src="https://raw.githubusercontent.com/unicorn-campus/mini-transformer/main/explain/images/attn-step8-context.webp"
+         alt="다섯 개 비커의 액체를 비율대로 한 컵에 따라 섞어 context를 만드는 그림">
+    <figcaption><b>비율(%)만큼 따라서 섞는 것</b>이 ⑧의 전부입니다.
+    "먹구름이" 비커에서 <b class="hlt">93.11%</b>를 쏟아붓고 나머지는 몇 방울씩만 넣으니,
+    결과 <b>−0.8156</b>이 먹구름이의 값 <b>−0.8982</b>와 거의 같아집니다.
+    <div class="wordmap">그림의 영어 라벨: <span>sky = 하늘에</span><span>dark clouds = 먹구름이</span><span>see = 보이면</span><span>what = 뭐가</span><span>think = 생각나</span></div></figcaption>
+  </figure>
 
   <h4>⑨ <span class="inline">return context, attn</span> — 왜 두 개를 돌려주나</h4>
   <table>
