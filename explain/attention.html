@@ -397,11 +397,43 @@
   질문 6개가 모두 정확히 5단어라 <b class="hlt">패딩이 없어서</b> 마스크가 전부 True이기 때문입니다.</p>
 <pre><code>mask[<span class="num2">0</span>,<span class="num2">0</span>,<span class="num2">0</span>] = [<span class="kw">True</span>, <span class="kw">True</span>, <span class="kw">True</span>, <span class="kw">True</span>, <span class="kw">True</span>]   <span class="cmt"># 가릴 곳이 하나도 없음 → 점수 그대로 통과</span></code></pre>
   <p>그래서 <b>−inf가 실제로 작동하는 장면</b>은 같은 함수의 <b>다른 호출</b>에서 볼 수 있습니다 —
-  디코더의 <b>마스크드 셀프 어텐션</b>(답이 답을 보는 부분)입니다.
-  아래는 답 <b>"올"</b>(3번째 자리)이 답 단어들을 볼 때의 실제 값입니다.</p>
+  디코더의 <b>마스크드 셀프 어텐션</b>(답이 답을 보는 부분)입니다.</p>
+
+  <h4>먼저: mask 전체는 <b>정사각형 표</b>입니다 (행마다 패턴이 다름)</h4>
+  <p>여기서 쓰는 마스크는 <span class="inline">make_causal_mask(6, ...)</span> = <span class="inline">torch.tril</span>이 만든
+  <b class="hlt">6×6 하삼각형 표</b>입니다. <b>가로 = 보이는 쪽(Key), 세로 = 보려는 쪽(Query)</b>이고,
+  <b>오른쪽이 미래</b>입니다.</p>
+  <table>
+    <tr><th>Query ↓ / Key →</th><th>&lt;sos&gt;</th><th>비가</th><th>올</th><th>것</th><th>같아</th><th>&lt;eos&gt;</th></tr>
+    <tr><td>row0 &lt;sos&gt;</td><td>True</td><td>False</td><td>False</td><td>False</td><td>False</td><td>False</td></tr>
+    <tr><td>row1 비가</td><td>True</td><td>True</td><td>False</td><td>False</td><td>False</td><td>False</td></tr>
+    <tr><td><b>row2 올</b> ← 아래에서 볼 행</td><td><b>True</b></td><td><b>True</b></td><td><b>True</b></td><td><b>False</b></td><td><b>False</b></td><td><b>False</b></td></tr>
+    <tr><td>row3 것</td><td>True</td><td>True</td><td>True</td><td>True</td><td>False</td><td>False</td></tr>
+    <tr><td>row4 같아</td><td>True</td><td>True</td><td>True</td><td>True</td><td>True</td><td>False</td></tr>
+    <tr><td>row5 &lt;eos&gt;</td><td>True</td><td>True</td><td>True</td><td>True</td><td>True</td><td>True</td></tr>
+  </table>
+  <div class="callout warn"><span class="emoji">⚠️</span>
+    <b>흔한 오해 — "지금까지 몇 개를 답했는지"에 따라 True/False가 정해지는 게 아닙니다.</b><br>
+    <b class="hlt">그 행이 몇 번째 자리인지</b>로만 정해집니다. row2가 뒤쪽 3칸을 가리는 이유는
+    "아직 안 만들었으니까"가 아니라 <b>"3번째 자리는 원래 3번째까지만 보는 규칙이니까"</b>예요.
+    실제로 위 숫자는 노트북 <span class="inline">answer()</span>의 마지막 부분에서 뽑았는데,
+    그때는 <b>답 6칸이 이미 전부 완성된 상태</b>로 한꺼번에 넣습니다. 그래도 row2는 여전히 뒤쪽을 가립니다.
+    <span class="muted">(그래서 이 표는 문장 길이 6만 알면 모델을 돌리기도 전에 그릴 수 있습니다)</span></div>
+  <div class="callout"><span class="emoji">🎓</span>
+    <b>왜 이런 규칙이 필요한가요?</b> 학습 때는 답 6칸을 <b>한 번에</b> 계산합니다(티처 포싱).
+    이때 row2가 "것"을 볼 수 있으면 <b class="hlt">정답을 미리 훔쳐보는</b> 셈이라 학습이 망가집니다.
+    각 행이 자기 자리까지만 보게 고정해 두면, <b>학습과 추론의 조건이 똑같아집니다.</b></div>
+  <div class="callout"><span class="emoji">🔀</span>
+    <b>마스크 두 종류의 차이</b>가 여기서 드러납니다.
+    <b>causal(미래 가림)</b> 은 <b class="hlt">위치만</b> 보고 정해지고(<span class="inline">torch.tril</span>, 길이만 알면 끝),
+    <b>padding(빈칸 가림)</b> 은 <b class="hlt">데이터 내용</b>을 보고 정해집니다(그 자리가 <span class="inline">&lt;pad&gt;</span>인지).
+    학습 때 디코더는 <span class="inline">make_decoder_mask</span>로 <b>둘을 &amp;(논리곱)으로 합쳐</b> 씁니다.</div>
+
+  <h4>그중 <b>row2("올") 한 행만</b> 뽑아 실제 계산 보기</h4>
+  <p>위 표의 <b>row2</b>가 아래 첫 줄 그대로입니다. 이 한 행이 어떻게 비율로 바뀌는지 따라가 보세요.</p>
   <table>
     <tr><th>단계</th><th>&lt;sos&gt;</th><th>비가</th><th>올</th><th>것</th><th>같아</th><th>&lt;eos&gt;</th></tr>
-    <tr><td>mask</td><td>True</td><td>True</td><td>True</td><td><b>False</b></td><td><b>False</b></td><td><b>False</b></td></tr>
+    <tr><td>mask (= row2)</td><td>True</td><td>True</td><td>True</td><td><b>False</b></td><td><b>False</b></td><td><b>False</b></td></tr>
     <tr><td>⑤ 전 (scores)</td><td>−2.147</td><td>+0.868</td><td>+1.658</td><td>+0.837</td><td>+1.250</td><td>+1.695</td></tr>
     <tr><td>⑤ 후</td><td>−2.147</td><td>+0.868</td><td>+1.658</td><td><b>−inf</b></td><td><b>−inf</b></td><td><b>−inf</b></td></tr>
     <tr><td>⑥ softmax 결과</td><td>1.51%</td><td>30.74%</td><td><b>67.75%</b></td><td><b>0.00%</b></td><td><b>0.00%</b></td><td><b>0.00%</b></td></tr>
