@@ -367,6 +367,14 @@
     <tr><td><span class="inline">nn.Linear(64, 64)</span></td><td>64칸을 받아 64칸을 내보내는 <b>학습 가능한 변환기</b>. 내부에 weight·bias를 가짐</td><td><span class="inline">weight(64,64)</span> + <span class="inline">bias(64,)</span> = <b>4,160개</b></td></tr>
     <tr><td><span class="inline">;</span></td><td>한 줄에 <b>두 문장</b> 쓰기 (줄 수를 줄이려는 것뿐)</td><td>의미상 4줄</td></tr>
   </table>
+  <div class="callout"><span class="emoji">📷</span>
+    <b>이 줄은 계산을 하지 않습니다.</b> <span class="inline">nn.Linear(64, 64)</span> 는
+    <b class="hlt">변환기 객체 한 대를 만들어 돌려주는 것</b>이 전부이고,
+    그 안의 <span class="inline">weight(64,64)</span>·<span class="inline">bias(64,)</span> 는
+    <b>무작위 값으로 채워집니다</b>(범위 ±1/√64 = <b>±0.125</b>, 실측 최소 −0.1247 / 최대 0.1250).
+    학습 전이라 아직 <b>의미 없는 난수</b>이고, 400에폭 학습이 이 4,160개를 조정합니다.<br>
+    <b>실제 곱셈·덧셈은 ⑨에서 <span class="inline">wq(q)</span> 를 부를 때</b> 비로소 일어납니다 —
+    <b class="hlt">카메라를 사 오는 것(③)과 그 카메라로 찍는 것(⑨)은 다른 일</b>이죠.</div>
   <p><b>이 부품의 학습 파라미터는 이 네 대가 전부입니다.</b></p>
   <table>
     <tr><th>이름</th><th>역할</th><th>파라미터 수</th></tr>
