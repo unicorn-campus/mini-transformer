@@ -92,6 +92,11 @@
   th,td{border:1px solid var(--line);padding:9px 12px;text-align:left}
   th{background:var(--panel2);color:#fff}
 
+  figure{margin:20px 0}
+  figure img{width:100%;display:block;border:1px solid var(--line);border-radius:14px;background:var(--code)}
+  figcaption{font-size:13.5px;color:var(--sub);margin-top:8px;line-height:1.65}
+  figcaption b{color:#fff}
+
   footer{margin-top:80px;border-top:1px solid var(--line);padding-top:24px;color:var(--sub);font-size:14px}
   .toc{position:sticky;top:0;z-index:5;background:rgba(15,23,42,.85);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
   .toc .wrap{display:flex;gap:6px;flex-wrap:wrap;padding:10px 20px;overflow-x:auto}
@@ -711,6 +716,32 @@ pe = enc.pos.pe[:, :x.<span class="fn">size</span>(<span class="num2">1</span>)]
     <b>여기 나온 함수 대부분은 다른 부품에서도 그대로 반복됩니다.</b>
     멀티헤드 어텐션의 <span class="inline">view</span>·<span class="inline">transpose</span>, FFN의 <span class="inline">nn.Linear</span> 정도만 새로 배우면
     <b class="hlt">노트북 전체 코드를 읽을 수 있습니다.</b></div>
+
+  <h3>그림으로 보기 — 이 코드가 만든 표는 어떤 모습인가</h3>
+  <p>위 코드를 실제로 돌려 만들어진 <span class="inline">pe</span> 표 <b>(1, 22, 64)</b>를 두 각도에서 재봤습니다.</p>
+  <figure>
+    <img src="https://raw.githubusercontent.com/unicorn-campus/mini-transformer/main/explain/images/pe-distance.webp"
+         alt="위치 벡터 앞 8칸의 막대 패턴이 자리마다 다른 것과, 첫 자리와의 코사인 유사도가 멀어질수록 낮아지는 것, 그리고 이웃 간 거리가 어디서나 1.472로 같은 것을 보여 주는 그림">
+    <figcaption><b>왼쪽 — 자리마다 무늬가 다릅니다.</b> 같은 8칸인데 다섯 줄의 막대 모양이 모두 다르죠.
+    실제로 <b class="hlt">22줄 전부가 서로 다른 무늬</b>입니다(중복 0줄). 이게 "위치를 구별한다"의 의미입니다.<br>
+    <b>가운데 — 멀어질수록 덜 닮습니다.</b> 첫 자리와의 유사도가
+    바로 옆(먹구름이) <b>0.966</b> → 두 칸 뒤(보이면) 0.885 → 네 칸 뒤(생각나) 0.748 → 21칸 뒤 <b>0.556</b>으로 내려갑니다.
+    <b>"가까운 자리끼리는 비슷하고 먼 자리는 다르다"</b>는 성질이 공짜로 따라옵니다.<br>
+    <b>아래 — 그런데 이웃 간 거리는 어디서나 똑같습니다.</b>
+    첫↔두 번째가 <b class="hlt">1.472</b>인데 21↔22번째도 <b class="hlt">1.472</b>입니다.
+    <b>"한 칸 차이"의 크기가 문장 앞이든 뒤든 동일</b>하다는 뜻이고, 그래서 모델이 상대적 거리를 일관되게 배울 수 있습니다.</figcaption>
+  </figure>
+  <figure>
+    <img src="https://raw.githubusercontent.com/unicorn-campus/mini-transformer/main/explain/images/pe-fast-slow.webp"
+         alt="첫째 칸은 파장 6.3자리로 여러 번 물결치고 예순셋째 칸은 파장 47117자리로 거의 직선인 것을 4단 꺾은선으로 비교한 그림">
+    <figcaption><b>코드의 <span class="inline">div</span> 한 줄이 만든 결과입니다.</b>
+    칸마다 파도 속도가 달라서, <b>첫째 칸</b>은 6.3자리마다 한 바퀴를 돌며 부지런히 출렁이고
+    <b>예순셋째 칸</b>은 47,117자리가 지나야 한 바퀴라 <b class="hlt">사실상 직선</b>입니다.<br>
+    수치로도 확인됩니다 — 위치가 바뀔 때의 변화폭이 <b>앞 16칸은 평균 0.677</b>인데 <b>뒤 16칸은 0.0015</b>뿐입니다.
+    <b class="hlt">우리 질문은 5단어뿐이라 회색 구간만 씁니다</b>(그림 왼쪽). 뒤칸은 훨씬 긴 문장을 위한 예비석인 셈이죠.<br>
+    <span class="muted">여기서 <b>10000</b>이라는 숫자의 정체가 드러납니다. 그것은 "가장 느린 칸의 파장을 얼마로 할까"를 정하는
+    <b>줄자의 길이</b>입니다. 원 논문이 고른 값이고, 이 값이 크면 더 긴 문장까지 구별할 수 있습니다.</span></figcaption>
+  </figure>
 </section>
 
 <!-- 8 -->
