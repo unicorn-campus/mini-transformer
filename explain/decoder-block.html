@@ -96,6 +96,11 @@
   th,td{border:1px solid var(--line);padding:9px 12px;text-align:left}
   th{background:var(--panel2);color:#fff}
 
+  figure{margin:20px 0}
+  figure img{width:100%;display:block;border:1px solid var(--line);border-radius:14px;background:var(--code)}
+  figcaption{font-size:13.5px;color:var(--sub);margin-top:8px;line-height:1.65}
+  figcaption b{color:#fff}
+
   footer{margin-top:80px;border-top:1px solid var(--line);padding-top:24px;color:var(--sub);font-size:14px}
   .toc{position:sticky;top:0;z-index:5;background:rgba(15,23,42,.85);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
   .toc .wrap{display:flex;gap:6px;flex-wrap:wrap;padding:10px 20px;overflow-x:auto}
@@ -184,7 +189,7 @@
   </div>
   <div class="callout warn"><span class="emoji">🚫</span>
   코드로는 <span class="inline">torch.tril(torch.ones(L, L))</span> 한 줄, 대각선 포함 <b>왼쪽 아래 삼각형만 True</b> 로 만드는 것과 같습니다.
-  노트북 체크포인트(셀 23)도 3단어 예시에서 True 개수가 <span class="inline">1+2+3=6</span> 인지로 이 모양을 검증합니다.</div>
+  노트북 체크포인트(셀 34)도 3단어 예시에서 True 개수가 <span class="inline">1+2+3=6</span> 인지로 이 모양을 검증합니다.</div>
 </section>
 
 <!-- 4 -->
@@ -215,7 +220,7 @@
 <!-- 5 -->
 <section id="p5">
   <h2><span class="num">5</span> 코드는 이 forward 한 줄씩이 전부</h2>
-  <p>노트북 <span class="inline">example-detailed.ipynb</span> 의 <span class="inline">DecoderLayer</span> 클래스입니다(셀 18).</p>
+  <p>노트북 <span class="inline">hands-on/example-explain.ipynb</span> 의 <span class="inline">DecoderLayer</span> 클래스입니다(셀 25).</p>
 <pre><code><span class="kw">class</span> <span class="fn">DecoderLayer</span>(nn.Module):
     <span class="kw">def</span> <span class="fn">__init__</span>(self, d_model, num_heads, d_ff, dropout=<span class="num2">0.1</span>):
         super().<span class="fn">__init__</span>()
@@ -235,6 +240,80 @@
     <tr><td>②</td><td><span class="inline">cross_attn(x,enc,enc,src_mask)</span></td><td>Q=답, K·V=인코더 출력 → 질문을 곁눈질 (크로스어텐션)</td></tr>
     <tr><td>③</td><td><span class="inline">ffn(x)</span></td><td>각 위치를 혼자 한 번 더 곱씹기</td></tr>
   </table>
+
+  <h3>그림으로 보기 — <span class="inline">forward</span> 세 줄에서 일어나는 일</h3>
+  <p>위 <span class="inline">forward</span>의 세 줄을 펼치면 이렇게 됩니다.
+  <a href="encoder-layer.html">인코더 블록</a>과 <b>구조가 똑같고 블록만 하나 더 늘었다</b>는 점을 보세요.</p>
+  <figure>
+    <img src="https://raw.githubusercontent.com/unicorn-campus/mini-transformer/main/explain/images/dec-forward-flow.webp"
+         alt="답이 미래 가림 셀프어텐션 블록, 질문을 곁눈질하는 크로스어텐션 블록, 각 단어 혼자 계산하는 블록을 차례로 지나 출력이 되는 흐름 그림. 인코더 출력은 가운데 블록으로만 들어간다">
+    <figcaption><b>세 블록의 속은 완전히 같은 모양입니다.</b>
+    각각 <b>본선 → 원본 그대로 건너오는 곡선 → ⊕ → 정규화</b> 순서죠. 인코더 블록에서 두 번 반복됐던 그 패턴이 여기선 세 번입니다.<br>
+    <b class="hlt">진짜 봐야 할 것은 아래에서 올라오는 하늘색 화살표입니다.</b>
+    <span class="inline">enc</span>(인코더 출력, 질문)가 <b>가운데 블록 한 곳으로만</b> 들어갑니다 —
+    ①과 ③은 답 자신만 가지고 계산하고, <b>질문을 보는 창구는 ② 하나뿐</b>이에요.
+    이것이 인코더 블록과 디코더 블록의 유일한 구조적 차이입니다.<br>
+    양쪽 끝의 <span class="inline">(1, 6, 64)</span>도 확인하세요. <b>들어갈 때와 나올 때 모양이 같아</b> 이 블록도 몇 겹이든 쌓을 수 있습니다(우리 노트북은 2겹).</figcaption>
+  </figure>
+
+  <h3>세 하위층이 각각 무엇을 입력으로 받나</h3>
+  <p>세 줄의 코드가 <b>겉보기엔 거의 똑같이 생겼습니다.</b> 실제로 다른 건 <b class="hlt">괄호 안에 무엇을 넣는지</b>뿐이에요.</p>
+  <figure>
+    <img src="https://raw.githubusercontent.com/unicorn-campus/mini-transformer/main/explain/images/dec-three-sublayers.webp"
+         alt="세 하위층의 Q·K·V 출처와 마스크 종류를 비교한 표 형태 그림. 셀프어텐션은 Q·K·V 모두 답, 크로스어텐션은 Q만 답이고 K·V는 질문, 각 단어 혼자는 입력 하나뿐">
+    <figcaption><b>남보라색은 답에서, 하늘색은 질문에서 온 것입니다.</b>
+    <b>①</b> Q·K·V가 <b>셋 다 남보라색</b> — 답이 답을 봅니다. 그래서 미래를 가려야 하고, 마스크가 <b>계단(삼각형)</b> 모양입니다.<br>
+    <b>②</b> <b class="hlt">Q만 남보라색이고 K·V는 하늘색</b> — 이 한 줄이 "답이 질문을 참고한다"의 정체입니다.
+    질문에는 미래라는 개념이 없으니 마스크도 <b>빈칸(패딩)만</b> 가리는 납작한 모양이죠.<br>
+    <b>③</b> 입력이 <b>하나뿐이고 마스크도 없습니다</b> — 각 단어가 다른 단어를 아예 안 보니까 가릴 것이 없습니다.</figcaption>
+  </figure>
+  <table>
+    <tr><th>순서</th><th>Q 출처</th><th>K·V 출처</th><th>마스크</th><th>실제 shape</th></tr>
+    <tr><td><b>①</b> self_attn</td><td>답</td><td><b>답</b></td><td><span class="inline">tgt_mask</span> — 미래+패딩<br><span class="muted">(1,1,6,6) · True 58%</span></td><td>q·k·v 모두 (1, 6, 64)</td></tr>
+    <tr><td><b>②</b> cross_attn</td><td>답</td><td><b class="hlt">인코더 출력</b></td><td><span class="inline">src_mask</span> — 패딩만<br><span class="muted">(1,1,1,5) · True 100%</span></td><td>q (1, <b>6</b>, 64) / k·v (1, <b>5</b>, 64)</td></tr>
+    <tr><td><b>③</b> ffn</td><td colspan="2">입력 하나뿐 (다른 텐서 안 씀)</td><td>없음</td><td>(1, 6, 64)</td></tr>
+  </table>
+  <div class="callout"><span class="emoji">📏</span>
+    <b>②에서만 q와 k·v의 길이가 다릅니다</b> — 답 <b>6</b>칸이 질문 <b>5</b>단어를 보니까요.
+    ①과 ③은 전부 6으로 같습니다. <span class="muted">(src_mask의 True 비율이 100%인 건 우리 질문 6개가 모두 정확히 5단어여서 패딩이 없기 때문입니다 —
+    "마스크를 안 넘긴다"가 아니라 "가릴 것이 없다"입니다)</span></div>
+
+  <h3>그 세 줄이 실제로 만든 숫자</h3>
+  <p>질문 <b class="hlt">"하늘에 먹구름이 보이면 뭐가 생각나"</b>로 답 <b class="hlt">"비가 올 것 같아"</b>를 만든 뒤,
+  <b>마지막 디코더 층</b>에서 답 단어 <b class="hlt">"비가"</b>의 64칸을 단계마다 측정했습니다.</p>
+  <table>
+    <tr><th>단계</th><th>코드</th><th>shape</th><th>평균</th><th>표준편차</th></tr>
+    <tr><td>① 입력 x</td><td><span class="inline">x</span></td><td>(1, 6, 64)</td><td>+0.003</td><td>1.011</td></tr>
+    <tr><td>② 마스크드 셀프어텐션</td><td><span class="inline">self_attn(x,x,x,tgt_mask)</span></td><td>(1, 6, 64)</td><td>−0.008</td><td>0.349</td></tr>
+    <tr><td>③ 잔차+정규화</td><td><span class="inline">n1(...)</span></td><td>(1, 6, 64)</td><td><b class="hlt">+0.002</b></td><td><b class="hlt">1.011</b></td></tr>
+    <tr><td>④ 크로스어텐션</td><td><span class="inline">cross_attn(x,enc,enc,src_mask)</span></td><td>(1, 6, 64)</td><td>−0.018</td><td>0.422</td></tr>
+    <tr><td>⑤ 잔차+정규화</td><td><span class="inline">n2(...)</span></td><td>(1, 6, 64)</td><td><b class="hlt">+0.001</b></td><td><b class="hlt">1.011</b></td></tr>
+    <tr><td>⑥ FFN</td><td><span class="inline">ffn(x)</span></td><td>(1, 6, 64)</td><td>−0.029</td><td>0.467</td></tr>
+    <tr><td>⑦ 잔차+정규화 = 출력</td><td><span class="inline">n3(...)</span></td><td>(1, 6, 64)</td><td><b class="hlt">−0.000</b></td><td><b class="hlt">0.992</b></td></tr>
+  </table>
+  <div class="callout good"><span class="emoji">🔎</span>
+    <b>표에서 볼 세 가지.</b><br>
+    <b>①</b> <span class="inline">shape</span>가 <b class="hlt">일곱 번 내내 (1, 6, 64)</b>입니다. 모양은 절대 안 바뀝니다.<br>
+    <b>②</b> 세 하위층의 결과(②④⑥)는 표준편차가 <b>0.35 ~ 0.47</b>로 <b>입력(1.01)보다 작습니다.</b>
+    <b class="hlt">원본을 덮어쓰는 게 아니라 작은 수정값을 얹는 것</b>이라는 뜻이죠 — 인코더 블록에서 본 그 성질입니다.<br>
+    <b>③</b> 정규화를 지난 ③⑤⑦에서만 <b>평균 ≈ 0, 표준편차 ≈ 1</b>로 되돌아옵니다. 세 번 모두 같은 값으로요.<br>
+    <span class="muted">참고로 이때 크로스어텐션이 실제로 본 곳은 — 하늘에 8.0% · <b>먹구름이 63.9%</b> · 보이면 12.6% · 뭐가 6.8% · 생각나 8.7%
+    (헤드 4개 평균). "비가"를 만들 때 "먹구름이"를 보는 그 유명한 쌍입니다.<br>
+    측정 조건: <span class="inline">torch.manual_seed(42)</span>로 400에폭 학습, loss 0.0035, 마지막 디코더 층.
+    파이토치 버전이 다르면 소수점은 달라집니다.</span></div>
+
+  <h3>인코더 블록과 몇 개나 다를까</h3>
+  <table>
+    <tr><th>항목</th><th>인코더 블록</th><th>디코더 블록</th></tr>
+    <tr><td>하위층</td><td>2개</td><td><b>3개</b> (크로스어텐션 추가)</td></tr>
+    <tr><td>LayerNorm</td><td>2개 (n1·n2)</td><td><b>3개</b> (n1·n2·n3)</td></tr>
+    <tr><td>어텐션 인스턴스</td><td>1개</td><td><b>2개</b> (self_attn·cross_attn — 가중치 독립)</td></tr>
+    <tr><td>받는 마스크</td><td>1개 (패딩)</td><td><b>2개</b> (tgt_mask·src_mask)</td></tr>
+    <tr><td>바깥 입력</td><td>없음</td><td><b>enc</b> (인코더 출력)</td></tr>
+    <tr><td>학습 파라미터</td><td>49,984개</td><td><b>66,752개</b></td></tr>
+  </table>
+  <p class="muted">파라미터 차이 <b>16,768개</b>는 정확히 <b>크로스어텐션 16,640개 + LayerNorm 한 개 128개</b>입니다.
+  나머지는 인코더 블록과 완전히 같은 구성이에요.</p>
 </section>
 
 <!-- 6 -->
@@ -246,7 +325,7 @@
   <b>서로 다른 인스턴스</b>라 가중치(wq/wk/wv/wo)가 완전히 독립적이에요.</div>
   <div class="callout warn"><span class="emoji">🎭</span>
   <b><span class="inline">tgt_mask</span> ≠ <span class="inline">src_mask</span></b>.
-  <span class="inline">tgt_mask</span>(= <span class="inline">make_decoder_mask</span>, 셀 22)는 <b>패딩 + 미래</b> 둘 다 가리고 self_attn에 쓰입니다.
+  <span class="inline">tgt_mask</span>(= <span class="inline">make_decoder_mask</span>, 셀 33)는 <b>패딩 + 미래</b> 둘 다 가리고 self_attn에 쓰입니다.
   <span class="inline">src_mask</span>(= <span class="inline">make_padding_mask</span>)는 <b>질문 쪽 패딩만</b> 가리고 cross_attn에 쓰여요 — 질문엔 "미래"라는 개념이 없으니까요.</div>
   <div class="callout good"><span class="emoji">3️⃣</span>
   <b>LayerNorm이 왜 3개?</b> Post-LN 패턴은 <b>하위층 하나마다 정규화 하나</b>가 붙습니다. 하위층이 3개(마스크드 셀프어텐션·크로스어텐션·FFN)라서
@@ -274,7 +353,7 @@
 
 <footer>
   <p>Mini-Transformer 실습 교재 · 디코더 블록 쉬운 설명판<br>
-  코드 출처: <span class="inline">example-detailed.ipynb</span> — 부품 ⑥ DecoderLayer (셀 18, 관련: 부품③ MultiHeadAttention 셀 14 · 부품⑤ EncoderLayer 셀 17 · 부품⑩ 마스크 셀 22)<br>
+  코드 출처: <span class="inline">hands-on/example-explain.ipynb</span> — 부품 ⑥ DecoderLayer (셀 25, 관련: 부품③ MultiHeadAttention 셀 18 · 부품⑤ EncoderLayer 셀 23 · 부품⑩ 마스크 셀 33)<br>
   함께 보기: <a href="attention.html">어텐션(부품②)</a> · <a href="multi-head-attention.html">멀티헤드 어텐션(부품③)</a> ·
   <a href="positional-encoding.html">위치 인코딩</a> · <a href="vocab.html">어휘 사전</a></p>
 </footer>
