@@ -111,6 +111,11 @@
   th,td{border:1px solid var(--line);padding:9px 12px;text-align:left}
   th{background:var(--panel2);color:#fff}
 
+  figure{margin:20px 0}
+  figure img{width:100%;display:block;border:1px solid var(--line);border-radius:14px;background:var(--code)}
+  figcaption{font-size:13.5px;color:var(--sub);margin-top:8px;line-height:1.65}
+  figcaption b{color:#fff}
+
   footer{margin-top:80px;border-top:1px solid var(--line);padding-top:24px;color:var(--sub);font-size:14px}
   .toc{position:sticky;top:0;z-index:5;background:rgba(15,23,42,.85);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
   .toc .wrap{display:flex;gap:6px;flex-wrap:wrap;padding:10px 20px;overflow-x:auto}
@@ -264,6 +269,41 @@ dec_in, dec_tgt = tgt_ids[:, :-<span class="num2">1</span>], tgt_ids[:, <span cl
     <tr><td><span class="inline">loss.backward()</span></td><td>③-1</td><td>"어느 방향으로 틀렸는지" 기울기 계산</td></tr>
     <tr><td><span class="inline">opt.step()</span></td><td>③-2</td><td>그 반대 방향으로 가중치를 한 걸음 이동</td></tr>
   </table>
+
+  <h3>그림으로 보기 — 티처 포싱의 "한 칸 밀기"</h3>
+  <p><span class="inline">dec_in, dec_tgt = tgt_ids[:, :-1], tgt_ids[:, 1:]</span> 이 한 줄이 하는 일입니다.
+  <b>긴 답과 짧은 답을 나란히</b> 놓고 보면 <span class="inline">ignore_index</span>가 왜 필요한지도 함께 보입니다.</p>
+  <figure>
+    <img src="https://raw.githubusercontent.com/unicorn-campus/mini-transformer/main/explain/images/train-teacher-forcing.webp"
+         alt="원본 6칸을 앞 5칸과 뒤 5칸으로 잘라 한 칸 밀어 짝지어 주는 것을 긴 답과 짧은 답 두 경우로 비교한 그림. 짧은 답에서는 pad 칸이 채점에서 제외된다">
+    <figcaption><b>대각선 화살표 다섯 개가 학습의 전부입니다.</b>
+    "<span class="inline">sos</span>를 보면 <b>비가</b>", "<span class="inline">sos</span> 비가를 보면 <b>올</b>" …
+    이렇게 <b class="hlt">지금까지의 답을 보고 바로 다음 단어를 맞히도록</b> 짝지어 줍니다.
+    원본 6칸을 <b>앞 5칸(보여 줄 것)</b>과 <b>뒤 5칸(맞혀야 할 것)</b>으로 자르면 자동으로 한 칸이 밀립니다.<br>
+    <b class="hlt">아래쪽 짧은 답이 이 그림의 진짜 요점입니다.</b>
+    '아침이 밝았구나'는 짧아서 <span class="inline">&lt;pad&gt;</span>가 붙는데,
+    <b>맞혀야 할 것에까지 빈칸이 들어가 버립니다.</b> 빈칸을 맞히라고 시키면 안 되죠.<br>
+    그래서 <span class="inline">CrossEntropyLoss(ignore_index=pad_id)</span>가 그 칸을 <b>채점에서 뺍니다</b> —
+    전체 30칸 중 <b class="hlt">22칸만</b> 채점됩니다. 발판(패딩)은 사진에는 찍히지만 "사람 수"에는 안 들어가는 셈입니다.
+    <span class="muted">(검산: 칸별 loss 합 1060.5466 ÷ 22칸 = 48.2067 로 1회차 loss와 정확히 일치합니다.
+    30칸으로 나누면 45.9972가 되어 값이 달라집니다.)</span></figcaption>
+  </figure>
+
+  <h3>그림으로 보기 — 400번 반복이 만드는 곡선</h3>
+  <figure>
+    <img src="https://raw.githubusercontent.com/unicorn-campus/mini-transformer/main/explain/images/train-loss-curve.webp"
+         alt="틀린 정도가 1회 48.21에서 400회 0.0035까지 급하게 떨어진 뒤 완만해지는 곡선과, 예측하기 얼마나 틀렸나 조금 고치기 세 단계가 순환하는 고리 그림">
+    <figcaption><b>왼쪽 곡선의 모양을 보세요 — 초반에 급락하고 후반에는 거의 눕습니다.</b>
+    처음에는 완전히 무작위라 크게 틀리니 고칠 것도 많고, 뒤로 갈수록 <b>세부만 다듬기</b> 때문입니다.
+    100회에 이미 <b>1.93</b>까지 내려오고, 그 뒤 300번은 소수점을 깎는 데 씁니다.<br>
+    <b>오른쪽 고리가 그 400번의 내용입니다.</b> ① 예측 → ② 얼마나 틀렸나 → ③ 조금 고치기.
+    <b class="hlt">이 세 걸음이 전부이고, 그걸 400번 반복할 뿐</b>입니다. 한 번에 고치는 값은 235,520개죠.<br>
+    <b>정확히 0이 되지는 않습니다.</b> softmax 확률은 1에 <b>가까워질 뿐</b> 1이 되지 않으니까요.
+    체크포인트가 "0.5 미만"만 확인하는 것도 그래서입니다.
+    <span class="muted">(그림의 수치는 로컬 PyTorch 2.13에서 다시 측정한 값입니다.
+    이 페이지 아래 곡선 그래프는 다른 환경에서 뽑은 것이라 400회 값이 0.0063으로 조금 다릅니다 —
+    시드를 고정해도 파이토치 버전이 다르면 소수점은 달라집니다. 형태와 결론은 같습니다.)</span></figcaption>
+  </figure>
 </section>
 
 <!-- 6 -->
