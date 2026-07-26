@@ -95,6 +95,11 @@
   th,td{border:1px solid var(--line);padding:9px 12px;text-align:left}
   th{background:var(--panel2);color:#fff}
 
+  figure{margin:20px 0}
+  figure img{width:100%;display:block;border:1px solid var(--line);border-radius:14px;background:var(--code)}
+  figcaption{font-size:13.5px;color:var(--sub);margin-top:8px;line-height:1.65}
+  figcaption b{color:#fff}
+
   footer{margin-top:80px;border-top:1px solid var(--line);padding-top:24px;color:var(--sub);font-size:14px}
   .toc{position:sticky;top:0;z-index:5;background:rgba(15,23,42,.85);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
   .toc .wrap{display:flex;gap:6px;flex-wrap:wrap;padding:10px 20px;overflow-x:auto}
@@ -309,6 +314,34 @@ SPECIALS = [PAD, SOS, EOS, UNK]
   <div class="callout"><span class="emoji">💡</span><b>질문과 답은 사전을 따로 만듭니다.</b>
   <span class="inline">src_vocab</span>(질문용)과 <span class="inline">tgt_vocab</span>(답용) — 쓰는 단어가 다르니까요.
   그래서 노트북에서 <b>질문 단어 14개, 답 단어 18개</b>로 크기가 다릅니다.</div>
+
+  <h3>그림으로 보기 — 사전을 왜 두 권 만드나</h3>
+  <p>"쓰는 단어가 다르니까"라는 말이 얼마나 사실인지, 실제 번호로 확인해 봤습니다.</p>
+  <figure>
+    <img src="https://raw.githubusercontent.com/unicorn-campus/mini-transformer/main/explain/images/vocab-two-dicts.webp"
+         alt="질문 단어장 14개와 답 단어장 18개를 나란히 놓고, 두 사전의 교집합이 0개임을 보여 주고, 답 문장을 질문 단어장으로 변환하면 전부 unk 가 되는 것을 보여 주는 그림">
+    <figcaption><b>두 사전의 단어는 하나도 겹치지 않습니다(실측 교집합 0개).</b>
+    질문에는 <b>하늘에·먹구름이·보이면</b> 같은 단어만, 답에는 <b>비가·올·것·같아</b> 같은 단어만 나오니까요.<br>
+    그래서 아래 흐름이 성립합니다 — 답 <b class="hlt">"비가 올 것 같아"</b>를 <b>질문 단어장</b>으로 번호로 바꾸면
+    <b class="hlt">3 3 3 3</b>, 즉 <b>전부 <span class="inline">&lt;unk&gt;</span></b>가 됩니다.
+    사전 하나로 억지로 합치면 이런 사고가 나기 때문에 따로 만듭니다.
+    <span class="muted">(맨 위 노란 칸 0~3은 특수토큰 '예약석'입니다. 두 사전 모두 같은 번호를 쓰기 때문에
+    "패딩은 0번" 같은 코드를 사전과 무관하게 쓸 수 있습니다. 실제 단어는 항상 4번부터 시작합니다.)</span></figcaption>
+  </figure>
+
+  <h3>그림으로 보기 — encode 와 decode</h3>
+  <figure>
+    <img src="https://raw.githubusercontent.com/unicorn-campus/mini-transformer/main/explain/images/vocab-encode-decode.webp"
+         alt="단어 다섯 개가 번호로 바뀌고, 사전에 없는 단어는 3번으로 대체되며, 반대로 번호 여섯 개가 글자로 돌아올 때 특수토큰 두 개는 걸러지는 것을 위아래로 비교한 그림">
+    <figcaption><b>위가 <span class="inline">encode</span>, 아래가 <span class="inline">decode</span> 입니다.</b>
+    같은 사전 한 권으로 <b class="hlt">양쪽 방향을 모두</b> 찾습니다 — 넣을 때는 <span class="inline">stoi</span>,
+    읽을 때는 <span class="inline">itos</span>를 쓰는 것이죠.<br>
+    <b>오른쪽 위 분홍색 "번개가"</b>를 보세요. 사전에 없는 단어는 <b class="hlt">3번(<span class="inline">&lt;unk&gt;</span>)</b>으로 대체됩니다.
+    에러가 나지 않고 조용히 넘어가므로, 낯선 단어를 넣으면 모델이 엉뚱한 답을 할 수 있습니다.<br>
+    <b>아래 회색 칸 두 개</b>는 <span class="inline">&lt;sos&gt;</span>(1번)와 <span class="inline">&lt;eos&gt;</span>(2번)입니다.
+    <b>모델에게 주는 신호일 뿐 진짜 단어가 아니라서</b> 사람이 읽을 때는 걸러 냅니다.
+    그래서 6칸이 들어가도 4단어만 나옵니다.</figcaption>
+  </figure>
 </section>
 
 <!-- 8 -->
