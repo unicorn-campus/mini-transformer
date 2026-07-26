@@ -200,14 +200,14 @@
   <span class="inline">d_model=4, d_ff=16</span>로 축소했지만, <b>4배 확대라는 비율은 실전과 동일</b>하게 맞췄습니다.</div>
 
   <div class="callout warn"><span class="emoji">🧯</span><b>이 부품 단독 체크포인트는 없습니다.</b>
-  FFN은 바로 다음 <a href="#p6">부품⑤ EncoderLayer(셀 17)</a>·부품⑥ DecoderLayer(셀 18) 안에 조립되어,
+  FFN은 바로 다음 <a href="#p6">부품⑤ EncoderLayer(셀 23)</a>·부품⑥ DecoderLayer(셀 25) 안에 조립되어,
   두 블록의 forward가 정상 작동하는 것으로 간접 검증됩니다.</div>
 </section>
 
 <!-- 4 -->
 <section id="p4">
   <h2><span class="num">4</span> 코드 그대로 보기</h2>
-  <p>노트북 <b>셀 16</b>의 <span class="inline">PositionwiseFeedForward</span> 클래스입니다. 딱 5줄뿐이에요.</p>
+  <p>노트북 <span class="inline">hands-on/example-explain.ipynb</span> <b>셀 21</b>의 <span class="inline">PositionwiseFeedForward</span> 클래스입니다. 딱 5줄뿐이에요.</p>
 
 <pre><code><span class="cmt"># 직관: 어텐션이 '단어들끼리 정보를 섞는' 단계라면, FFN은 각 단어가 '혼자 더 깊이 곱씹는' 단계.</span>
 <span class="cmt"># 모든 위치(단어)에 '똑같은' 작은 2층 신경망을 독립적으로 적용합니다(그래서 position-wise).</span>
@@ -292,7 +292,7 @@
     <tr><td>단어 하나 바꾸면?</td><td>다른 단어 출력도 영향 받음</td><td>그 단어 출력만 바뀜</td></tr>
   </table></div>
   <div class="callout"><span class="emoji">🧩</span><b>"같은 클래스"≠"같은 가중치".</b>
-  <span class="inline">EncoderLayer</span>(셀 17)와 <span class="inline">DecoderLayer</span>(셀 18)는 각각
+  <span class="inline">EncoderLayer</span>(셀 23)와 <span class="inline">DecoderLayer</span>(셀 25)는 각각
   <b>자기만의 <span class="inline">PositionwiseFeedForward</span> 인스턴스</b>를 새로 만듭니다 — 층마다 W1·W2 값이 다릅니다.
   공유되는 건 오직 <b>"한 층 안에서 위치(단어)들끼리"</b>뿐입니다. 이 둘을 헷갈리기 쉬워요.</div>
   <div class="callout good"><span class="emoji">🚦</span><b>Dropout은 학습 때만!</b> <span class="inline">model.eval()</span>로 전환하면
@@ -320,8 +320,8 @@
 
 <footer>
   <p>Mini-Transformer 실습 교재 · FFN(Position-wise Feed-Forward) 쉬운 설명판<br>
-  코드 출처: <span class="inline">example-detailed.ipynb</span> — 부품 ④ PositionwiseFeedForward(셀 16),
-  사용처 부품⑤ EncoderLayer(셀 17)·부품⑥ DecoderLayer(셀 18)<br>
+  코드 출처: <span class="inline">hands-on/example-explain.ipynb</span> — 부품 ④ PositionwiseFeedForward(셀 21),
+  사용처 부품⑤ EncoderLayer(셀 23)·부품⑥ DecoderLayer(셀 25)<br>
   함께 보기: <a href="attention.html">어텐션(부품②)</a> · <a href="multi-head-attention.html">멀티헤드 어텐션(부품③)</a> ·
   <a href="positional-encoding.html">위치 인코딩</a> · <a href="vocab.html">어휘 사전</a></p>
 </footer>
