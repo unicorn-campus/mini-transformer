@@ -99,6 +99,11 @@
   th,td{border:1px solid var(--line);padding:9px 12px;text-align:left}
   th{background:var(--panel2);color:#fff}
 
+  figure{margin:20px 0}
+  figure img{width:100%;display:block;border:1px solid var(--line);border-radius:14px;background:var(--code)}
+  figcaption{font-size:13.5px;color:var(--sub);margin-top:8px;line-height:1.65}
+  figcaption b{color:#fff}
+
   footer{margin-top:80px;border-top:1px solid var(--line);padding-top:24px;color:var(--sub);font-size:14px}
   .toc{position:sticky;top:0;z-index:5;background:rgba(15,23,42,.85);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
   .toc .wrap{display:flex;gap:6px;flex-wrap:wrap;padding:10px 20px;overflow-x:auto}
@@ -197,6 +202,43 @@
   <a href="feed-forward.html">FFN</a>·<a href="encoder-layer.html">인코더 블록</a> 등 부품들은 전부 이 값을
   <b>인자로 받아 쓰기만</b> 하고, 스스로 기본값을 정하지 않습니다. "실전에선 d_model=64를 쓴다"는 사실이 바로
   <b>여기, 셀 31 한 곳</b>에서 정해지기 때문에 다른 문서들이 공통으로 인용할 수 있는 거예요.</div>
+
+  <h3>그림으로 보기 — 가중치 공유가 실제로 무엇인가</h3>
+  <p><span class="inline">self.out.weight = self.decoder.emb.weight</span> 이 한 줄이 하는 일입니다.
+  <b>복사처럼 보이지만 복사가 아닙니다.</b></p>
+  <figure>
+    <img src="https://raw.githubusercontent.com/unicorn-campus/mini-transformer/main/explain/images/tf-weight-tying.webp"
+         alt="답 임베딩과 출력층이 같은 (18,64) 표 하나를 양쪽에서 가리키고, 한쪽 값을 9.99로 바꾸면 다른 쪽도 9.99가 되는 것을 보여 주는 그림">
+    <figcaption><b>화살표 두 개가 같은 상자를 향한다는 것이 핵심입니다.</b>
+    <b>답 임베딩</b>은 "단어 번호 → 벡터" 방향으로, <b>출력층</b>은 "벡터 → 단어 점수" 방향으로 같은 표를 씁니다.
+    방향만 반대이고 <b class="hlt">표는 하나</b>죠.<br>
+    실제로 확인해 보면 <span class="inline">out.weight is decoder.emb.weight</span>가 <b class="hlt">True</b>이고,
+    한쪽 값을 <b>9.99</b>로 바꾸면 다른 쪽도 즉시 9.99가 됩니다. 메모리 주소가 같기 때문입니다.<br>
+    그래서 <b>배울 값이 한 벌만</b> 있으면 되고, <b class="hlt">1,152개</b>(= 64 × 18, 전체 235,520개의 0.5%)를 아낍니다.
+    <span class="muted">왼쪽 아래 회색 상자를 보세요 — <b>질문 임베딩(14, 64)은 크기부터 달라</b> 애초에 공유 대상이 아닙니다.
+    답 쪽만 공유가 가능한 이유는 "답 단어를 벡터로 바꾸는 일"과 "벡터로 답 단어를 고르는 일"이
+    <b>같은 단어장 18개를 다루기</b> 때문입니다.<br>
+    <span class="inline">bias=False</span>인 이유도 여기 있습니다. <span class="inline">nn.Embedding</span>은 bias가 없는
+    순수 조회 표라서, 짝을 맞추려면 출력층도 bias 없는 순수 행렬곱이어야 합니다.</span></figcaption>
+  </figure>
+
+  <h3>그림으로 보기 — 문이 왜 세 개인가</h3>
+  <p><span class="inline">forward</span> 하나로 충분해 보이는데 <span class="inline">encode</span>와
+  <span class="inline">decode_step</span>이 따로 있습니다. 세 개가 어떤 관계인지 보세요.</p>
+  <figure>
+    <img src="https://raw.githubusercontent.com/unicorn-campus/mini-transformer/main/explain/images/tf-three-doors.webp"
+         alt="질문에서 인코더 디코더 출력층을 거쳐 단어 점수까지 가는 한 줄 파이프라인을 위에서 forward가 통째로 감싸고 아래에서 encode와 decode_step이 앞뒤로 나눠 감싸는 것을 보여 주는 그림">
+    <figcaption><b>배관은 하나입니다. 어디를 감싸느냐만 다릅니다.</b><br>
+    <b>위쪽 대괄호(<span class="inline">forward</span>)</b> — 전 구간을 한 번에 통과합니다. 학습 때 씁니다.
+    정답을 이미 알고 있으니 <b>한 번에 다 넣으면</b> 되죠.<br>
+    <b>아래쪽 두 대괄호</b> — 같은 배관을 <b class="hlt">앞뒤로 자른 것</b>입니다.
+    추론 때는 답을 한 단어씩 만들어야 하는데, <b>질문은 그동안 바뀌지 않습니다.</b>
+    그래서 앞 구간(<span class="inline">encode</span>)은 <b>1회</b>만 돌리고 결과를 재사용하고,
+    뒤 구간(<span class="inline">decode_step</span>)만 <b>5회</b> 반복합니다.<br>
+    <b class="hlt">두 경로의 결과는 완전히 같습니다</b> — 실제로 비교해 보니 최대 차이가 <b>0.00</b>이었습니다.
+    <span class="muted">즉 <span class="inline">encode</span>·<span class="inline">decode_step</span>은 새로운 계산이 아니라
+    <b>효율을 위한 분할</b>일 뿐입니다. 질문을 5번 다시 읽지 않으려고 나눠 둔 것이죠.</span></figcaption>
+  </figure>
 </section>
 
 <!-- 4 -->
