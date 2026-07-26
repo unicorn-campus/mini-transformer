@@ -94,6 +94,11 @@
   th,td{border:1px solid var(--line);padding:9px 12px;text-align:left}
   th{background:var(--panel2);color:#fff}
 
+  figure{margin:20px 0}
+  figure img{width:100%;display:block;border:1px solid var(--line);border-radius:14px;background:var(--code)}
+  figcaption{font-size:13.5px;color:var(--sub);margin-top:8px;line-height:1.65}
+  figcaption b{color:#fff}
+
   footer{margin-top:80px;border-top:1px solid var(--line);padding-top:24px;color:var(--sub);font-size:14px}
   .toc{position:sticky;top:0;z-index:5;background:rgba(15,23,42,.85);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
   .toc .wrap{display:flex;gap:6px;flex-wrap:wrap;padding:10px 20px;overflow-x:auto}
@@ -206,6 +211,39 @@
     <tr><td><span class="inline">self.pos(...)</span></td><td><a href="positional-encoding.html">위치 인코딩</a>을 더해 순서 정보 주입</td></tr>
     <tr><td><span class="inline">l(x, enc, tgt_mask, src_mask)</span></td><td><a href="decoder-block.html">DecoderLayer</a>를 num_layers번 통과, 매번 enc(질문 인코딩)를 함께 넘김</td></tr>
   </table>
+
+  <h3>그림으로 보기 — 인코더와 정확히 무엇이 다른가</h3>
+  <p>두 클래스는 코드가 거의 판박이입니다. <b>다른 곳만 딱 짚어</b> 보겠습니다.</p>
+  <figure>
+    <img src="https://raw.githubusercontent.com/unicorn-campus/mini-transformer/main/explain/images/dec-vs-encoder.webp"
+         alt="인코더는 하위층 2개 정규화 2개에 파라미터 100864개, 디코더는 하위층 3개 정규화 3개에 134656개이고 인코딩된 질문이 크로스어텐션 한 곳으로만 들어가는 것을 좌우로 비교한 그림">
+    <figcaption><b>늘어난 것은 딱 세 가지입니다.</b>
+    ① <span class="inline">forward</span>가 받는 값이 <b>2개 → 4개</b>(enc와 마스크가 하나 더),
+    ② 하위층이 <b>2개 → 3개</b>(크로스어텐션 추가), ③ 정규화가 <b>2개 → 3개</b>(하위층 하나마다 하나씩).<br>
+    파라미터 차이 <b class="hlt">16,768개</b>도 정확히 설명됩니다 — 크로스어텐션 16,640 + 정규화 하나 128입니다.
+    <b>나머지는 인코더와 완전히 같은 구성</b>이에요.<br>
+    <b class="hlt">노란 테두리를 두른 크로스어텐션이 이 그림의 요점입니다.</b>
+    <span class="inline">enc</span>(인코딩된 질문)가 <b>이 한 곳으로만</b> 들어갑니다.
+    나머지 두 하위층은 답 자신만 가지고 계산하죠. <b>질문과 답을 잇는 통로가 오직 하나</b>라는 뜻입니다.</figcaption>
+  </figure>
+
+  <h3>그림으로 보기 — 겹을 쌓으면 무엇이 좋아지나</h3>
+  <p><span class="inline">for l in self.layers</span>가 두 번 도는 것뿐인데, 두 번 도는 값어치가 있을까요?
+  <b>크로스어텐션이 본 곳을 겹별로 재봤습니다.</b></p>
+  <figure>
+    <img src="https://raw.githubusercontent.com/unicorn-campus/mini-transformer/main/explain/images/dec-layer-focus.webp"
+         alt="첫째 겹에서는 먹구름이 열의 값이 19에서 54 사이로 흩어져 있고 둘째 겹에서는 30에서 64로 올라가 한 열로 초점이 모이는 것을 두 히트맵으로 비교한 그림">
+    <figcaption><b>답 단어 <span class="hlt">"비가"</span> 줄을 보세요.</b>
+    '먹구름이'를 보는 비율이 첫째 겹 <b>19%</b>에서 둘째 겹 <b class="hlt">64%</b>로 <b>세 배 넘게</b> 뛰어오릅니다.<br>
+    <b>겹을 쌓는다는 것은 "어디를 볼지를 다시 계산한다"는 뜻입니다.</b>
+    첫 겹에서는 아직 초점이 흐릿한데, 그 결과를 입력으로 받은 둘째 겹이 <b>훨씬 선명하게</b> 다시 조준하죠.
+    한 번의 곁눈질로는 부족하다는 것이 여기서 드러납니다.<br>
+    이게 가능한 이유는 <b class="hlt">겹마다 <span class="inline">cross_attn</span>의 가중치가 다르기 때문</b>입니다(평균 차이 0.0857).
+    <span class="inline">enc</span> 자체는 매 겹에 <b>똑같은 값</b>이 들어가고 전혀 변하지 않습니다 — 읽기 전용 참고자료인데,
+    <b>읽는 사람이 겹마다 다른</b> 셈이죠.<br>
+    <span class="muted">⚠️ 두 히트맵에서 <b>'먹구름이' 열의 숫자만 실측값</b>입니다(첫째 겹 54·19·23·23·19 → 둘째 겹 59·64·46·47·30).
+    나머지 칸은 대비를 보여 주기 위한 예시 값이라 줄 합이 정확히 100이 되지 않습니다.</span></figcaption>
+  </figure>
 </section>
 
 <!-- 5 -->
