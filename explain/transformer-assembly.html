@@ -419,11 +419,11 @@ renderTie();
 
 /* ================= 5. 조립도 눌러보기 ================= */
 const FLOW=[
-  {key:'src', label:'질문 문장 (src)', desc:'"하늘에 먹구름이 보이면 뭐가 생각나"를 번호 텐서로 바꾼 입력입니다. <a href="vocab.html">어휘 사전 문서</a>에서 토큰화 과정을 볼 수 있어요.'},
-  {key:'encoder', label:'인코더 (Encoder)', desc:'임베딩+위치인코딩 후 EncoderLayer를 겹겹이 통과시켜 질문을 이해합니다. <span class="inline">src_mask</span>로 패딩을 가려요. <a href="encoder.html">인코더 문서</a> 참고.'},
-  {key:'decoder', label:'디코더 (Decoder)', desc:'인코더 결과(enc)를 곁눈질하며 DecoderLayer를 겹겹이 통과시켜 답을 만들 표현으로 바꿉니다. <span class="inline">tgt_mask</span>(미래+패딩)·<span class="inline">src_mask</span>(질문 패딩) 둘 다 씁니다. <a href="decoder-block.html">디코더 블록 문서</a> 참고.'},
-  {key:'out', label:'출력층 (out)', desc:'디코더가 만든 벡터를 답 단어장 크기의 점수(logit)로 바꿉니다. 이 클래스의 핵심 트릭인 <b>가중치 공유</b>가 바로 여기서 일어나요 — <a href="#p4">4번으로 돌아가 직접 확인</a>해 보세요.'},
-  {key:'logits', label:'답 단어 점수 (logits)', desc:'각 위치마다 답 단어장 크기의 점수 벡터가 나옵니다. 여기서 다음 단어를 실제로 고르는 과정(greedy)은 <a href="greedy-decoding.html">답 생성 문서</a>에서 자세히 다룹니다.'},
+  {key:'src', label:'질문 문장 (src)', desc:'"하늘에 먹구름이 보이면 뭐가 생각나"를 번호 텐서로 바꾼 입력입니다. <a href="https://htmlpreview.github.io/?https://github.com/unicorn-campus/mini-transformer/blob/main/explain/vocab.html">어휘 사전 문서</a>에서 토큰화 과정을 볼 수 있어요.'},
+  {key:'encoder', label:'인코더 (Encoder)', desc:'임베딩+위치인코딩 후 EncoderLayer를 겹겹이 통과시켜 질문을 이해합니다. <span class="inline">src_mask</span>로 패딩을 가려요. <a href="https://htmlpreview.github.io/?https://github.com/unicorn-campus/mini-transformer/blob/main/explain/encoder.html">인코더 문서</a> 참고.'},
+  {key:'decoder', label:'디코더 (Decoder)', desc:'인코더 결과(enc)를 곁눈질하며 DecoderLayer를 겹겹이 통과시켜 답을 만들 표현으로 바꿉니다. <span class="inline">tgt_mask</span>(미래+패딩)·<span class="inline">src_mask</span>(질문 패딩) 둘 다 씁니다. <a href="https://htmlpreview.github.io/?https://github.com/unicorn-campus/mini-transformer/blob/main/explain/decoder-block.html">디코더 블록 문서</a> 참고.'},
+  {key:'out', label:'출력층 (out)', desc:'디코더가 만든 벡터를 답 단어장 크기의 점수(logit)로 바꿉니다. 이 클래스의 핵심 트릭인 <b>가중치 공유</b>가 바로 여기서 일어나요 — <a href="#p4" onclick="event.preventDefault();document.getElementById(\'p4\').scrollIntoView({behavior:\'smooth\'})">4번으로 돌아가 직접 확인</a>해 보세요.'},
+  {key:'logits', label:'답 단어 점수 (logits)', desc:'각 위치마다 답 단어장 크기의 점수 벡터가 나옵니다. 여기서 다음 단어를 실제로 고르는 과정(greedy)은 <a href="https://htmlpreview.github.io/?https://github.com/unicorn-campus/mini-transformer/blob/main/explain/greedy-decoding.html">답 생성 문서</a>에서 자세히 다룹니다.'},
 ];
 let selFlow=0;
 const flowSteps=document.getElementById('flowSteps'), flowDesc=document.getElementById('flowDesc');
