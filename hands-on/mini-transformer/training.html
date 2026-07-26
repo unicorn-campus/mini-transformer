@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>training.py 처리 과정 — 그림으로 따라가기</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel2:#273449;
+    --ink:#e2e8f0; --sub:#94a3b8; --line:#334155;
+    --brand:#38bdf8; --brand2:#818cf8; --accent:#fbbf24;
+    --good:#34d399; --warn:#f472b6; --code:#0b1220;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:"Segoe UI","Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif;
+    line-height:1.8;font-size:17px}
+  a{color:var(--brand)}
+  .wrap{max-width:1000px;margin:0 auto;padding:0 20px 120px}
+
+  header{background:radial-gradient(1200px 500px at 20% -10%,rgba(56,189,248,.25),transparent 60%),
+    radial-gradient(1000px 500px at 90% 0%,rgba(129,140,248,.22),transparent 55%),var(--bg);
+    border-bottom:1px solid var(--line);padding:64px 20px 48px}
+  header .wrap{padding-bottom:0}
+  .kicker{color:var(--brand);font-weight:700;letter-spacing:.14em;font-size:13px;text-transform:uppercase}
+  h1{font-size:clamp(28px,5vw,44px);line-height:1.22;margin:.35em 0 .3em;font-weight:800}
+  h1 .hl{background:linear-gradient(90deg,var(--brand),var(--brand2));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .lead{font-size:19px;color:var(--sub);max-width:760px}
+
+  .toc{position:sticky;top:0;z-index:5;background:rgba(15,23,42,.88);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+  .toc .wrap{display:flex;gap:6px;flex-wrap:wrap;padding:10px 20px;overflow-x:auto}
+  .toc a{color:var(--sub);text-decoration:none;font-size:13px;padding:6px 10px;border-radius:8px;white-space:nowrap}
+  .toc a:hover{background:var(--panel);color:#fff}
+
+  section{scroll-margin-top:96px}
+  .part{margin-top:72px;padding-top:26px;border-top:2px solid var(--line)}
+  .part .badge{display:inline-block;background:linear-gradient(135deg,var(--brand),var(--brand2));
+    color:#06121f;font-weight:900;font-size:12px;letter-spacing:.12em;padding:5px 12px;border-radius:999px}
+  .part h2{font-size:clamp(24px,3.6vw,32px);margin:.4em 0 .1em;font-weight:800}
+  .part p.sub{color:var(--sub);margin:.2em 0 0;font-size:16px}
+
+  .step{margin-top:44px}
+  .step h3{font-size:20px;margin:0 0 4px;font-weight:800;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+  .step h3 .no{display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:34px;padding:0 8px;
+    border-radius:10px;background:var(--panel2);border:1px solid var(--line);color:var(--accent);font-size:14px;font-weight:900}
+  .step h3 .where{font-size:13px;color:var(--sub);font-weight:600}
+
+  figure{margin:14px 0 0}
+  figure img{width:100%;display:block;border:1px solid var(--line);border-radius:14px;background:var(--code)}
+  figcaption{font-size:14.5px;color:var(--sub);margin-top:10px;line-height:1.7}
+  figcaption b{color:#fff}
+
+  pre{background:var(--code);border:1px solid var(--line);border-radius:12px;padding:14px 16px;overflow:auto;
+    font-size:13.5px;line-height:1.65;margin:10px 0 0}
+  code{font-family:"Consolas","D2Coding",monospace}
+  pre code{color:#cbd5e1}
+  .cmt{color:#64748b}.kw{color:#f472b6}.fn{color:#38bdf8}.num2{color:#fbbf24}.str{color:#34d399}
+
+  .inline{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:1px 7px;
+    font-family:"Consolas","D2Coding",monospace;font-size:14px;color:#fde68a}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px 22px;margin:18px 0}
+  .callout{border-left:4px solid var(--brand);background:var(--panel2);border-radius:0 12px 12px 0;padding:12px 16px;margin:14px 0}
+  .callout.warn{border-color:var(--warn)} .callout.good{border-color:var(--good)}
+  .callout b{color:#fff}
+  .emoji{font-size:19px;margin-right:6px}
+
+  .map{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:18px 0}
+  @media(max-width:760px){.map{grid-template-columns:1fr}}
+  .map .m{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+  .map .m .t{font-weight:800;color:#fff;font-size:15px;margin-bottom:4px}
+  .map .m .d{font-size:13.5px;color:var(--sub);line-height:1.6}
+
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:14.5px}
+  th,td{border:1px solid var(--line);padding:8px 11px;text-align:left}
+  th{background:var(--panel2);color:#fff}
+  td.n{color:var(--accent);font-family:"Consolas","D2Coding",monospace;white-space:nowrap}
+
+  footer{margin-top:80px;border-top:1px solid var(--line);padding-top:24px;color:var(--sub);font-size:14px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="kicker">Mini-Transformer · hands-on</div>
+    <h1><span class="hl">training.py</span> 처리 과정<br>그림 17장으로 따라가기</h1>
+    <p class="lead"><b>글은 최소한만 읽고, 그림만 위에서 아래로 훑어도 전체가 이해되도록</b> 만든 페이지입니다.
+    <span class="inline">main()</span> 에서 출발해 <span class="inline">mini_transformer.py</span> 의 부품까지 내려갔다가,
+    다시 400번 반복 루프로 올라옵니다. 그림 속 모든 숫자는 <b>실제로 코드를 돌려 얻은 값</b>입니다.</p>
+  </div>
+</header>
+
+<nav class="toc"><div class="wrap">
+  <a href="#howto">읽는 법</a>
+  <a href="#p1">1부 큰 그림</a>
+  <a href="#p2">2부 데이터 준비</a>
+  <a href="#p3">3부 학습 준비</a>
+  <a href="#p4">4부 400번 루프</a>
+  <a href="#p5">5부 결과와 저장</a>
+  <a href="#recap">한 장 요약</a>
+</div></nav>
+
+<div class="wrap">
+
+<!-- ══════════════════ 읽는 법 ══════════════════ -->
+<section id="howto" style="margin-top:48px">
+  <div class="card">
+    <h3 style="margin:0 0 10px;font-size:19px">이 페이지 읽는 법</h3>
+    <div class="map">
+      <div class="m"><div class="t">① 위에서 아래로 그림만</div>
+        <div class="d">1부 → 5부 순서대로 그림만 봐도 전체 흐름이 이어집니다. 글은 안 읽어도 됩니다.</div></div>
+      <div class="m"><div class="t">② 궁금하면 코드 한 조각</div>
+        <div class="d">각 그림 위에 그 그림이 설명하는 <b>실제 코드 몇 줄</b>만 붙여 두었습니다.</div></div>
+      <div class="m"><div class="t">③ 더 깊게는 explain 폴더</div>
+        <div class="d">부품 하나하나의 원리는 <span class="inline">explain/</span> 폴더의 개별 페이지에 있습니다.</div></div>
+    </div>
+    <div class="callout"><span class="emoji">📐</span><b>그림의 깊이(altitude) 세 층:</b>
+      <b>1부</b>는 파일·함수 수준(가장 위), <b>2·3부</b>는 데이터가 텐서로 바뀌는 수준,
+      <b>4부</b>는 <span class="inline">model(...)</span> 안쪽 계층(가장 아래)입니다.
+      아래로 내려갈수록 계산이 잘게 쪼개집니다.</div>
+  </div>
+</section>
+
+<!-- ══════════════════ 1부 ══════════════════ -->
+<section id="p1" class="part">
+  <span class="badge">PART 1</span>
+  <h2>큰 그림 — 어디서 시작해서 어디로 가나</h2>
+  <p class="sub">파일 두 개, 함수 하나. 먼저 전체 지형을 봅니다.</p>
+
+  <div class="step">
+    <h3><span class="no">01</span> training.py 의 다섯 걸음 <span class="where">training.py · main()</span></h3>
+<pre><code><span class="kw">def</span> <span class="fn">main</span>():
+    <span class="cmt"># 1단계  DATA 6쌍 확인</span>
+    <span class="cmt"># 2단계  질문/답 단어장 만들기</span>
+    <span class="cmt"># 4단계  배치 → 모델 → 400에폭 학습 → 체크포인트 저장</span></code></pre>
+    <figure>
+      <img src="images/tr-01-overview.webp"
+           alt="training.py 의 main() 이 데이터 확인, 단어장 만들기, 준비, 400번 반복, 저장 다섯 단계로 이루어지고, 부품은 mini_transformer.py 에서 빌려 쓴다는 것을 보여주는 그림">
+      <figcaption><b>왼쪽 다섯 걸음이 <span class="inline">main()</span> 전부입니다.</b>
+      오른쪽을 보면 <span class="inline">training.py</span> 는 <b>순서만 정하고</b>, 실제 부품은 모두
+      <span class="inline">mini_transformer.py</span> 에서 빌려 씁니다.
+      그래서 두 파일을 나란히 놓고 읽어야 합니다.</figcaption>
+    </figure>
+  </div>
+
+  <div class="step">
+    <h3><span class="no">02</span> main() 에서 아래로 내려가는 호출 지도 <span class="where">두 파일 전체</span></h3>
+<pre><code><span class="kw">from</span> mini_transformer <span class="kw">import</span> (
+    DATA, Transformer, Vocab, build_batches,
+    make_decoder_mask, make_padding_mask,
+)</code></pre>
+    <figure>
+      <img src="images/tr-02-callmap.webp"
+           alt="main() 에서 Vocab, build_batches, Transformer, make_decoder_mask 를 직접 부르고, 그 안쪽에서 tokenize, pad_sequence, Encoder, Decoder, 마스크 함수들이 불리며, 가장 아래에는 인코더 층·디코더 층·멀티헤드 어텐션·어텐션 공식·FFN·위치 인코딩이 들어 있음을 네 단계로 보여주는 트리 그림">
+      <figcaption><b>이 그림이 이 페이지의 목차입니다.</b>
+      왼쪽 <span class="inline">main()</span> 에서 출발해 오른쪽으로 갈수록 계산이 잘게 쪼개집니다.
+      맨 오른쪽 점선 상자 안의 부품들이 <b>4부에서 하나씩 열어 볼 대상</b>입니다.<br>
+      <span class="inline">make_padding_mask</span> 는 <b>두 곳에서 불립니다</b> —
+      <span class="inline">main()</span> 이 질문 마스크를 만들 때 직접 한 번,
+      그리고 <span class="inline">make_decoder_mask</span> 안에서 또 한 번.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ══════════════════ 2부 ══════════════════ -->
+<section id="p2" class="part">
+  <span class="badge">PART 2</span>
+  <h2>데이터 준비 — 문장이 숫자 표가 되기까지</h2>
+  <p class="sub">사람이 읽는 문장 6쌍이 모델이 먹을 수 있는 직사각형 텐서로 바뀝니다.</p>
+
+  <div class="step">
+    <h3><span class="no">03</span> 가르칠 것은 여섯 쌍뿐 <span class="where">mini_transformer.py · DATA</span></h3>
+<pre><code>DATA = [
+    (<span class="str">"하늘에 먹구름이 보이면 뭐가 생각나"</span>, <span class="str">"비가 올 것 같아"</span>),   <span class="cmt"># '먹구름' → '비'</span>
+    (<span class="str">"하늘에 별이 보이면 뭐가 생각나"</span>,   <span class="str">"밤이 깊었나 봐"</span>),     <span class="cmt"># '별' → '밤'</span>
+    <span class="cmt"># … 모두 6쌍</span>
+]</code></pre>
+    <figure>
+      <img src="images/tr-03-data.webp"
+           alt="질문 문장 틀은 하늘에 무엇이 보이면 뭐가 생각나 로 모두 같고 대상 단어만 먹구름이 별이 해가 무지개가 눈송이가 노을이 로 바뀌며, 각각의 답이 짝지어진 그림">
+      <figcaption><b>문장 틀은 여섯 개가 똑같고, 대상 단어 하나만 다릅니다.</b>
+      답을 가르는 단서가 오직 그 한 단어뿐이라, 모델이 <b>반드시 거기에 주목하게</b> 됩니다.
+      학습이 끝난 뒤 어텐션 히트맵이 예쁘게 나오는 이유가 이 설계에 있습니다.</figcaption>
+    </figure>
+  </div>
+
+  <div class="step">
+    <h3><span class="no">04</span> 단어장은 네 걸음으로 <span class="where">mini_transformer.py · Vocab</span></h3>
+<pre><code>src_vocab = <span class="fn">Vocab</span>([q <span class="kw">for</span> q, _ <span class="kw">in</span> DATA])    <span class="cmt"># 질문 단어장 → 14개</span>
+tgt_vocab = <span class="fn">Vocab</span>([a <span class="kw">for</span> _, a <span class="kw">in</span> DATA])    <span class="cmt"># 답 단어장   → 18개</span>
+
+<span class="cmt"># Vocab.__init__ 안쪽</span>
+toks = <span class="fn">sorted</span>({t <span class="kw">for</span> s <span class="kw">in</span> sentences <span class="kw">for</span> t <span class="kw">in</span> <span class="fn">tokenize</span>(s)})   <span class="cmt"># 모으기→자르기→중복제거→정렬</span>
+self.itos = SPECIALS + toks                                <span class="cmt"># 번호 → 단어</span>
+self.stoi = {t: i <span class="kw">for</span> i, t <span class="kw">in</span> <span class="fn">enumerate</span>(self.itos)}     <span class="cmt"># 단어 → 번호</span></code></pre>
+    <figure>
+      <img src="images/tr-04-vocab.webp"
+           alt="문장 모으기, 공백으로 자르기, 중복 제거, 정렬 네 걸음을 거친 뒤 특수토큰 네 개를 앞에 붙여 질문 단어장 14개와 답 단어장 18개가 만들어지는 그림">
+      <figcaption><b><span class="inline">sorted</span> 가 들어 있는 게 중요합니다.</b>
+      정렬을 해 두면 몇 번을 다시 돌려도 <b>'먹구름이'는 언제나 6번</b>입니다(재현성).<br>
+      특수토큰 4개가 <b>맨 앞 예약석</b>이라 <span class="inline">&lt;pad&gt;</span>=0,
+      <span class="inline">&lt;sos&gt;</span>=1, <span class="inline">&lt;eos&gt;</span>=2,
+      <span class="inline">&lt;unk&gt;</span>=3 번호가 항상 고정입니다.
+      질문과 답은 <b>쓰는 단어가 하나도 겹치지 않아</b> 단어장을 따로 만듭니다.</figcaption>
+    </figure>
+  </div>
+
+  <div class="step">
+    <h3><span class="no">05</span> build_batches() 는 직사각형 두 개를 만든다 <span class="where">mini_transformer.py · build_batches</span></h3>
+<pre><code>src = [torch.<span class="fn">tensor</span>(sv.<span class="fn">encode</span>(q, add_special=<span class="kw">False</span>)) <span class="kw">for</span> q, _ <span class="kw">in</span> pairs]   <span class="cmt"># 질문: 특수토큰 없음</span>
+tgt = [torch.<span class="fn">tensor</span>(tv.<span class="fn">encode</span>(a, add_special=<span class="kw">True</span>))  <span class="kw">for</span> _, a <span class="kw">in</span> pairs]   <span class="cmt"># 답: &lt;sos&gt;…&lt;eos&gt;</span>
+src = <span class="fn">pad_sequence</span>(src, batch_first=<span class="kw">True</span>, padding_value=sv.pad_id)      <span class="cmt"># (6, 5)</span>
+tgt = <span class="fn">pad_sequence</span>(tgt, batch_first=<span class="kw">True</span>, padding_value=tv.pad_id)      <span class="cmt"># (6, 6)</span></code></pre>
+    <figure>
+      <img src="images/tr-05-batches.webp"
+           alt="질문은 6행 5열로 패딩이 0칸이고, 답은 6행 6열로 짧은 행 뒤에 빈칸이 붙어 총 8칸의 패딩이 생기는 것을 위아래로 비교한 그림">
+      <figcaption><b><span class="inline">add_special</span> 이 질문과 답에서 다른 것이 핵심입니다.</b>
+      질문은 통째로 읽기만 하니 시작·끝 신호가 필요 없고, 답은 <b>생성을 시작할 신호와 멈출 신호</b>가 필요합니다.<br>
+      <b>패딩은 답 쪽에서만 생깁니다.</b> 질문은 여섯 개가 모두 5단어라 채울 게 아예 없고,
+      답은 4·5·6칸으로 들쭉날쭉해서 <b>36칸 중 8칸이 빈칸</b>이 됩니다.
+      이 8칸이 곧 3부에서 <span class="inline">ignore_index</span> 가 채점에서 빼는 칸입니다.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ══════════════════ 3부 ══════════════════ -->
+<section id="p3" class="part">
+  <span class="badge">PART 3</span>
+  <h2>학습 준비 — 루프 밖에서 딱 한 번</h2>
+  <p class="sub">모델·채점표·수정기·짝짓기·마스크. 400번 반복 전에 한 번만 하는 일들입니다.</p>
+
+  <div class="step">
+    <h3><span class="no">06</span> 이 한 줄이 가중치 235,520개를 만든다 <span class="where">training.py · Transformer(...)</span></h3>
+<pre><code>max_len = <span class="fn">max</span>(src_ids.<span class="fn">size</span>(<span class="num2">1</span>), tgt_ids.<span class="fn">size</span>(<span class="num2">1</span>), <span class="num2">20</span>) + <span class="num2">2</span>   <span class="cmt"># max(5, 6, 20) + 2 = 22</span>
+model = <span class="fn">Transformer</span>(<span class="fn">len</span>(src_vocab), <span class="fn">len</span>(tgt_vocab), max_len=max_len)
+<span class="fn">print</span>(<span class="str">"학습 대상 파라미터"</span>, <span class="fn">sum</span>(p.<span class="fn">numel</span>() <span class="kw">for</span> p <span class="kw">in</span> model.<span class="fn">parameters</span>()), <span class="str">"개"</span>)</code></pre>
+    <figure>
+      <img src="images/tr-06-model.webp"
+           alt="Transformer(14, 18, max_len=22) 한 줄이 인코더 100864개와 디코더 134656개, 출력층은 가중치 공유로 0개를 만들어 합계 235520개가 되는 것을 보여주는 그림">
+      <figcaption><b>구조는 다 만들어졌지만 그 안의 숫자는 아직 무작위입니다.</b>
+      이 상태로 질문을 넣으면 아무 의미 없는 답이 나옵니다 — 그걸 고치는 게 4부의 400번 반복입니다.<br>
+      <b>출력층 가중치가 0개인 이유는 가중치 공유(weight tying)</b>입니다.
+      <span class="inline">out.weight = decoder.emb.weight</span> 는 복사가 아니라 <b>대입</b>이라,
+      두 이름이 같은 텐서를 가리킵니다.</figcaption>
+    </figure>
+  </div>
+
+  <div class="step">
+    <h3><span class="no">07</span> 채점하는 쪽과 고치는 쪽 <span class="where">training.py · Adam · CrossEntropyLoss</span></h3>
+<pre><code>opt  = torch.optim.<span class="fn">Adam</span>(model.<span class="fn">parameters</span>(), lr=<span class="num2">3e-4</span>)          <span class="cmt"># 아주 조금씩 고치기</span>
+crit = nn.<span class="fn">CrossEntropyLoss</span>(ignore_index=tgt_vocab.pad_id)      <span class="cmt"># &lt;pad&gt; 칸은 채점 제외</span></code></pre>
+    <figure>
+      <img src="images/tr-07-optim-loss.webp"
+           alt="왼쪽은 CrossEntropyLoss 가 ignore_index 로 빈칸 8개를 제외해 30칸 중 22칸만 채점한다는 것을, 오른쪽은 Adam 이 학습률 0.0003 으로 가중치 235520개를 조금씩 고친다는 것을 보여주는 그림">
+      <figcaption><b>손실 함수는 "얼마나 틀렸나"를 숫자 하나로 만들고, 옵티마이저는 그 숫자를 줄이는 방향으로 가중치를 움직입니다.</b><br>
+      <span class="inline">ignore_index</span> 가 실제로 일하고 있다는 증거는 나눗셈으로 확인됩니다 —
+      칸별 loss 합 <b>1060.5466 ÷ 22칸 = 48.2067</b> 로 1회차 loss 와 소수점까지 일치합니다.
+      30칸으로 나누면 35.3516 이 되어 값이 어긋납니다.</figcaption>
+    </figure>
+  </div>
+
+  <div class="step">
+    <h3><span class="no">08</span> 티처 포싱 — 한 칸 밀어 짝짓기 <span class="where">training.py · 슬라이싱 한 줄</span></h3>
+<pre><code>dec_in, dec_tgt = tgt_ids[:, :-<span class="num2">1</span>], tgt_ids[:, <span class="num2">1</span>:]    <span class="cmt"># (6,5) 와 (6,5)</span>
+<span class="cmt"># 0행:  dec_in  = [1, 13, 15, 5, 4]   ← &lt;sos&gt; 비가 올 것 같아</span>
+<span class="cmt">#       dec_tgt = [13, 15, 5, 4, 2]   ←       비가 올 것 같아 &lt;eos&gt;</span></code></pre>
+    <figure>
+      <img src="images/tr-08-teacher-forcing.webp"
+           alt="원본 답 6칸을 앞 5칸과 뒤 5칸으로 잘라 한 칸 밀어 짝지어 주고, 다섯 개의 대각선 화살표로 지금까지의 답을 보고 다음 단어를 맞히도록 연결한 그림. 짧은 답에서는 정답 자리에 빈칸이 들어가 채점에서 제외된다">
+      <figcaption><b>대각선 화살표 다섯 개가 학습의 전부입니다.</b>
+      "<span class="inline">&lt;sos&gt;</span> 를 보면 <b>비가</b>", "<span class="inline">&lt;sos&gt;</span> 비가 를 보면 <b>올</b>" …
+      원본 6칸을 <b>앞 5칸(보여 줄 것)</b>과 <b>뒤 5칸(맞혀야 할 것)</b>으로 자르면 자동으로 한 칸이 밀립니다.<br>
+      <b>짧은 답이 진짜 요점입니다.</b> 빈칸이 <b>정답 자리에까지</b> 들어가 버리는데,
+      빈칸을 맞히라고 시킬 수는 없죠. 그래서 <span class="inline">ignore_index</span> 가
+      <b>30칸 중 8칸을 채점에서 뺍니다</b>.</figcaption>
+    </figure>
+  </div>
+
+  <div class="step">
+    <h3><span class="no">09</span> 마스크는 두 개, 만드는 자리가 다르다 <span class="where">mini_transformer.py · 마스크 3종</span></h3>
+<pre><code>src_mask = <span class="fn">make_padding_mask</span>(src_ids, src_vocab.pad_id)   <span class="cmt"># (6,1,1,5) — 루프 밖</span>
+<span class="kw">for</span> ep <span class="kw">in</span> <span class="fn">range</span>(<span class="num2">1</span>, <span class="num2">401</span>):
+    tgt_mask = <span class="fn">make_decoder_mask</span>(dec_in, tgt_vocab.pad_id)  <span class="cmt"># (6,1,5,5) — 루프 안</span>
+
+<span class="cmt"># make_decoder_mask = 패딩 마스크 AND 미래 가림 마스크</span>
+<span class="kw">return</span> <span class="fn">make_padding_mask</span>(tgt, pad_id) & <span class="fn">make_causal_mask</span>(tgt.<span class="fn">size</span>(<span class="num2">1</span>), tgt.device)</code></pre>
+    <figure>
+      <img src="images/tr-09-masks.webp"
+           alt="질문 마스크는 (6,1,1,5) 모양이고 전부 켜져 있어 가릴 것이 없으며 루프 밖에서 한 번만 만들고, 답 마스크는 (6,1,5,5) 모양의 하삼각형으로 미래와 빈칸을 가리며 루프 안에서 매번 만든다는 것을 비교한 그림">
+      <figcaption><b>질문 마스크의 True 비율이 100% 인 것은 마스크를 안 쓰는 게 아니라, 가릴 것이 없는 것입니다.</b>
+      질문 여섯 개가 모두 5단어라 패딩이 아예 없으니까요.<br>
+      <b>가릴 자리는 <span class="inline">0</span> 이 아니라 <span class="inline">-inf</span> 로 덮어씁니다.</b>
+      0 으로 바꾸면 <span class="inline">exp(0)=1</span> 이라 오히려 큰 비율을 받아 버립니다.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ══════════════════ 4부 ══════════════════ -->
+<section id="p4" class="part">
+  <span class="badge">PART 4</span>
+  <h2>400번 루프 — 세 줄이 전부, 그 안쪽은 다섯 겹</h2>
+  <p class="sub">먼저 루프를 위에서 보고(10), 그다음 <span class="inline">model(...)</span> 한 줄을 계속 열어 봅니다(11→14). 마지막이 역전파(15)입니다.</p>
+
+  <div class="step">
+    <h3><span class="no">10</span> 준비는 루프 밖, 반복은 세 줄 <span class="where">training.py · for ep in range(1, 401)</span></h3>
+<pre><code><span class="kw">for</span> ep <span class="kw">in</span> <span class="fn">range</span>(<span class="num2">1</span>, <span class="num2">401</span>):
+    tgt_mask = <span class="fn">make_decoder_mask</span>(dec_in, tgt_vocab.pad_id)
+    logits = <span class="fn">model</span>(src_ids, dec_in, src_mask, tgt_mask)                    <span class="cmt"># (1) 예측</span>
+    loss = <span class="fn">crit</span>(logits.<span class="fn">reshape</span>(-<span class="num2">1</span>, logits.<span class="fn">size</span>(-<span class="num2">1</span>)), dec_tgt.<span class="fn">reshape</span>(-<span class="num2">1</span>))  <span class="cmt"># (2) 비교</span>
+    opt.<span class="fn">zero_grad</span>(); loss.<span class="fn">backward</span>(); opt.<span class="fn">step</span>()                          <span class="cmt"># (3) 수정</span></code></pre>
+    <figure>
+      <img src="images/tr-10-loop.webp"
+           alt="왼쪽에 시드 고정부터 질문 마스크까지 루프 밖에서 한 번만 하는 준비 일곱 항목과 결과값을 나열하고, 오른쪽에 답 마스크 만들기·예측·비교·수정 네 단계가 화살표로 이어져 400번 되돌아오는 고리를 그린 그림">
+      <figcaption><b>코드가 길어 보이지만 실제로 400번 도는 것은 오른쪽 네 줄뿐입니다.</b>
+      특히 <span class="inline">src_mask</span> 가 <b>루프 밖에</b> 있는 이유를 눈으로 확인하세요 —
+      질문은 400번 내내 바뀌지 않으니 다시 만들 이유가 없습니다.<br>
+      <span class="inline">tgt_mask</span> 도 사실 <span class="inline">dec_in</span> 이 안 바뀌니 밖으로 빼도 되지만,
+      "답 쪽 마스크는 답 길이에 따라 달라진다"를 드러내려고 안에 두었습니다.</figcaption>
+    </figure>
+  </div>
+
+  <div class="step">
+    <h3><span class="no">11</span> model(...) 한 줄이 지나가는 길 <span class="where">mini_transformer.py · Transformer.forward</span></h3>
+<pre><code><span class="kw">def</span> <span class="fn">forward</span>(self, src, tgt, src_mask, tgt_mask):
+    <span class="kw">return</span> self.<span class="fn">out</span>(self.<span class="fn">decoder</span>(tgt, self.<span class="fn">encoder</span>(src, src_mask), tgt_mask, src_mask))
+<span class="cmt">#   (6,5) → 인코더 → (6,5,64) ┐</span>
+<span class="cmt">#   (6,5) → 디코더 ←──────────┘ → (6,5,64) → 출력층 → (6,5,18)</span></code></pre>
+    <figure>
+      <img src="images/tr-11-forward.webp"
+           alt="질문 (6,5) 가 인코더를 지나 (6,5,64) 가 되고, 답 (6,5) 와 함께 디코더를 지나 (6,5,64) 가 된 뒤 출력층 Linear 64에서 18로 바뀌어 logits (6,5,18) 이 나오는 흐름 그림">
+      <figcaption><b>번호 → 벡터 → 벡터 → 단어 점수.</b> 마지막 <span class="inline">18</span> 이 답 단어장 크기입니다 —
+      "이 자리에 올 단어로 18개 후보가 각각 몇 점"이라는 뜻이죠.<br>
+      <b>인코더 출력이 디코더로 들어가는 화살표가 크로스 어텐션의 K·V 입니다.</b>
+      디코더는 이 값을 <b>고치지 않고 읽기만</b> 합니다.</figcaption>
+    </figure>
+  </div>
+
+  <div class="step">
+    <h3><span class="no">12</span> 인코더 안에는 같은 층이 두 겹 <span class="where">mini_transformer.py · Encoder · EncoderLayer</span></h3>
+<pre><code><span class="cmt"># Encoder.forward</span>
+x = self.<span class="fn">pos</span>(self.<span class="fn">emb</span>(src) * math.<span class="fn">sqrt</span>(self.d_model))   <span class="cmt"># √64 = 8 을 곱함</span>
+<span class="kw">for</span> l <span class="kw">in</span> self.layers: x = <span class="fn">l</span>(x, mask)                  <span class="cmt"># 앞 층 출력이 뒤 층 입력</span>
+
+<span class="cmt"># EncoderLayer.forward — 하위층 2개</span>
+x = self.<span class="fn">n1</span>(x + self.<span class="fn">drop</span>(self.<span class="fn">attn</span>(x, x, x, mask)))   <span class="cmt"># 셀프어텐션 + 잔차 + 정규화</span>
+x = self.<span class="fn">n2</span>(x + self.<span class="fn">drop</span>(self.<span class="fn">ffn</span>(x)))                <span class="cmt"># FFN      + 잔차 + 정규화</span></code></pre>
+    <figure>
+      <img src="images/tr-12-encoder.webp"
+           alt="인코더가 임베딩, √64 곱하기, 위치 인코딩, 인코더 층 두 겹으로 이루어지고, 인코더 층 하나를 확대하면 셀프 어텐션과 FFN 각각에 원본 더하기와 정규화가 붙는 구조를 보여주는 그림">
+      <figcaption><b><span class="inline">√d_model</span> 을 곱하는 이유:</b> 위치 인코딩의 진폭은 항상 1 정도인데
+      임베딩은 처음엔 값이 작습니다. 곱하지 않으면 <b>단어 뜻이 위치 정보에 묻힙니다</b>.<br>
+      <b>들어온 모양과 나가는 모양이 <span class="inline">(6,5,64)</span> 로 똑같습니다.</b>
+      그래서 몇 겹이든 쌓을 수 있고, 두 층은 <b>각각 다른 가중치</b>를 가집니다(다르게 두 번 읽기).</figcaption>
+    </figure>
+  </div>
+
+  <div class="step">
+    <h3><span class="no">13</span> 디코더 층은 하위층이 세 개 <span class="where">mini_transformer.py · Decoder · DecoderLayer</span></h3>
+<pre><code><span class="cmt"># DecoderLayer.forward — 하위층 3개</span>
+x = self.<span class="fn">n1</span>(x + self.<span class="fn">drop</span>(self.<span class="fn">self_attn</span>(x, x, x, tgt_mask)))        <span class="cmt"># ① 미래 가림</span>
+x = self.<span class="fn">n2</span>(x + self.<span class="fn">drop</span>(self.<span class="fn">cross_attn</span>(x, enc, enc, src_mask)))   <span class="cmt"># ② 질문 곁눈질</span>
+x = self.<span class="fn">n3</span>(x + self.<span class="fn">drop</span>(self.<span class="fn">ffn</span>(x)))                              <span class="cmt"># ③ 혼자 곱씹기</span></code></pre>
+    <figure>
+      <img src="images/tr-13-decoder.webp"
+           alt="디코더가 임베딩, √64 곱하기, 위치 인코딩, 디코더 층 두 겹으로 이루어지고, 디코더 층 하나를 확대하면 마스크드 셀프 어텐션, 크로스 어텐션, FFN 세 하위층에 각각 잔차와 정규화가 붙는 구조를 보여주는 그림">
+      <figcaption><b>인코더와 다른 점은 ② 하나뿐입니다.</b>
+      크로스 어텐션은 이 모델에서 <b>Q 와 K·V 의 길이가 다른 유일한 곳</b>입니다 —
+      Q 는 답, K·V 는 질문 인코딩.<br>
+      <span class="inline">enc</span> 는 <b>두 층에 똑같은 값</b>이 그대로 들어갑니다. 읽기 전용 참고자료인 셈이죠.</figcaption>
+    </figure>
+  </div>
+
+  <div class="step">
+    <h3><span class="no">14</span> 가장 아래: 어텐션은 나눠 보고 다시 합친다 <span class="where">MultiHeadAttention · scaled_dot_product_attention</span></h3>
+<pre><code><span class="cmt"># MultiHeadAttention.forward</span>
+q, k, v = self.<span class="fn">split</span>(self.<span class="fn">wq</span>(q)), self.<span class="fn">split</span>(self.<span class="fn">wk</span>(k)), self.<span class="fn">split</span>(self.<span class="fn">wv</span>(v))
+ctx, attn = <span class="fn">scaled_dot_product_attention</span>(q, k, v, mask, self.dropout)
+<span class="kw">return</span> self.<span class="fn">wo</span>(self.<span class="fn">merge</span>(ctx))
+
+<span class="cmt"># scaled_dot_product_attention — 학습되는 값 0개</span>
+scores = torch.<span class="fn">matmul</span>(q, k.<span class="fn">transpose</span>(-<span class="num2">2</span>, -<span class="num2">1</span>)) / math.<span class="fn">sqrt</span>(d_k)
+scores = scores.<span class="fn">masked_fill</span>(mask == <span class="num2">0</span>, <span class="fn">float</span>(<span class="str">"-inf"</span>))
+attn = torch.<span class="fn">softmax</span>(scores, dim=-<span class="num2">1</span>)
+<span class="kw">return</span> torch.<span class="fn">matmul</span>(attn, v), attn</code></pre>
+    <figure>
+      <img src="images/tr-14-attention.webp"
+           alt="입력 (6,5,64) 이 wq wk wv 로 변환되고 split 으로 (6,4,5,16) 으로 나뉘어 헤드 4개가 되었다가 merge 로 다시 (6,5,64) 로 합쳐지고 wo 로 섞이는 흐름, 그리고 그 안의 어텐션 공식 다섯 단계를 보여주는 그림">
+      <figcaption><b><span class="inline">for</span> 문이 없는데도 헤드 4개가 한꺼번에 계산됩니다.</b>
+      앞쪽 <span class="inline">(B, h)</span> 축이 묶음으로 함께 처리되기 때문입니다.<br>
+      <b>학습되는 것은 변환기 네 대(<span class="inline">wq wk wv wo</span>)뿐</b>이고,
+      어텐션 공식 자체에는 배울 값이 하나도 없습니다 — 그래서 클래스가 아니라 그냥 함수(<span class="inline">def</span>)입니다.</figcaption>
+    </figure>
+  </div>
+
+  <div class="step">
+    <h3><span class="no">15</span> 이 세 줄이 가중치를 움직인다 <span class="where">training.py · 역전파</span></h3>
+<pre><code>opt.<span class="fn">zero_grad</span>()   <span class="cmt"># 지난 기울기 지우기 — 빼면 계속 더해져 엉뚱한 방향으로 갑니다</span>
+loss.<span class="fn">backward</span>()   <span class="cmt"># 어느 방향으로 틀렸는지 계산</span>
+opt.<span class="fn">step</span>()       <span class="cmt"># 그 반대 방향으로 한 걸음(0.0003 단위)</span></code></pre>
+    <figure>
+      <img src="images/tr-15-backward.webp"
+           alt="zero_grad 로 지난 기울기를 지우고, backward 로 어느 방향으로 틀렸는지 계산하고, step 으로 반대 방향으로 한 걸음 옮기는 세 단계와, loss 하나에서 거꾸로 흘러 가중치 235520개에 닿는 흐름을 보여주는 그림">
+      <figcaption><b>순서가 바뀌면 학습이 망가집니다.</b>
+      <span class="inline">zero_grad()</span> 를 빼먹으면 지난 기울기가 계속 누적되어 엉뚱한 방향으로 갑니다.<br>
+      숫자 하나(<span class="inline">loss</span>)에서 시작해 <b>235,520개 전부</b>에 "너는 이쪽으로 조금"이라는 지시가
+      거꾸로 흘러갑니다. 이게 한 바퀴이고, 그 바퀴를 400번 돕니다.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ══════════════════ 5부 ══════════════════ -->
+<section id="p5" class="part">
+  <span class="badge">PART 5</span>
+  <h2>결과와 저장 — 다음 단계로 넘기기</h2>
+  <p class="sub">400번이 끝나면 loss 곡선 하나와 파일 하나가 남습니다.</p>
+
+  <div class="step">
+    <h3><span class="no">16</span> 400번 동안 틀린 정도가 이렇게 줄었다 <span class="where">실측값</span></h3>
+<pre><code><span class="kw">if</span> ep % <span class="num2">100</span> == <span class="num2">0</span> <span class="kw">or</span> ep == <span class="num2">1</span>:
+    <span class="fn">print</span>(<span class="str">f"epoch {ep:4d} | loss {loss.item():.4f}"</span>)
+<span class="kw">assert</span> loss.<span class="fn">item</span>() &lt; <span class="num2">0.5</span>       <span class="cmt"># 학습이 충분히 됐는지 확인</span></code></pre>
+    <figure>
+      <img src="images/tr-16-loss-curve.webp"
+           alt="틀린 정도가 1회 48.2067 에서 100회 1.9292, 200회 0.5855, 400회 0.0035 까지 초반에 급하게 떨어진 뒤 완만해지는 곡선 그림">
+      <figcaption><b>초반에 급락하고 후반에는 거의 눕습니다.</b>
+      처음에는 완전히 무작위라 크게 틀리니 고칠 것도 많고, 뒤로 갈수록 <b>세부만 다듬기</b> 때문입니다.
+      100회에 이미 1.9292 까지 내려오고, 남은 300번은 소수점을 깎는 데 씁니다.<br>
+      <b>정확히 0 이 되지는 않습니다</b> — softmax 확률은 1 에 <b>가까워질 뿐</b> 1 이 되지 않으니까요.
+      체크포인트가 "0.5 미만"만 확인하는 것도 그래서입니다.</figcaption>
+    </figure>
+    <table>
+      <tr><th>에폭</th><th>loss</th><th>에폭</th><th>loss</th></tr>
+      <tr><td>1</td><td class="n">48.2067</td><td>100</td><td class="n">1.9292</td></tr>
+      <tr><td>10</td><td class="n">19.5557</td><td>200</td><td class="n">0.5855</td></tr>
+      <tr><td>50</td><td class="n">4.2992</td><td>300</td><td class="n">0.0337</td></tr>
+      <tr><td>—</td><td class="n">—</td><td>400</td><td class="n">0.0035</td></tr>
+    </table>
+  </div>
+
+  <div class="step">
+    <h3><span class="no">17</span> 저장은 다섯 가지를 함께 묶는다 <span class="where">training.py · torch.save</span></h3>
+<pre><code>torch.<span class="fn">save</span>({
+    <span class="str">"model_state"</span>: model.<span class="fn">state_dict</span>(),   <span class="cmt"># 학습된 가중치 235,520개</span>
+    <span class="str">"src_vocab"</span>: src_vocab,               <span class="cmt"># 질문 단어장 14개</span>
+    <span class="str">"tgt_vocab"</span>: tgt_vocab,               <span class="cmt"># 답 단어장 18개</span>
+    <span class="str">"max_len"</span>: max_len,                   <span class="cmt"># 22</span>
+    <span class="str">"final_loss"</span>: loss.<span class="fn">item</span>(),            <span class="cmt"># 0.0035</span>
+}, CKPT_PATH)</code></pre>
+    <figure>
+      <img src="images/tr-17-save.webp"
+           alt="torch.save 가 model_state, src_vocab, tgt_vocab, max_len, final_loss 다섯 가지를 mini_transformer.pt 파일로 묶고, reasoning.py 가 그 파일을 읽어 답을 만든다는 것을 보여주는 그림">
+      <figcaption><b>가중치만 저장하면 다시 쓸 수 없습니다.</b>
+      단어장을 함께 저장해야 추론에서 <b>같은 번호 체계</b>를 쓸 수 있고,
+      <span class="inline">max_len</span> 을 저장해야 모델 생성 인자가 같아져 <span class="inline">state_dict</span> 모양이 맞습니다.<br>
+      이 파일을 읽는 쪽이 <span class="inline">reasoning.py</span> 입니다 — 거기서 <span class="inline">answer()</span> 로
+      <span class="inline">&lt;sos&gt;</span> 부터 한 단어씩 이어 붙이는 끝말잇기가 시작됩니다.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ══════════════════ 요약 ══════════════════ -->
+<section id="recap" class="part">
+  <span class="badge">RECAP</span>
+  <h2>한 장 요약</h2>
+
+  <table>
+    <tr><th>단계</th><th>코드</th><th>결과 (실측)</th></tr>
+    <tr><td>데이터</td><td><span class="inline">DATA</span></td><td class="n">6쌍</td></tr>
+    <tr><td>단어장</td><td><span class="inline">Vocab(...)</span> ×2</td><td class="n">14 / 18</td></tr>
+    <tr><td>배치</td><td><span class="inline">build_batches(...)</span></td><td class="n">(6, 5) / (6, 6)</td></tr>
+    <tr><td>위치표 길이</td><td><span class="inline">max(5, 6, 20) + 2</span></td><td class="n">22</td></tr>
+    <tr><td>모델</td><td><span class="inline">Transformer(14, 18, max_len=22)</span></td><td class="n">235,520개</td></tr>
+    <tr><td>짝짓기</td><td><span class="inline">tgt_ids[:, :-1] / [:, 1:]</span></td><td class="n">(6, 5) / (6, 5)</td></tr>
+    <tr><td>질문 마스크</td><td><span class="inline">make_padding_mask(...)</span></td><td class="n">(6, 1, 1, 5)</td></tr>
+    <tr><td>답 마스크</td><td><span class="inline">make_decoder_mask(...)</span></td><td class="n">(6, 1, 5, 5)</td></tr>
+    <tr><td>예측</td><td><span class="inline">model(...)</span></td><td class="n">(6, 5, 18)</td></tr>
+    <tr><td>채점 칸</td><td><span class="inline">ignore_index=0</span></td><td class="n">30칸 중 22칸</td></tr>
+    <tr><td>1회차 loss</td><td>—</td><td class="n">48.2067</td></tr>
+    <tr><td>400회차 loss</td><td>—</td><td class="n">0.0035</td></tr>
+    <tr><td>저장</td><td><span class="inline">torch.save(...)</span></td><td class="n">키 5개</td></tr>
+  </table>
+
+  <div class="callout good"><span class="emoji">🎯</span><b>한 문장으로:</b>
+  6쌍을 직사각형 텐서로 만들고, 무작위 가중치 235,520개로 시작해,
+  <b>예측 → 비교 → 수정</b> 세 줄을 400번 돌려 loss 를 48.2067 에서 0.0035 까지 내린 뒤,
+  가중치와 단어장을 한 파일에 묶어 저장합니다.</div>
+</section>
+
+<footer>
+  <p><b>대상 코드</b> · <span class="inline">hands-on/mini-transformer/training.py</span> ·
+  <span class="inline">hands-on/mini-transformer/mini_transformer.py</span></p>
+  <p><b>부품별 자세한 원리</b>는 <span class="inline">explain/</span> 폴더의 개별 페이지를 보세요 —
+  단어장 · 위치 인코딩 · 어텐션 · 멀티헤드 · FFN · 인코더 · 디코더 · 마스킹 · 학습 · 그리디 디코딩.</p>
+  <p class="muted">그림 속 모든 수치는 로컬에서 <span class="inline">training.py</span> 와 동일한 시드(42)로
+  실제 실행해 얻은 값입니다.</p>
+</footer>
+
+</div>
+</body>
+</html>
