@@ -175,7 +175,7 @@
 <!-- 3 -->
 <section id="p3">
   <h2><span class="num">3</span> 코드 — __init__ 뜯어보기</h2>
-  <p>노트북 <span class="inline">example-detailed.ipynb</span> 셀 21, <span class="inline">Transformer</span> 클래스의 생성자입니다.</p>
+  <p>노트북 <span class="inline">hands-on/example-explain.ipynb</span> 셀 31, <span class="inline">Transformer</span> 클래스의 생성자입니다.</p>
 <pre><code><span class="kw">class</span> <span class="fn">Transformer</span>(nn.Module):
     <span class="kw">def</span> <span class="fn">__init__</span>(self, src_vocab, tgt_vocab, d_model=<span class="num2">64</span>, num_heads=<span class="num2">4</span>,
                  num_layers=<span class="num2">2</span>, d_ff=<span class="num2">256</span>, dropout=<span class="num2">0.1</span>, max_len=<span class="num2">32</span>):
@@ -196,7 +196,7 @@
   <a href="positional-encoding.html">위치 인코딩</a>·<a href="multi-head-attention.html">멀티헤드 어텐션</a>·
   <a href="feed-forward.html">FFN</a>·<a href="encoder-layer.html">인코더 블록</a> 등 부품들은 전부 이 값을
   <b>인자로 받아 쓰기만</b> 하고, 스스로 기본값을 정하지 않습니다. "실전에선 d_model=64를 쓴다"는 사실이 바로
-  <b>여기, 셀 21 한 곳</b>에서 정해지기 때문에 다른 문서들이 공통으로 인용할 수 있는 거예요.</div>
+  <b>여기, 셀 31 한 곳</b>에서 정해지기 때문에 다른 문서들이 공통으로 인용할 수 있는 거예요.</div>
 </section>
 
 <!-- 4 -->
@@ -313,7 +313,7 @@
 
 <footer>
   <p>Mini-Transformer 실습 교재 · Transformer(전체 조립) 쉬운 설명판<br>
-  코드 출처: <span class="inline">example-detailed.ipynb</span> — 부품 ⑨ Transformer (셀 21, 관련: 부품⑦ Encoder 셀 19 · 부품⑧ Decoder 셀 20 · 부품⑩ 마스크 셀 22)<br>
+  코드 출처: <span class="inline">hands-on/example-explain.ipynb</span> — 부품 ⑨ Transformer (셀 31, 관련: 부품⑦ Encoder 셀 27 · 부품⑧ Decoder 셀 29 · 부품⑩ 마스크 셀 33)<br>
   함께 보기: <a href="encoder.html">인코더(부품⑦)</a> · <a href="decoder-block.html">디코더 블록(부품⑥)</a> ·
   <a href="masking.html">마스킹(부품⑩)</a> · <a href="training-loop.html">학습</a> · <a href="greedy-decoding.html">답 생성</a> · <a href="vocab.html">어휘 사전</a></p>
 </footer>

@@ -234,8 +234,8 @@
 <!-- 5 -->
 <section id="p5">
   <h2><span class="num">5</span> 코드로 보기</h2>
-  <p>노트북 <span class="inline">example-detailed.ipynb</span> 셀 25(배치 만들기)와 셀 26(학습 루프)입니다.</p>
-<pre><code><span class="cmt"># 셀 25: 길이 다른 문장들을 &lt;pad&gt;로 채워 직사각형 배치로</span>
+  <p>노트북 <span class="inline">hands-on/example-explain.ipynb</span> 셀 36(배치 만들기)와 셀 38(학습 루프)입니다.</p>
+<pre><code><span class="cmt"># 셀 36: 길이 다른 문장들을 &lt;pad&gt;로 채워 직사각형 배치로</span>
 <span class="kw">def</span> <span class="fn">build_batches</span>(pairs, sv, tv):
     src = [torch.<span class="fn">tensor</span>(sv.<span class="fn">encode</span>(q, add_special=<span class="kw">False</span>)) <span class="kw">for</span> q, _ <span class="kw">in</span> pairs]
     tgt = [torch.<span class="fn">tensor</span>(tv.<span class="fn">encode</span>(a, add_special=<span class="kw">True</span>))  <span class="kw">for</span> _, a <span class="kw">in</span> pairs]
@@ -243,7 +243,7 @@
     tgt = <span class="fn">pad_sequence</span>(tgt, batch_first=<span class="kw">True</span>, padding_value=tv.pad_id)
     <span class="kw">return</span> src, tgt</code></pre>
 
-<pre><code><span class="cmt"># 셀 26: (1)예측 → (2)비교 → (3)수정, 을 400번 반복</span>
+<pre><code><span class="cmt"># 셀 38: (1)예측 → (2)비교 → (3)수정, 을 400번 반복</span>
 torch.<span class="fn">manual_seed</span>(<span class="num2">42</span>)                                       <span class="cmt"># 재현성(같은 결과)</span>
 src_ids, tgt_ids = <span class="fn">build_batches</span>(DATA, src_vocab, tgt_vocab)
 model = <span class="fn">Transformer</span>(<span class="fn">len</span>(src_vocab), <span class="fn">len</span>(tgt_vocab), max_len=max_len)
@@ -292,7 +292,7 @@ dec_in, dec_tgt = tgt_ids[:, :-<span class="num2">1</span>], tgt_ids[:, <span cl
   </div>
   <div class="callout good"><span class="emoji">📉</span>
   슬라이더를 끝까지 밀어보세요. <b>epoch 1: loss 48.88</b> → <b>epoch 100: 1.84</b> → <b>epoch 200: 0.11</b> →
-  <b>epoch 300: 0.066</b> → <b>epoch 400: 0.0063</b>. 체크포인트 셀 27의
+  <b>epoch 300: 0.066</b> → <b>epoch 400: 0.0063</b>. 체크포인트 셀 39의
   <span class="inline">assert loss.item() &lt; 0.5</span> 을 여유 있게 통과하는 걸 볼 수 있어요.</div>
 </section>
 
@@ -334,7 +334,7 @@ dec_in, dec_tgt = tgt_ids[:, :-<span class="num2">1</span>], tgt_ids[:, <span cl
 
 <footer>
   <p>Mini-Transformer 실습 교재 · 학습 쉬운 설명판<br>
-  코드 출처: <span class="inline">example-detailed.ipynb</span> — 4️⃣ 학습: 셀 25(build_batches) · 셀 26(모델 만들고 학습하기) · 체크포인트 셀 27<br>
+  코드 출처: <span class="inline">hands-on/example-explain.ipynb</span> — 4️⃣ 학습: 셀 36(build_batches) · 셀 38(모델 만들고 학습하기) · 체크포인트 셀 39<br>
   loss 곡선은 동일 코드를 <span class="inline">torch.manual_seed(42)</span>로 실제 재실행하여 얻은 값입니다.<br>
   함께 보기: <a href="attention.html">어텐션(부품②)</a> · <a href="multi-head-attention.html">멀티헤드 어텐션(부품③)</a> ·
   <a href="encoder-layer.html">인코더 블록(부품⑤)</a> · <a href="decoder-block.html">디코더 블록(부품⑥)</a> ·
@@ -386,7 +386,7 @@ const PAD_ROWS = [
 })();
 
 /* ================= 6. 실제 loss 곡선 (노트북 재실행 결과) ================= */
-// example-detailed.ipynb 셀 25~27을 그대로 재현해 실행, torch.manual_seed(42), 5에폭 간격 샘플 + 마지막(400) 값.
+// hands-on/example-explain.ipynb 셀 36~39를 그대로 재현해 실행, torch.manual_seed(42), 5에폭 간격 샘플 + 마지막(400) 값.
 const LOSS = [48.8795,32.0526,17.5418,13.0992,10.6521,8.0042,6.263,5.6091,4.3059,4.1061,4.0724,3.2017,3.6531,2.8165,3.1738,2.3522,2.9698,2.84,2.17,2.1318,2.573,2.381,1.8325,1.7629,2.4724,1.4464,1.8703,1.4081,1.2101,1.1482,1.1127,1.2028,0.8065,0.893,0.6547,0.6607,0.7442,0.8548,0.4907,0.6322,0.359,0.3603,0.1745,0.1548,0.2944,0.2963,0.1936,0.0381,0.0442,0.1032,0.129,0.0651,0.0736,0.0406,0.0125,0.1814,0.0088,0.006,0.0163,0.0128,0.0537,0.03,0.0785,0.011,0.0318,0.01,0.0064,0.0043,0.0416,0.0059,0.0052,0.0037,0.0099,0.0184,0.004,0.0029,0.0277,0.0051,0.0012,0.005,0.0063];
 const EPOCHS = Array.from({length:80}, (_,j)=> j*5+1).concat([400]); // [1,6,...,396,400]
 

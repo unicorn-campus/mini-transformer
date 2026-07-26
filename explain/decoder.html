@@ -183,7 +183,7 @@
 <!-- 4 -->
 <section id="p4">
   <h2><span class="num">4</span> 코드: Decoder 클래스</h2>
-  <p>노트북 <span class="inline">example-detailed.ipynb</span> 부품 ⑧ (셀 20)의 실제 코드입니다.</p>
+  <p>노트북 <span class="inline">hands-on/example-explain.ipynb</span> 부품 ⑧ (셀 29)의 실제 코드입니다.</p>
 <pre><code><span class="kw">class</span> <span class="fn">Decoder</span>(nn.Module):
     <span class="kw">def</span> <span class="fn">__init__</span>(self, vocab, d_model, num_heads, num_layers, d_ff, dropout, max_len):
         super().<span class="fn">__init__</span>()
@@ -214,7 +214,7 @@
   <p><a href="encoder.html">Encoder</a>와 <span class="inline">Decoder</span>는 겉모습(임베딩+위치인코딩+층쌓기)이 거의 같습니다.
   하지만 셋이 다릅니다 — <b>넘기는 인자</b>, <b>안에 쌓는 블록</b>, 그리고 <b>출력층과의 관계</b>.</p>
   <table>
-    <tr><th>구분</th><th>Encoder (부품⑦, 셀19)</th><th>Decoder (부품⑧, 셀20, 지금 배우는 것)</th></tr>
+    <tr><th>구분</th><th>Encoder (부품⑦, 셀27)</th><th>Decoder (부품⑧, 셀29, 지금 배우는 것)</th></tr>
     <tr><td>단어장</td><td>src_vocab (질문)</td><td>tgt_vocab (답)</td></tr>
     <tr><td>쌓는 블록</td><td><a href="encoder-layer.html">EncoderLayer</a> × num_layers</td><td><a href="decoder-block.html">DecoderLayer</a> × num_layers</td></tr>
     <tr><td>forward 인자</td><td><span class="inline">(src, mask)</span> — 마스크 1개</td><td><span class="inline">(tgt, enc, tgt_mask, src_mask)</span> — enc + 마스크 2개</td></tr>
@@ -258,8 +258,8 @@
 <section id="p7">
   <h2><span class="num">7</span> 헷갈리기 쉬운 점</h2>
   <div class="callout"><span class="emoji">🎯</span><b>학습 때와 추론 때, Decoder를 부르는 방식이 다릅니다.</b>
-  학습(<a href="training-loop.html">셀 26</a>)에서는 정답 전체 <span class="inline">dec_in</span> 을 <b>한 번에</b> 넣어(티처 포싱) Decoder를 딱 한 번 호출합니다.
-  반면 추론(<a href="greedy-decoding.html">셀 29 answer 함수</a>)에서는 <span class="inline">model.decode_step</span> 을 통해
+  학습(<a href="training-loop.html">셀 38</a>)에서는 정답 전체 <span class="inline">dec_in</span> 을 <b>한 번에</b> 넣어(티처 포싱) Decoder를 딱 한 번 호출합니다.
+  반면 추론(<a href="greedy-decoding.html">셀 42 answer 함수</a>)에서는 <span class="inline">model.decode_step</span> 을 통해
   Decoder를 <b>매 스텝마다 다시</b> 호출하되, 인코더 결과 <span class="inline">enc</span> 는 한 번만 계산해 재사용합니다.</div>
   <div class="callout good"><span class="emoji">📊</span><b>히트맵의 재료는 어디서 나올까?</b>
   <span class="inline">Decoder</span>가 <span class="inline">self.layers</span> 라는 <span class="inline">ModuleList</span> 로 DecoderLayer들을 들고 있기 때문에,
@@ -292,7 +292,7 @@
 
 <footer>
   <p>Mini-Transformer 실습 교재 · 디코더 쉬운 설명판<br>
-  코드 출처: <span class="inline">example-detailed.ipynb</span> — 부품 ⑧ Decoder (셀 20, 관련: 부품⑥ DecoderLayer 셀18 · 부품⑨ Transformer weight tying 셀21 · 부품⑦ Encoder 셀19)<br>
+  코드 출처: <span class="inline">hands-on/example-explain.ipynb</span> — 부품 ⑧ Decoder (셀 29, 관련: 부품⑥ DecoderLayer 셀25 · 부품⑨ Transformer weight tying 셀31 · 부품⑦ Encoder 셀27)<br>
   함께 보기: <a href="decoder-block.html">디코더 블록(부품⑥)</a> · <a href="encoder.html">인코더(부품⑦)</a> ·
   <a href="attention.html">어텐션(부품②)</a> · <a href="multi-head-attention.html">멀티헤드 어텐션(부품③)</a> ·
   <a href="greedy-decoding.html">답 생성(자기회귀 디코딩)</a> · <a href="vocab.html">어휘 사전</a></p>

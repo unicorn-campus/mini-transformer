@@ -191,7 +191,7 @@
 <!-- 4 -->
 <section id="p4">
   <h2><span class="num">4</span> 코드는 이 세 함수가 전부</h2>
-  <p>노트북 <span class="inline">example-detailed.ipynb</span>의 <b>부품 ⑩ 마스크 만들기</b>(셀 22)입니다.
+  <p>노트북 <span class="inline">hands-on/example-explain.ipynb</span>의 <b>부품 ⑩ 마스크 만들기</b>(셀 33)입니다.
   앞서 본 비유 두 개가 그대로 함수 두 개, 그리고 그 둘을 합친 함수 하나로 들어 있어요.</p>
 <pre><code><span class="cmt"># make_padding_mask: &lt;pad&gt; 자리를 가림. seq shape (B, S) → (B,1,1,S)</span>
 <span class="kw">def</span> <span class="fn">make_padding_mask</span>(seq, pad_id):
@@ -256,7 +256,7 @@
 <!-- 6 -->
 <section id="p6">
   <h2><span class="num">6</span> 체크포인트 — 하삼각의 합은 왜 6일까</h2>
-  <p>노트북 체크포인트(셀 23)는 이렇게 검증합니다.</p>
+  <p>노트북 체크포인트(셀 34)는 이렇게 검증합니다.</p>
 <pre><code><span class="cmt"># 체크포인트: 3x3 인과 마스크의 True 개수가 1+2+3=6인지 확인</span>
 <span class="kw">assert</span> <span class="fn">make_causal_mask</span>(<span class="num2">3</span>, torch.<span class="fn">device</span>(<span class="str">"cpu"</span>)).<span class="fn">sum</span>().<span class="fn">item</span>() == <span class="num2">6</span>
 <span class="fn">print</span>(<span class="str">"✅ 마스크 OK"</span>)</code></pre>
@@ -275,15 +275,15 @@
   <p>같은 마스크 함수라도 <b>어디서 부르느냐</b>에 따라 역할이 달라집니다. 실제 forward 코드 기준입니다.</p>
   <table>
     <tr><th>위치</th><th>사용하는 마스크</th><th>가리는 것</th></tr>
-    <tr><td>인코더 셀프어텐션<br><span class="muted" style="font-size:.85em">EncoderLayer.forward (셀 17)</span></td>
+    <tr><td>인코더 셀프어텐션<br><span class="muted" style="font-size:.85em">EncoderLayer.forward (셀 23)</span></td>
         <td><span class="inline">make_padding_mask(src)</span></td><td>질문의 <span class="inline">&lt;pad&gt;</span>만</td></tr>
-    <tr><td>디코더 셀프어텐션<br><span class="muted" style="font-size:.85em">DecoderLayer.forward · self_attn (셀 18)</span></td>
+    <tr><td>디코더 셀프어텐션<br><span class="muted" style="font-size:.85em">DecoderLayer.forward · self_attn (셀 25)</span></td>
         <td><span class="inline">make_decoder_mask(tgt)</span></td><td><span class="inline">&lt;pad&gt;</span> + 미래 단어 둘 다</td></tr>
-    <tr><td>디코더 크로스어텐션<br><span class="muted" style="font-size:.85em">DecoderLayer.forward · cross_attn (셀 18)</span></td>
+    <tr><td>디코더 크로스어텐션<br><span class="muted" style="font-size:.85em">DecoderLayer.forward · cross_attn (셀 25)</span></td>
         <td><span class="inline">make_padding_mask(src)</span></td><td>질문(K,V) 쪽 <span class="inline">&lt;pad&gt;</span>만
         — 미래 개념이 없음(Q=답, K/V=질문 전체를 항상 다 봐도 됨)</td></tr>
   </table>
-  <div class="callout warn"><span class="emoji">⚠️</span><b>헷갈리기 쉬운 점:</b> 추론 함수 <span class="inline">answer()</span>(5단계, 셀 29)를 보면
+  <div class="callout warn"><span class="emoji">⚠️</span><b>헷갈리기 쉬운 점:</b> 추론 함수 <span class="inline">answer()</span>(5단계, 셀 42)를 보면
   <span class="inline">tgt_mask = make_causal_mask(...)</span>만 쓰고 <span class="inline">make_decoder_mask</span>는 안 씁니다!
   왜냐면 추론은 문장을 <b>한 개씩</b>, 그것도 <b>매 스텝 딱 필요한 길이만큼만</b> 키워가며 만들기 때문에
   애초에 <span class="inline">&lt;pad&gt;</span>가 끼어들 일이 없거든요. 패딩 가림은 <b>여러 문장을 배치로 묶는 학습 때만</b> 필요합니다.</div>
@@ -310,8 +310,8 @@
 
 <footer>
   <p>Mini-Transformer 실습 교재 · 마스킹 쉬운 설명판<br>
-  코드 출처: <span class="inline">example-detailed.ipynb</span> — 부품 ⑩ 마스크 만들기(셀 22, 체크포인트 셀 23),
-  사용 예시(셀 17·18·21·26·29)<br>
+  코드 출처: <span class="inline">hands-on/example-explain.ipynb</span> — 부품 ⑩ 마스크 만들기(셀 33, 체크포인트 셀 34),
+  사용 예시(셀 23·25·31·38·42)<br>
   함께 보기: <a href="attention.html">어텐션(부품②)</a> · <a href="multi-head-attention.html">멀티헤드 어텐션(부품③)</a> ·
   <a href="positional-encoding.html">위치 인코딩(부품①)</a> · <a href="vocab.html">어휘 사전</a></p>
 </footer>
