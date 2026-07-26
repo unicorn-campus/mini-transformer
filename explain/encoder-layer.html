@@ -96,6 +96,11 @@
   th,td{border:1px solid var(--line);padding:9px 12px;text-align:left}
   th{background:var(--panel2);color:#fff}
 
+  figure{margin:20px 0}
+  figure img{width:100%;display:block;border:1px solid var(--line);border-radius:14px;background:var(--code)}
+  figcaption{font-size:13.5px;color:var(--sub);margin-top:8px;line-height:1.65}
+  figcaption b{color:#fff}
+
   footer{margin-top:80px;border-top:1px solid var(--line);padding-top:24px;color:var(--sub);font-size:14px}
   .toc{position:sticky;top:0;z-index:5;background:rgba(15,23,42,.85);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
   .toc .wrap{display:flex;gap:6px;flex-wrap:wrap;padding:10px 20px;overflow-x:auto}
@@ -174,7 +179,8 @@
 <!-- 3 -->
 <section id="p3">
   <h2><span class="num">3</span> 코드 그대로 보기</h2>
-  <p>실습 노트북 셀 17, 부품⑤ <span class="inline">EncoderLayer</span> 전체 코드입니다. 부품이 4줄(어텐션·FFN·정규화 2개·드롭아웃)뿐이라
+  <p>실습 노트북 <span class="inline">hands-on/example-explain.ipynb</span> 셀 23, 부품⑤ <span class="inline">EncoderLayer</span> 전체 코드입니다.
+  부품이 4줄(어텐션·FFN·정규화 2개·드롭아웃)뿐이라
   간단해 보이지만, <span class="inline">forward</span>의 딱 두 줄에 안정적인 학습의 비밀이 담겨 있어요.</p>
 
 <pre><code><span class="kw">class</span> <span class="fn">EncoderLayer</span>(nn.Module):
@@ -203,6 +209,57 @@
     <tr><td><span class="inline">self.ffn(x)</span></td><td>③</td><td>각 단어가 혼자 곱씹기(position-wise)</td></tr>
     <tr><td><span class="inline">x + self.drop(...) → self.n2(...)</span></td><td>④</td><td>①②와 동일한 (잔차+정규화) 패턴 반복</td></tr>
   </table>
+
+  <h3>그림으로 보기 — <span class="inline">forward</span> 두 줄에서 일어나는 일</h3>
+  <p>위 <span class="inline">forward</span>의 두 줄을 그림 하나로 펼치면 이렇게 됩니다.
+  <b class="hlt">똑같은 모양의 블록이 두 번</b> 반복되는 것이 한눈에 보입니다.</p>
+  <figure>
+    <img src="https://raw.githubusercontent.com/unicorn-campus/mini-transformer/main/explain/images/enc-forward-flow.webp"
+         alt="입력에서 셀프어텐션과 드롭아웃을 지나 원본을 더하고 정규화하는 블록, 이어서 각 단어를 혼자 계산하는 FFN과 드롭아웃을 지나 다시 더하고 정규화하는 블록을 거쳐 출력이 되는 흐름 그림">
+    <figcaption><b>흐름을 세 가지만 보시면 됩니다.</b><br>
+    <b>① 위로 휘어진 두 개의 곡선</b> — 이게 <span class="inline">x + …</span> 의 <b class="hlt">잔차 연결</b>입니다.
+    본선(셀프어텐션·FFN)을 <b>건너뛰고 원본을 그대로 데려오는 길</b>이죠. 두 블록에 각각 하나씩 있습니다.<br>
+    <b>② 노란 ⊕ 원</b> — 본선 결과와 건너온 원본이 <b>만나 더해지는 지점</b>입니다. 바로 뒤에 정규화가 붙습니다.<br>
+    <b>③ 양쪽 끝의 <span class="inline">(1, 5, 64)</span></b> — <b class="hlt">들어갈 때와 나올 때 모양이 똑같습니다.</b>
+    그래서 이 블록을 <b>몇 겹이든 그대로 쌓을 수 있습니다</b>(우리 노트북은 2겹).
+    <span class="muted">(그림의 "각 단어 혼자 계산"이 코드의 <span class="inline">self.ffn</span> 입니다.
+    64칸을 256칸으로 넓혔다가 다시 64칸으로 줄이므로 <b>모양은 보존</b>됩니다.)</span></figcaption>
+  </figure>
+
+  <h3>그 두 줄이 실제로 만든 숫자</h3>
+  <p>질문 <b class="hlt">"하늘에 먹구름이 보이면 뭐가 생각나"</b>를 실제로 넣고,
+  단어 <b class="hlt">"먹구름이"</b>의 64칸이 단계마다 어떻게 변하는지 측정했습니다.</p>
+  <table>
+    <tr><th>단계</th><th>코드</th><th>shape</th><th>평균</th><th>표준편차</th></tr>
+    <tr><td>① 입력 x</td><td><span class="inline">x</span></td><td>(1, 5, 64)</td><td>+0.336</td><td>6.65</td></tr>
+    <tr><td>② 어텐션 결과</td><td><span class="inline">self.attn(x,x,x,mask)</span></td><td>(1, 5, 64)</td><td>−0.341</td><td>2.91</td></tr>
+    <tr><td>③ 잔차 합</td><td><span class="inline">x + self.drop(…)</span></td><td>(1, 5, 64)</td><td>−0.005</td><td><b>7.43</b></td></tr>
+    <tr><td>④ 정규화</td><td><span class="inline">self.n1(…)</span></td><td>(1, 5, 64)</td><td><b class="hlt">+0.001</b></td><td><b class="hlt">1.00</b></td></tr>
+    <tr><td>⑤ FFN 결과</td><td><span class="inline">self.ffn(x)</span></td><td>(1, 5, 64)</td><td>+0.067</td><td>0.50</td></tr>
+    <tr><td>⑥ 잔차 합</td><td><span class="inline">x + self.drop(…)</span></td><td>(1, 5, 64)</td><td>+0.068</td><td>1.15</td></tr>
+    <tr><td>⑦ 정규화 = 출력</td><td><span class="inline">self.n2(…)</span></td><td>(1, 5, 64)</td><td><b class="hlt">+0.001</b></td><td><b class="hlt">1.01</b></td></tr>
+  </table>
+  <figure>
+    <img src="https://raw.githubusercontent.com/unicorn-campus/mini-transformer/main/explain/images/enc-residual-norm.webp"
+         alt="원본 53.3과 어텐션 결과 23.4를 더해 59.4가 되는 막대그래프, 그리고 표준편차 7.43으로 넓게 흩어진 점들이 정규화 후 표준편차 1.00으로 좁게 모이는 것을 비교한 그림">
+    <figcaption><b>왼쪽 — 더하기는 "덮어쓰기"가 아닙니다.</b>
+    어텐션 결과(23.4)는 원본(53.3)의 <b class="hlt">44% 크기</b>에 불과합니다.
+    즉 <b>원본을 살려 둔 채 작은 수정값을 얹는</b> 구조예요.
+    그래서 4번 섹션에서 볼 "아무것도 안 바꾸기가 쉽다"가 성립합니다.<br>
+    <b>오른쪽 — 정규화는 값을 버리지 않습니다.</b>
+    더한 직후엔 값이 <b>표준편차 7.43</b>으로 넓게 흩어져 있는데, 정규화가 이를 <b class="hlt">1.00</b>으로 모아 줍니다.
+    <b>중심(평균)은 0 그대로</b>이고 <b>퍼진 폭만</b> 줄죠 — 순서나 크기 관계는 유지됩니다.
+    <span class="muted">(다섯 단어 모두 확인했습니다. norm1 후 평균은 −0.0014 ~ +0.0009, 표준편차는 0.999 ~ 1.003입니다.)</span></figcaption>
+  </figure>
+  <div class="callout good"><span class="emoji">📐</span>
+    <b>표에서 꼭 볼 두 가지.</b><br>
+    <b>①</b> <span class="inline">shape</span> 열이 <b class="hlt">(1, 5, 64)로 일곱 번 내내 같습니다.</b>
+    인코더 블록은 모양을 절대 바꾸지 않아요.<br>
+    <b>②</b> 정규화를 지난 ④·⑦에서만 <b>평균 ≈ 0, 표준편차 ≈ 1</b>이 됩니다.
+    <b>표준편차 7.43 → 1.00</b>이 이 층에서 가장 극적인 변화입니다 —
+    이걸 안 해 주면 층을 쌓을수록 값이 계속 커져 학습이 무너집니다.
+    <span class="muted">(측정 조건: <span class="inline">torch.manual_seed(42)</span>로 400에폭 학습, loss 0.0035, 첫 번째 인코더 층.
+    파이토치 버전이 다르면 소수점은 달라지지만 "7.43 → 1.00"처럼 <b>큰 값이 1 근처로 모인다</b>는 결론은 같습니다.)</span></div>
 </section>
 
 <!-- 4 -->
@@ -318,7 +375,7 @@
 
 <footer>
   <p>Mini-Transformer 실습 교재 · 인코더 블록 쉬운 설명판<br>
-  코드 출처: <span class="inline">example-detailed.ipynb</span> — 부품 ⑤ EncoderLayer (셀 17), 관련: 셀 10(섹션 소개) · 셀 14(MultiHeadAttention) · 셀 16(FFN) · 셀 19(Encoder 겹쌓기)<br>
+  코드 출처: <span class="inline">hands-on/example-explain.ipynb</span> — 부품 ⑤ EncoderLayer (셀 23), 관련: 셀 18(MultiHeadAttention) · 셀 21(FFN) · 셀 27(Encoder 겹쌓기)<br>
   함께 보기: <a href="attention.html">어텐션(부품②)</a> · <a href="multi-head-attention.html">멀티헤드 어텐션(부품③)</a> · <a href="positional-encoding.html">위치 인코딩(부품①)</a> · <a href="vocab.html">어휘 사전</a></p>
 </footer>
 
