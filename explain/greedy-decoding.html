@@ -71,6 +71,11 @@
   th,td{border:1px solid var(--line);padding:9px 12px;text-align:left}
   th{background:var(--panel2);color:#fff}
 
+  figure{margin:20px 0}
+  figure img{width:100%;display:block;border:1px solid var(--line);border-radius:14px;background:var(--code)}
+  figcaption{font-size:13.5px;color:var(--sub);margin-top:8px;line-height:1.65}
+  figcaption b{color:#fff}
+
   footer{margin-top:80px;border-top:1px solid var(--line);padding-top:24px;color:var(--sub);font-size:14px}
   .toc{position:sticky;top:0;z-index:5;background:rgba(15,23,42,.85);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
   .toc .wrap{display:flex;gap:6px;flex-wrap:wrap;padding:10px 20px;overflow-x:auto}
@@ -224,6 +229,37 @@
   <span class="inline">decode_step</span>은 매 스텝마다 <b class="hlt">지금까지의 답 전체를 처음부터 다시</b> 디코더에 통과시킵니다.
   이전 계산 결과를 저장해 두는 <b>KV 캐시</b>가 없는, 이해하기 쉬운 교육용 단순 구현이기 때문입니다.
   실제 서비스용 LLM은 이 부분을 캐싱해서 새로 추가된 단어분만 계산합니다.</div>
+
+  <h3>그림으로 보기 — 다섯 걸음에 답이 자란다</h3>
+  <p>위 코드를 실제로 돌려 <b>스텝마다 무엇이 늘어나고 무엇이 뽑히는지</b> 기록했습니다.</p>
+  <figure>
+    <img src="https://raw.githubusercontent.com/unicorn-campus/mini-transformer/main/explain/images/greedy-steps.webp"
+         alt="답이 sos에서 시작해 한 칸씩 늘어나며 매 스텝 뽑힌 단어와 점수를 보여 주는 5단 계단 그림. 마지막에 eos가 뽑혀 멈춘다">
+    <figcaption><b>노란 칸이 그 스텝에 새로 붙은 단어입니다.</b>
+    입력이 1칸 → 2칸 → … → 5칸으로 자라고, 그때마다 <b class="hlt">마지막 칸에서만</b> 점수를 읽습니다.
+    앞쪽 칸들은 이미 확정된 단어라 볼 필요가 없죠 — 코드의 <span class="inline">logits[0, -1]</span>이 바로 이 뜻입니다.<br>
+    뽑힌 점수를 보세요. <b>비가 25.95 → 올 24.80 → 것 27.13 → 같아 31.23 → &lt;eos&gt; 36.72</b>점으로,
+    매번 2등을 크게 앞섭니다(예: 4스텝 '같아' 31.23 vs 2등 &lt;eos&gt; 18.65). <b>모델이 아주 확신하고 있다</b>는 뜻입니다.<br>
+    <b class="hlt">왼쪽 세로 막대가 중요합니다</b> — 질문 인코딩은 루프 <b>바깥에서 딱 한 번</b>입니다.
+    질문은 답을 만드는 동안 바뀌지 않으니 다시 읽을 이유가 없습니다.
+    <span class="muted">(<span class="inline">max_len=20</span>이지만 5걸음에 <span class="inline">&lt;eos&gt;</span>가 나와 멈춥니다.
+    이 <span class="inline">break</span>가 없으면 20번을 다 돌며 쓸데없는 단어를 계속 붙입니다.)</span></figcaption>
+  </figure>
+
+  <h3>그림으로 보기 — 마지막 한 줄은 왜 있나</h3>
+  <p>루프가 끝난 뒤 <span class="inline">decode_step</span>을 <b>한 번 더</b> 부르는 줄이 있습니다.
+  군더더기처럼 보이지만 없으면 히트맵이 깨집니다.</p>
+  <figure>
+    <img src="https://raw.githubusercontent.com/unicorn-campus/mini-transformer/main/explain/images/greedy-extra-pass.webp"
+         alt="루프가 끝난 직후에는 히트맵 마지막 줄이 비어 있고, 완성된 답으로 한 번 더 통과시키면 여섯 줄이 모두 채워지는 것을 좌우로 비교한 그림">
+    <figcaption><b>왼쪽의 빈 줄이 문제입니다.</b>
+    루프의 마지막 스텝에서 모델에 넣은 답은 <span class="inline">&lt;eos&gt;</span> <b>직전까지의 5칸</b>이었습니다.
+    그래서 보관된 어텐션 가중치도 <b>5줄분</b>뿐이고, 마지막 <span class="inline">&lt;eos&gt;</span> 줄이 비어 있습니다.<br>
+    <b class="hlt">완성된 6칸으로 한 번 더 통과시키면 6줄이 다 채워집니다.</b>
+    <b>단어를 더 만드는 게 아니라 히트맵 재료를 채우는 것</b>이라, 이 호출의 반환값은 쓰지 않고 버립니다.<br>
+    <span class="muted">shape로 보면 <span class="inline">(1,4,5,5)</span> → <span class="inline">(1,4,6,5)</span> 이고,
+    헤드 4개를 평균해 <span class="inline">(6, 5)</span> = 답 6칸 × 질문 5단어가 되어야 6단계 히트맵의 축이 맞습니다.</span></figcaption>
+  </figure>
 </section>
 
 <!-- 5 -->
