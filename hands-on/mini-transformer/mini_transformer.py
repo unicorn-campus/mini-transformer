@@ -306,10 +306,10 @@ class Encoder(nn.Module):
     임베딩 × √d_model → 위치인코딩 → EncoderLayer × num_layers.
     """
 
-    def __init__(self, vocab, d_model, num_heads, num_layers, d_ff, dropout, max_len):
+    def __init__(self, vocab_size, d_model, num_heads, num_layers, d_ff, dropout, max_len):
         super().__init__()
         self.d_model = d_model                      # forward 의 √d_model 스케일링에서 씁니다
-        self.emb = nn.Embedding(vocab, d_model)     # 단어 번호 → d_model 차원 벡터
+        self.emb = nn.Embedding(vocab_size, d_model)     # 단어 번호 → d_model 차원 벡터
         self.pos = PositionalEncoding(d_model, max_len, dropout)
         # ⚠️ 파이썬 리스트로 담으면 파라미터가 등록되지 않습니다. ModuleList 여야 합니다.
         #    매번 새로 만드는 것이라 층마다 가중치가 서로 다릅니다('다르게 두 번 읽기').
@@ -335,12 +335,12 @@ class Decoder(nn.Module):
     Encoder 와 뼈대가 같고, 매 층에 enc·tgt_mask·src_mask 를 함께 넘기는 점만 다릅니다.
     """
 
-    def __init__(self, vocab, d_model, num_heads, num_layers, d_ff, dropout, max_len):
+    def __init__(self, vocab_size, d_model, num_heads, num_layers, d_ff, dropout, max_len):
         super().__init__()
         self.d_model = d_model
         # 답 단어장 기준 임베딩. 질문 쪽 임베딩과는 크기부터 다른, 완전히 별개의 표입니다.
         # 나중에 부품⑨에서 이 표를 출력층과 공유합니다(weight tying).
-        self.emb = nn.Embedding(vocab, d_model)
+        self.emb = nn.Embedding(vocab_size, d_model)
         self.pos = PositionalEncoding(d_model, max_len, dropout)
         self.layers = nn.ModuleList([DecoderLayer(d_model, num_heads, d_ff, dropout)
                                      for _ in range(num_layers)])
@@ -365,14 +365,14 @@ class Transformer(nn.Module):
     우리 예제 전체 파라미터 235,520개 = 인코더 100,864 + 디코더 134,656.
     """
 
-    def __init__(self, src_vocab, tgt_vocab, d_model=64, num_heads=4,
+    def __init__(self, src_vocab_size, tgt_vocab_size, d_model=64, num_heads=4,
                  num_layers=2, d_ff=256, dropout=0.1, max_len=32):
         super().__init__()
-        self.encoder = Encoder(src_vocab, d_model, num_heads, num_layers, d_ff, dropout, max_len)
-        self.decoder = Decoder(tgt_vocab, d_model, num_heads, num_layers, d_ff, dropout, max_len)
+        self.encoder = Encoder(src_vocab_size, d_model, num_heads, num_layers, d_ff, dropout, max_len)
+        self.decoder = Decoder(tgt_vocab_size, d_model, num_heads, num_layers, d_ff, dropout, max_len)
         # bias=False 인 이유는 아래 가중치 공유 때문입니다. nn.Embedding 은 bias 개념이 없는
         # 순수 조회 테이블이라, 짝을 맞추려면 출력층도 bias 없는 순수 행렬곱이어야 합니다.
-        self.out = nn.Linear(d_model, tgt_vocab, bias=False)
+        self.out = nn.Linear(d_model, tgt_vocab_size, bias=False)
         # weight tying: 복사가 아니라 대입입니다. 두 이름이 '같은 텐서'를 가리킵니다.
         # 같은 텐서라서 named_parameters() 에 out.weight 가 따로 나타나지 않습니다.
         self.out.weight = self.decoder.emb.weight     # weight tying(가중치 공유)

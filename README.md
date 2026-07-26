@@ -11,7 +11,7 @@ Colab **한국어→영어 번역 미니 트랜스포머** 과제를 시작하�
 
 ## 무엇을 보여주나
 
-`python demo.py` 를 실행하면 세 가지가 출력됩니다.
+`python training.py` 로 학습한 뒤 `python reasoning.py` 를 실행하면 세 가지가 출력됩니다.
 
 1. **순차 생성(마스킹)** — 답을 `<sos>`부터 한 단어씩, **앞말만 보고** 고르는 과정
    ```
@@ -55,7 +55,6 @@ Colab **한국어→영어 번역 미니 트랜스포머** 과제를 시작하�
 
 **Windows (PowerShell)**
 ```powershell
-cd example
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
@@ -63,7 +62,6 @@ pip install -r requirements.txt
 
 **macOS / Linux**
 ```bash
-cd example
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
@@ -72,24 +70,45 @@ pip install -r requirements.txt
 > `torch` 설치가 오래 걸리면 CPU 전용 경량 휠을 쓰세요:
 > `pip install -r requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu`
 
-### 2) 실행
+### 2) 실행 — 학습 → 추론 순서
 
 ```bash
-python demo.py
+cd hands-on/mini-transformer
+python training.py     # 학습 후 mini_transformer.pt 저장
+python reasoning.py     # 저장된 모델로 추론 + 히트맵 생성
 ```
 
-CPU에서 수 초 안에 끝납니다(GPU 불필요). 실행 후 같은 폴더에 `attention_heatmap.png` 가 생깁니다.
+CPU에서 수 초 안에 끝납니다(GPU 불필요). `reasoning.py` 는 `training.py` 가 만든
+`mini_transformer.pt` 를 읽으므로 **순서를 지켜야 합니다**.
 
 ---
 
 ## 파일 구성
 
+실행 코드는 모두 `hands-on/mini-transformer/` 안에 있습니다.
+
 | 파일 | 설명 |
 |------|------|
-| `mini_transformer.py` | 미니 트랜스포머 모델(위치 인코딩·멀티헤드 어텐션·인코더/디코더·마스크) |
-| `demo.py` | 데이터·학습·생성·어텐션 히트맵 (실행 진입점) |
+| `hands-on/mini-transformer/mini_transformer.py` | 부품 전체 — 단어장·위치 인코딩·멀티헤드 어텐션·인코더/디코더·마스크·추론 유틸 (설명용 한글 주석 포함) |
+| `hands-on/mini-transformer/training.py` | 학습 진입점 (데이터 → 단어장 → 400에폭 학습 → 체크포인트 저장) |
+| `hands-on/mini-transformer/reasoning.py` | 추론 진입점 (체크포인트 로드 → 순차 생성 → 히트맵 → 대조 비교) |
 | `requirements.txt` | 의존성(`torch`, `matplotlib`) |
-| `attention_heatmap.png` | 실행 시 생성되는 크로스 어텐션 시각화 |
+
+실행 시 생성되는 산출물(커밋 대상 아님):
+
+| 파일 | 설명 |
+|------|------|
+| `mini_transformer.pt` | `training.py` 가 저장하는 가중치 + 단어장 + `max_len` |
+| `attention_heatmap.png` | `reasoning.py` 가 저장하는 크로스 어텐션 시각화 |
+
+## 함께 보기
+
+| 자료 | 설명 |
+|------|------|
+| `hands-on/example-explain.ipynb` | 부품 ①~⑩을 셀 단위로 설명하는 강의용 노트북 |
+| `hands-on/example-self_study.ipynb` | 학생이 직접 타이핑하며 익히는 자습용 노트북 |
+| `explain/*.html` | 부품별 "세상에서 제일 쉽게" 설명 페이지 |
+| `homework/transformer_translate_colab.ipynb` | Colab 한국어→영어 번역 본 과제 |
 
 ---
 

@@ -182,12 +182,12 @@
   <h2><span class="num">3</span> 코드 — __init__ 뜯어보기</h2>
   <p>노트북 <span class="inline">hands-on/example-explain.ipynb</span> 셀 31, <span class="inline">Transformer</span> 클래스의 생성자입니다.</p>
 <pre><code><span class="kw">class</span> <span class="fn">Transformer</span>(nn.Module):
-    <span class="kw">def</span> <span class="fn">__init__</span>(self, src_vocab, tgt_vocab, d_model=<span class="num2">64</span>, num_heads=<span class="num2">4</span>,
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, src_vocab_size, tgt_vocab_size, d_model=<span class="num2">64</span>, num_heads=<span class="num2">4</span>,
                  num_layers=<span class="num2">2</span>, d_ff=<span class="num2">256</span>, dropout=<span class="num2">0.1</span>, max_len=<span class="num2">32</span>):
         super().<span class="fn">__init__</span>()
-        self.encoder = <span class="fn">Encoder</span>(src_vocab, d_model, num_heads, num_layers, d_ff, dropout, max_len)   <span class="cmt"># 듣기 통역사</span>
-        self.decoder = <span class="fn">Decoder</span>(tgt_vocab, d_model, num_heads, num_layers, d_ff, dropout, max_len)   <span class="cmt"># 말하기 통역사</span>
-        self.out = nn.<span class="fn">Linear</span>(d_model, tgt_vocab, bias=<span class="kw">False</span>)   <span class="cmt"># 마이크: 표현 → 답 단어 점수</span>
+        self.encoder = <span class="fn">Encoder</span>(src_vocab_size, d_model, num_heads, num_layers, d_ff, dropout, max_len)   <span class="cmt"># 듣기 통역사</span>
+        self.decoder = <span class="fn">Decoder</span>(tgt_vocab_size, d_model, num_heads, num_layers, d_ff, dropout, max_len)   <span class="cmt"># 말하기 통역사</span>
+        self.out = nn.<span class="fn">Linear</span>(d_model, tgt_vocab_size, bias=<span class="kw">False</span>)   <span class="cmt"># 마이크: 표현 → 답 단어 점수</span>
         self.out.weight = self.decoder.emb.weight   <span class="cmt"># weight tying(가중치 공유)</span></code></pre>
 
   <table>
@@ -276,7 +276,7 @@
   <div class="callout"><span class="emoji">💡</span><b>왜 이렇게 하나?</b>
   노트북 주석 그대로: "입력 임베딩과 출력 예측이 <b>같은 단어공간</b>을 쓰게 해 파라미터를 줄이고 일반화를 돕습니다."
   "비가"라는 단어를 <b>입력으로 받을 때 쓰는 벡터</b>와, "다음 단어가 비가일 확률이 높다"고 <b>점수를 낼 때 쓰는 벡터</b>가
-  본질적으로 같은 정보(그 단어의 의미)여야 한다는 관점이에요. 덕분에 <span class="inline">d_model × tgt_vocab</span> 크기의
+  본질적으로 같은 정보(그 단어의 의미)여야 한다는 관점이에요. 덕분에 <span class="inline">d_model × tgt_vocab_size</span> 크기의
   파라미터를 <b>통째로 하나 아낍니다.</b></div>
   <div class="callout warn"><span class="emoji">🎙️</span><b><span class="inline">out.weight</span>에만 <span class="inline">bias=False</span>인 이유:</b>
   임베딩 표(<span class="inline">nn.Embedding</span>)는 원래 bias 개념이 없는 순수 조회 테이블입니다.
@@ -326,9 +326,9 @@
   부품 ⑩(<a href="masking.html">마스크 만들기</a>)이라는 <b>완전히 별개의 함수</b>에서 만들어요. "부스를 조립하는 일"과
   "무엇을 가릴지 정하는 일"을 분리해 두면 각자 이해하고 테스트하기 쉬워집니다.</div>
   <div class="callout warn"><span class="emoji">📚</span><b>가중치 공유는 인코더와는 무관합니다.</b>
-  <span class="inline">self.out.weight = self.decoder.emb.weight</span>는 <b>디코더 임베딩(tgt_vocab 기준)</b>과
-  <b>출력층(tgt_vocab 기준)</b> 사이의 공유예요. 둘 다 크기가 <span class="inline">tgt_vocab</span>이라 딱 맞아떨어지는 거고,
-  질문 쪽 <span class="inline">self.encoder.emb</span>(src_vocab 기준)는 <b>크기부터 다르므로 애초에 공유 대상이 아닙니다.</b></div>
+  <span class="inline">self.out.weight = self.decoder.emb.weight</span>는 <b>디코더 임베딩(tgt_vocab_size 기준)</b>과
+  <b>출력층(tgt_vocab_size 기준)</b> 사이의 공유예요. 둘 다 크기가 <span class="inline">tgt_vocab_size</span>이라 딱 맞아떨어지는 거고,
+  질문 쪽 <span class="inline">self.encoder.emb</span>(src_vocab_size 기준)는 <b>크기부터 다르므로 애초에 공유 대상이 아닙니다.</b></div>
   <div class="callout good"><span class="emoji">🔬</span><b>num_layers=2가 왜 이렇게 작나?</b>
   이 노트북은 손으로 익히는 <b>실습용 미니 모델</b>이라 인코더·디코더 각 2겹만 씁니다. 실제 논문(Transformer 원 논문)은
   보통 6겹을 씁니다 — 구조는 완전히 같고 <span class="inline">num_layers</span> 숫자만 다를 뿐이에요.</div>

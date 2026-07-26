@@ -192,10 +192,10 @@
   <h2><span class="num">4</span> 코드: Encoder 클래스</h2>
   <p>노트북 <span class="inline">hands-on/example-explain.ipynb</span> 부품 ⑦(셀 27)의 실제 코드입니다.</p>
 <pre><code><span class="kw">class</span> <span class="fn">Encoder</span>(nn.Module):
-    <span class="kw">def</span> <span class="fn">__init__</span>(self, vocab, d_model, num_heads, num_layers, d_ff, dropout, max_len):
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, vocab_size, d_model, num_heads, num_layers, d_ff, dropout, max_len):
         super().<span class="fn">__init__</span>()
         self.d_model = d_model
-        self.emb = nn.<span class="fn">Embedding</span>(vocab, d_model)                    <span class="cmt"># 단어번호 → 벡터</span>
+        self.emb = nn.<span class="fn">Embedding</span>(vocab_size, d_model)                    <span class="cmt"># 단어번호 → 벡터</span>
         self.pos = <span class="fn">PositionalEncoding</span>(d_model, max_len, dropout)   <span class="cmt"># 순서 정보</span>
         self.layers = nn.<span class="fn">ModuleList</span>([<span class="fn">EncoderLayer</span>(d_model, num_heads, d_ff, dropout)
                                      <span class="kw">for</span> _ <span class="kw">in</span> <span class="fn">range</span>(num_layers)])         <span class="cmt"># 여러 겹 쌓기</span>

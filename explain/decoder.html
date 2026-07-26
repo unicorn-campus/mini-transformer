@@ -190,10 +190,10 @@
   <h2><span class="num">4</span> 코드: Decoder 클래스</h2>
   <p>노트북 <span class="inline">hands-on/example-explain.ipynb</span> 부품 ⑧ (셀 29)의 실제 코드입니다.</p>
 <pre><code><span class="kw">class</span> <span class="fn">Decoder</span>(nn.Module):
-    <span class="kw">def</span> <span class="fn">__init__</span>(self, vocab, d_model, num_heads, num_layers, d_ff, dropout, max_len):
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, vocab_size, d_model, num_heads, num_layers, d_ff, dropout, max_len):
         super().<span class="fn">__init__</span>()
         self.d_model = d_model
-        self.emb = nn.<span class="fn">Embedding</span>(vocab, d_model)                    <span class="cmt"># 답 단어장 기준 임베딩</span>
+        self.emb = nn.<span class="fn">Embedding</span>(vocab_size, d_model)                    <span class="cmt"># 답 단어장 기준 임베딩</span>
         self.pos = <span class="fn">PositionalEncoding</span>(d_model, max_len, dropout)
         self.layers = nn.<span class="fn">ModuleList</span>([<span class="fn">DecoderLayer</span>(d_model, num_heads, d_ff, dropout)
                                      <span class="kw">for</span> _ <span class="kw">in</span> <span class="fn">range</span>(num_layers)])         <span class="cmt"># 디코더 블록 여러 겹</span>
@@ -253,7 +253,7 @@
   하지만 셋이 다릅니다 — <b>넘기는 인자</b>, <b>안에 쌓는 블록</b>, 그리고 <b>출력층과의 관계</b>.</p>
   <table>
     <tr><th>구분</th><th>Encoder (부품⑦, 셀27)</th><th>Decoder (부품⑧, 셀29, 지금 배우는 것)</th></tr>
-    <tr><td>단어장</td><td>src_vocab (질문)</td><td>tgt_vocab (답)</td></tr>
+    <tr><td>단어장</td><td>src_vocab 크기 (질문)</td><td>tgt_vocab 크기 (답)</td></tr>
     <tr><td>쌓는 블록</td><td><a href="encoder-layer.html">EncoderLayer</a> × num_layers</td><td><a href="decoder-block.html">DecoderLayer</a> × num_layers</td></tr>
     <tr><td>forward 인자</td><td><span class="inline">(src, mask)</span> — 마스크 1개</td><td><span class="inline">(tgt, enc, tgt_mask, src_mask)</span> — enc + 마스크 2개</td></tr>
     <tr><td>각 층에 넘기는 것</td><td>mask만</td><td>enc, tgt_mask, src_mask 모두</td></tr>

@@ -239,36 +239,152 @@
 <!-- 5 -->
 <section id="p5">
   <h2><span class="num">5</span> 코드로 보기</h2>
-  <p>노트북 <span class="inline">hands-on/example-explain.ipynb</span> 셀 36(배치 만들기)와 셀 38(학습 루프)입니다.</p>
+  <p>노트북 <span class="inline">hands-on/example-explain.ipynb</span> 셀 36(배치 만들기)와 셀 38(학습 루프)입니다.
+  <b class="hlt">노트북 코드를 한 줄도 빼지 않고 그대로</b> 옮겼고, 아래 표의 "우리 예시 결과값"은
+  모두 <b>실제로 실행해 찍어 본 값</b>입니다.</p>
+
+  <h3>셀 36 — 배치 만들기</h3>
 <pre><code><span class="cmt"># 셀 36: 길이 다른 문장들을 &lt;pad&gt;로 채워 직사각형 배치로</span>
 <span class="kw">def</span> <span class="fn">build_batches</span>(pairs, sv, tv):
-    src = [torch.<span class="fn">tensor</span>(sv.<span class="fn">encode</span>(q, add_special=<span class="kw">False</span>)) <span class="kw">for</span> q, _ <span class="kw">in</span> pairs]
-    tgt = [torch.<span class="fn">tensor</span>(tv.<span class="fn">encode</span>(a, add_special=<span class="kw">True</span>))  <span class="kw">for</span> _, a <span class="kw">in</span> pairs]
-    src = <span class="fn">pad_sequence</span>(src, batch_first=<span class="kw">True</span>, padding_value=sv.pad_id)   <span class="cmt"># 길이 맞추기</span>
-    tgt = <span class="fn">pad_sequence</span>(tgt, batch_first=<span class="kw">True</span>, padding_value=tv.pad_id)
-    <span class="kw">return</span> src, tgt</code></pre>
-
-<pre><code><span class="cmt"># 셀 38: (1)예측 → (2)비교 → (3)수정, 을 400번 반복</span>
-torch.<span class="fn">manual_seed</span>(<span class="num2">42</span>)                                       <span class="cmt"># 재현성(같은 결과)</span>
-src_ids, tgt_ids = <span class="fn">build_batches</span>(DATA, src_vocab, tgt_vocab)
-model = <span class="fn">Transformer</span>(<span class="fn">len</span>(src_vocab), <span class="fn">len</span>(tgt_vocab), max_len=max_len)
-opt  = torch.optim.<span class="fn">Adam</span>(model.<span class="fn">parameters</span>(), lr=<span class="num2">3e-4</span>)
-crit = nn.<span class="fn">CrossEntropyLoss</span>(ignore_index=tgt_vocab.pad_id)     <span class="cmt"># pad는 손실에서 제외</span>
-dec_in, dec_tgt = tgt_ids[:, :-<span class="num2">1</span>], tgt_ids[:, <span class="num2">1</span>:]         <span class="cmt"># 티처 포싱(한 칸 시프트)</span>
-
-<span class="kw">for</span> ep <span class="kw">in</span> <span class="fn">range</span>(<span class="num2">1</span>, <span class="num2">401</span>):
-    tgt_mask = <span class="fn">make_decoder_mask</span>(dec_in, tgt_vocab.pad_id)
-    logits = <span class="fn">model</span>(src_ids, dec_in, src_mask, tgt_mask)                   <span class="cmt"># (1) 예측</span>
-    loss = <span class="fn">crit</span>(logits.<span class="fn">reshape</span>(-<span class="num2">1</span>, logits.<span class="fn">size</span>(-<span class="num2">1</span>)), dec_tgt.<span class="fn">reshape</span>(-<span class="num2">1</span>))  <span class="cmt"># (2) 비교</span>
-    opt.<span class="fn">zero_grad</span>(); loss.<span class="fn">backward</span>(); opt.<span class="fn">step</span>()                       <span class="cmt"># (3) 수정</span></code></pre>
+    src = [torch.<span class="fn">tensor</span>(sv.<span class="fn">encode</span>(q, add_special=<span class="kw">False</span>)) <span class="kw">for</span> q, _ <span class="kw">in</span> pairs]   <span class="cmt"># ①</span>
+    tgt = [torch.<span class="fn">tensor</span>(tv.<span class="fn">encode</span>(a, add_special=<span class="kw">True</span>)) <span class="kw">for</span> _, a <span class="kw">in</span> pairs]   <span class="cmt"># ②</span>
+    src = <span class="fn">pad_sequence</span>(src, batch_first=<span class="kw">True</span>, padding_value=sv.pad_id)   <span class="cmt"># ③ 길이 맞추기</span>
+    tgt = <span class="fn">pad_sequence</span>(tgt, batch_first=<span class="kw">True</span>, padding_value=tv.pad_id)   <span class="cmt"># ④</span>
+    <span class="kw">return</span> src, tgt                                                     <span class="cmt"># ⑤</span></code></pre>
 
   <table>
-    <tr><th>코드</th><th>단계</th><th>쉬운 말</th></tr>
-    <tr><td><span class="inline">model(src_ids, dec_in, ...)</span></td><td>①</td><td>지금 가중치로 다음 단어들을 예측</td></tr>
-    <tr><td><span class="inline">crit(logits, dec_tgt)</span></td><td>②</td><td>예측과 정답의 차이를 숫자(loss) 하나로</td></tr>
-    <tr><td><span class="inline">loss.backward()</span></td><td>③-1</td><td>"어느 방향으로 틀렸는지" 기울기 계산</td></tr>
-    <tr><td><span class="inline">opt.step()</span></td><td>③-2</td><td>그 반대 방향으로 가중치를 한 걸음 이동</td></tr>
+    <tr><th>번호</th><th>코드</th><th>그 함수가 하는 일</th><th>우리 예시 결과값</th></tr>
+    <tr><td>①</td><td><span class="inline">sv.encode(q, add_special=False)</span></td>
+      <td>질문 문장을 공백으로 잘라 <b>번호 리스트</b>로. 특수토큰은 안 붙임</td>
+      <td>첫 질문 → <span class="inline">[12, 6, 10, 8, 11]</span><br><span class="muted">6개 길이 모두 5</span></td></tr>
+    <tr><td>②</td><td><span class="inline">tv.encode(a, add_special=True)</span></td>
+      <td>답 문장을 번호로 바꾸고 <b>앞뒤에 &lt;sos&gt;·&lt;eos&gt;</b>를 붙임</td>
+      <td>첫 답 → <span class="inline">[1, 13, 15, 5, 4, 2]</span><br><span class="muted">길이 [6,5,4,5,4,4]</span></td></tr>
+    <tr><td>③</td><td><span class="inline">pad_sequence(src, ...)</span></td>
+      <td>가장 긴 문장에 맞춰 나머지를 <b>0(&lt;pad&gt;)으로 채워</b> 직사각형 텐서로</td>
+      <td><span class="inline">(6, 5)</span> · <b class="hlt">pad 0칸</b><br><span class="muted">질문 틀이 늘 5단어라 채울 게 없음</span></td></tr>
+    <tr><td>④</td><td><span class="inline">pad_sequence(tgt, ...)</span></td>
+      <td>답도 같은 방식으로. 가장 긴 답이 6칸이라 6으로 맞춤</td>
+      <td><span class="inline">(6, 6)</span> · <b class="hlt">pad 8칸(22%)</b><br><span class="muted">행별 [0,1,2,1,2,2]</span></td></tr>
+    <tr><td>⑤</td><td><span class="inline">return src, tgt</span></td>
+      <td>두 텐서를 함께 반환</td>
+      <td><span class="inline">torch.int64</span> 두 개</td></tr>
   </table>
+
+  <div class="callout warn"><span class="emoji">⚠️</span><b>①과 ②의 <span class="inline">add_special</span>이 다른 게 핵심입니다.</b>
+  답에 <span class="inline">&lt;sos&gt;…&lt;eos&gt;</span>를 붙이지 않으면 길이가 <span class="inline">[4,3,2,3,2,2]</span>뿐이라
+  <b>생성을 시작할 신호도, 멈출 신호도 없습니다</b>. 반대로 질문에까지 붙이면
+  <span class="inline">(6, 7)</span>로 커지기만 합니다 — 질문은 통째로 읽기만 하니까요.</div>
+
+  <h3>그림으로 보기 — 셀 36이 만드는 두 개의 직사각형</h3>
+  <figure>
+    <img src="https://raw.githubusercontent.com/unicorn-campus/mini-transformer/main/explain/images/train-build-batches.webp"
+         alt="질문 6줄은 모두 5칸으로 이미 길이가 같아 pad가 0개이고, 답 6줄은 6칸·5칸·4칸으로 길이가 달라 짧은 행 뒤에 pad가 붙어 총 8칸이 채워지는 것을 위아래로 비교한 그림">
+    <figcaption><b>위와 아래를 비교해 보세요 — 같은 함수인데 결과가 다릅니다.</b>
+    질문은 <b>'하늘에 OO이 보이면 뭐가 생각나'</b> 틀이 늘 5단어라 <b class="hlt">채울 게 아예 없습니다</b>
+    (그래서 <span class="inline">src_mask</span>의 True 비율이 100%입니다 — 마스크를 안 쓰는 게 아니라 가릴 것이 없는 것).<br>
+    <b>패딩은 답 쪽에서만 생깁니다.</b> 답은 2~4단어로 길이가 들쭉날쭉하고,
+    여기에 <span class="inline">&lt;sos&gt;·&lt;eos&gt;</span>까지 붙어 6·5·4칸이 됩니다.
+    가장 긴 6칸에 맞추면 <b class="hlt">36칸 중 8칸(22%)이 빈칸</b>이 되죠.<br>
+    <span class="muted">이 8칸이 뒤에서 <span class="inline">ignore_index</span>가 채점에서 빼는 바로 그 칸입니다.</span></figcaption>
+  </figure>
+
+  <h3>셀 38 — 준비 8줄 + 학습 루프</h3>
+<pre><code><span class="cmt"># 셀 38: (1)예측 → (2)비교 → (3)수정, 을 400번 반복</span>
+torch.<span class="fn">manual_seed</span>(<span class="num2">42</span>)                                    <span class="cmt"># ① 재현성(같은 결과)</span>
+src_ids, tgt_ids = <span class="fn">build_batches</span>(DATA, src_vocab, tgt_vocab)   <span class="cmt"># ②</span>
+max_len = <span class="fn">max</span>(src_ids.<span class="fn">size</span>(<span class="num2">1</span>), tgt_ids.<span class="fn">size</span>(<span class="num2">1</span>), <span class="num2">20</span>) + <span class="num2">2</span>       <span class="cmt"># ③</span>
+model = <span class="fn">Transformer</span>(<span class="fn">len</span>(src_vocab), <span class="fn">len</span>(tgt_vocab), max_len=max_len)  <span class="cmt"># ④</span>
+opt = torch.optim.<span class="fn">Adam</span>(model.<span class="fn">parameters</span>(), lr=<span class="num2">3e-4</span>)          <span class="cmt"># ⑤</span>
+crit = nn.<span class="fn">CrossEntropyLoss</span>(ignore_index=tgt_vocab.pad_id)      <span class="cmt"># ⑥ pad는 손실에서 제외</span>
+dec_in, dec_tgt = tgt_ids[:, :-<span class="num2">1</span>], tgt_ids[:, <span class="num2">1</span>:]          <span class="cmt"># ⑦ 티처 포싱(한 칸 시프트)</span>
+src_mask = <span class="fn">make_padding_mask</span>(src_ids, src_vocab.pad_id)        <span class="cmt"># ⑧ 루프 밖에서 한 번만</span>
+model.<span class="fn">train</span>()                                             <span class="cmt"># ⑨ 학습 모드</span>
+
+<span class="kw">for</span> ep <span class="kw">in</span> <span class="fn">range</span>(<span class="num2">1</span>, <span class="num2">401</span>):
+    tgt_mask = <span class="fn">make_decoder_mask</span>(dec_in, tgt_vocab.pad_id)      <span class="cmt"># ⑩</span>
+    logits = <span class="fn">model</span>(src_ids, dec_in, src_mask, tgt_mask)                    <span class="cmt"># (1) 예측</span>
+    loss = <span class="fn">crit</span>(logits.<span class="fn">reshape</span>(-<span class="num2">1</span>, logits.<span class="fn">size</span>(-<span class="num2">1</span>)), dec_tgt.<span class="fn">reshape</span>(-<span class="num2">1</span>))  <span class="cmt"># (2) 정답과 비교</span>
+    opt.<span class="fn">zero_grad</span>(); loss.<span class="fn">backward</span>(); opt.<span class="fn">step</span>()                        <span class="cmt"># (3) 가중치 수정</span>
+    <span class="kw">if</span> ep % <span class="num2">100</span> == <span class="num2">0</span> <span class="kw">or</span> ep == <span class="num2">1</span>:
+        <span class="fn">print</span>(<span class="str">f"epoch {ep:4d} | loss {loss.item():.4f}"</span>)</code></pre>
+
+  <p><b>먼저 준비 9줄</b>입니다. 여기는 <b class="hlt">딱 한 번만</b> 실행됩니다.</p>
+  <table>
+    <tr><th>번호</th><th>코드</th><th>그 함수가 하는 일</th><th>우리 예시 결과값</th></tr>
+    <tr><td>①</td><td><span class="inline">torch.manual_seed(42)</span></td>
+      <td>난수를 고정. <b>가중치 초기화와 드롭아웃</b>이 매번 똑같아짐</td>
+      <td>몇 번 돌려도 1회차 loss가 <b class="hlt">48.2067</b>로 동일</td></tr>
+    <tr><td>②</td><td><span class="inline">build_batches(...)</span></td>
+      <td>위 셀 36. 질문·답을 직사각형 텐서 두 개로</td>
+      <td><span class="inline">(6, 5)</span> 와 <span class="inline">(6, 6)</span></td></tr>
+    <tr><td>③</td><td><span class="inline">max(..., 20) + 2</span></td>
+      <td>위치인코딩 표를 <b>몇 줄까지 미리 만들지</b> 결정. 여유분 +2</td>
+      <td><span class="inline">max(5, 6, 20)+2</span> = <b class="hlt">22</b><br><span class="muted">pe 버퍼 (1, 22, 64)</span></td></tr>
+    <tr><td>④</td><td><span class="inline">Transformer(len(src_vocab), len(tgt_vocab), max_len=max_len)</span></td>
+      <td>부품 ①~⑨를 조립. 클래스 파라미터명은 <span class="inline">src_vocab_size</span>·<span class="inline">tgt_vocab_size</span>로,
+        <b>단어장 객체가 아니라 크기(정수)</b>를 받는다는 것이 이름에 그대로 드러납니다. <b>이 크기가 임베딩·출력층 크기를 결정</b></td>
+      <td><span class="inline">len(src_vocab)=14</span>, <span class="inline">len(tgt_vocab)=18</span> → 가중치 <b class="hlt">235,520개</b><br><span class="muted">인코더 100,864 + 디코더 134,656</span></td></tr>
+    <tr><td>⑤</td><td><span class="inline">Adam(model.parameters(), lr=3e-4)</span></td>
+      <td>기울기를 받아 <b>가중치를 실제로 갱신</b>해 주는 옵티마이저</td>
+      <td>텐서 <b>86개</b>를 관리<br><span class="muted">한 걸음 크기 0.0003</span></td></tr>
+    <tr><td>⑥</td><td><span class="inline">CrossEntropyLoss(ignore_index=0)</span></td>
+      <td>예측 분포와 정답의 차이를 <b>숫자 하나</b>로. pad 칸은 평균에서 제외</td>
+      <td>30칸 중 <b class="hlt">22칸만</b> 채점<br><span class="muted">pad 8칸은 loss 0.0</span></td></tr>
+    <tr><td>⑦</td><td><span class="inline">tgt_ids[:, :-1], tgt_ids[:, 1:]</span></td>
+      <td>앞 5칸(보여 줄 것)과 뒤 5칸(맞혀야 할 것)으로 잘라 <b>한 칸 밀기</b></td>
+      <td>0행 <span class="inline">[1,13,15,5,4]</span> → <span class="inline">[13,15,5,4,2]</span><br><span class="muted">둘 다 (6, 5)</span></td></tr>
+    <tr><td>⑧</td><td><span class="inline">make_padding_mask(src_ids, 0)</span></td>
+      <td>질문의 pad 자리를 가림. <b>400번 내내 안 바뀌니 루프 밖에서</b> 한 번만</td>
+      <td><span class="inline">(6, 1, 1, 5)</span> · True <b class="hlt">100%</b><br><span class="muted">질문에 pad가 없어서</span></td></tr>
+    <tr><td>⑨</td><td><span class="inline">model.train()</span></td>
+      <td>학습 모드로 전환 — <b>드롭아웃을 켬</b></td>
+      <td><span class="inline">model.training = True</span></td></tr>
+  </table>
+
+  <p><b>그리고 루프 안의 네 줄</b>입니다. 이 부분만 <b class="hlt">400번</b> 돕니다.</p>
+  <table>
+    <tr><th>번호</th><th>코드</th><th>그 함수가 하는 일</th><th>우리 예시 결과값</th></tr>
+    <tr><td>⑩</td><td><span class="inline">make_decoder_mask(dec_in, 0)</span></td>
+      <td>답 쪽 마스크. <b>미래 가림 AND pad 가림</b>을 &amp;로 합침</td>
+      <td><span class="inline">(6, 1, 5, 5)</span> · True <b class="hlt">87/150 = 58%</b><br><span class="muted">행별 [15,15,14,15,14,14]</span></td></tr>
+    <tr><td>(1)</td><td><span class="inline">model(src_ids, dec_in, ...)</span></td>
+      <td>지금 가중치로 <b>모든 위치의 다음 단어 점수</b>를 한 번에 예측</td>
+      <td><span class="inline">(6, 5, 18)</span><br><span class="muted">18 = 답 단어장 크기</span></td></tr>
+    <tr><td>(2)</td><td><span class="inline">crit(logits.reshape(...), dec_tgt.reshape(...))</span></td>
+      <td>배치·시간축을 한 줄로 펼쳐 <b>틀린 정도를 숫자 하나</b>로</td>
+      <td><span class="inline">(30, 18)</span> vs <span class="inline">(30,)</span><br>1회차 loss <b class="hlt">48.2067</b></td></tr>
+    <tr><td>(3)</td><td><span class="inline">opt.zero_grad()</span></td>
+      <td><b>지난 기울기를 지움.</b> 안 지우면 계속 더해져 엉뚱한 방향으로 감</td>
+      <td>모든 <span class="inline">.grad</span>가 <span class="inline">None</span></td></tr>
+    <tr><td>(3)</td><td><span class="inline">loss.backward()</span></td>
+      <td>"어느 방향으로 틀렸는지" <b>기울기 계산</b></td>
+      <td>1회차 기울기 노름 <b class="hlt">55.60</b></td></tr>
+    <tr><td>(3)</td><td><span class="inline">opt.step()</span></td>
+      <td>그 반대 방향으로 <b>가중치를 한 걸음 이동</b></td>
+      <td>235,520개 갱신<br><span class="muted">'먹구름이' 임베딩 변화 0.0003</span></td></tr>
+  </table>
+
+  <div class="callout"><span class="emoji">🔢</span><b>검산해 봅시다.</b>
+  칸별 loss를 다 더하면 <b class="hlt">1060.5466</b>입니다. 이걸 <b>22</b>로 나누면 <span class="inline">48.2067</span> —
+  1회차 loss와 <b>소수점까지 정확히 일치</b>합니다.
+  <span class="muted">(30으로 나누면 35.3516이 되어 값이 달라집니다. <span class="inline">ignore_index</span>가
+  정말로 8칸을 빼고 있다는 증거죠.)</span></div>
+
+  <h3>그림으로 보기 — 준비는 한 번, 반복은 세 줄</h3>
+  <figure>
+    <img src="https://raw.githubusercontent.com/unicorn-campus/mini-transformer/main/explain/images/train-code-map.webp"
+         alt="왼쪽에 시드 고정부터 마스크까지 준비 여섯 항목과 각각의 결과값을 나열하고, 오른쪽에 예측 비교 수정 세 상자가 화살표로 이어져 400번 되돌아오는 고리를 그린 그림">
+    <figcaption><b>셀 38이 길어 보이지만, 실제로 반복되는 건 오른쪽 세 줄뿐입니다.</b>
+    왼쪽 준비 항목은 <b class="hlt">전부 딱 한 번만</b> 실행됩니다 —
+    특히 <span class="inline">src_mask</span>가 루프 <b>밖에</b> 있는 이유를 눈으로 확인하세요.
+    질문은 400번 내내 바뀌지 않으니 다시 만들 이유가 없습니다.<br>
+    <b>반대로 <span class="inline">tgt_mask</span>는 루프 안에 있습니다.</b>
+    사실 <span class="inline">dec_in</span>도 안 바뀌니 밖으로 빼도 되지만,
+    "답 쪽 마스크는 답 길이에 따라 달라진다"를 드러내려고 안에 두었습니다.<br>
+    <span class="muted">오른쪽 고리의 화살표가 400바퀴 도는 동안, 한 바퀴마다 가중치 235,520개가
+    아주 조금씩(0.0003 단위) 움직입니다.</span></figcaption>
+  </figure>
 
   <h3>그림으로 보기 — 티처 포싱의 "한 칸 밀기"</h3>
   <p><span class="inline">dec_in, dec_tgt = tgt_ids[:, :-1], tgt_ids[:, 1:]</span> 이 한 줄이 하는 일입니다.
@@ -286,7 +402,7 @@ dec_in, dec_tgt = tgt_ids[:, :-<span class="num2">1</span>], tgt_ids[:, <span cl
     그래서 <span class="inline">CrossEntropyLoss(ignore_index=pad_id)</span>가 그 칸을 <b>채점에서 뺍니다</b> —
     전체 30칸 중 <b class="hlt">22칸만</b> 채점됩니다. 발판(패딩)은 사진에는 찍히지만 "사람 수"에는 안 들어가는 셈입니다.
     <span class="muted">(검산: 칸별 loss 합 1060.5466 ÷ 22칸 = 48.2067 로 1회차 loss와 정확히 일치합니다.
-    30칸으로 나누면 45.9972가 되어 값이 달라집니다.)</span></figcaption>
+    30칸으로 나누면 35.3516이 되어 값이 달라집니다.)</span></figcaption>
   </figure>
 
   <h3>그림으로 보기 — 400번 반복이 만드는 곡선</h3>

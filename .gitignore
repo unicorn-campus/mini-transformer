@@ -3,3 +3,7 @@
 __pycache__/
 *.pyc
 .DS_Store
+
+# 실행 시 생성되는 산출물 (training.py / reasoning.py)
+*.pt
+attention_heatmap.png

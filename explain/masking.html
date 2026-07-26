@@ -191,6 +191,61 @@
   <div class="callout"><span class="emoji">📐</span>행(row)은 <b>"지금 만드는 단어"</b>, 열(column)은 <b>"내가 보려는 단어"</b>입니다.
   대각선을 포함해 <b>왼쪽 아래(자기 자신 포함, 과거)</b>만 열려 있고, <b>오른쪽 위(미래)</b>는 전부 닫혀 있어요.
   이게 <span class="inline">torch.tril</span>(하삼각) 한 줄로 만들어지는 이유입니다.</div>
+
+  <h3>그 삼각형은 어떻게 만들까 — <span class="inline">torch.ones</span>로 깔고, 깎아내기</h3>
+  <p>위 표를 처음부터 삼각형 모양으로 그리는 게 아닙니다. <b class="hlt">일단 모든 칸을 "통과"로 깔아 놓고, 미래 쪽만 깎아내는</b> 순서예요.
+  코드 한 줄에 이 세 단계가 겹쳐 들어 있습니다.</p>
+  <div class="steps">
+    <span class="step">① torch.ones<br><span class="muted" style="font-size:.72em;font-weight:400">전부 1로 깔기</span></span><span class="arw" style="color:var(--sub)">→</span>
+    <span class="step">② torch.tril<br><span class="muted" style="font-size:.72em;font-weight:400">위쪽(미래) 깎기</span></span><span class="arw" style="color:var(--sub)">→</span>
+    <span class="step" style="border-color:var(--good);color:var(--good)">③ .bool()<br><span class="muted" style="font-size:.72em;font-weight:400">1/0 → True/False</span></span>
+  </div>
+  <div class="grid3">
+    <div class="card tight">
+      <div class="gridtitle">① torch.ones(3, 3)</div>
+      <pre style="margin:8px 0 0"><code>1.  1.  1.
+1.  1.  1.
+1.  1.  1.</code></pre>
+      <p class="muted" style="font-size:13.5px;margin:8px 0 0"><span class="inline">torch.ones</span>는 <b class="hlt">모든 칸이 1인 텐서</b>를 만드는 함수입니다.
+      괄호 안 숫자가 곧 표의 크기(3행 3열). 여기선 <b>"모든 단어가 모든 단어를 봐도 된다"</b>는 백지 상태예요.</p>
+    </div>
+    <div class="card tight">
+      <div class="gridtitle">② torch.tril(...)</div>
+      <pre style="margin:8px 0 0"><code>1.  <span class="cmt">0.  0.</span>
+1.  1.  <span class="cmt">0.</span>
+1.  1.  1.</code></pre>
+      <p class="muted" style="font-size:13.5px;margin:8px 0 0"><b>tri</b>angle <b>l</b>ower = 하삼각.
+      대각선보다 <b class="hlt">위쪽을 전부 0으로 깎습니다</b>. 이 한 번에 "미래는 못 본다"는 규칙이 완성됩니다.</p>
+    </div>
+    <div class="card tight">
+      <div class="gridtitle">③ .bool()</div>
+      <pre style="margin:8px 0 0"><code>T  <span class="cmt">F  F</span>
+T  T  <span class="cmt">F</span>
+T  T  T</code></pre>
+      <p class="muted" style="font-size:13.5px;margin:8px 0 0">1은 <b class="hlt">True</b>, 0은 <b>False</b>로 바꿉니다.
+      마스크는 숫자가 아니라 <b>True/False 표</b>여야 <span class="inline">&amp;</span>(논리곱)과
+      <span class="inline">masked_fill</span>에 그대로 쓸 수 있습니다.</p>
+    </div>
+  </div>
+
+  <div class="callout good"><span class="emoji">💡</span><b>왜 <span class="inline">zeros</span>가 아니라 <span class="inline">ones</span>일까요?</b>
+  마스크에서 <b>1(True)은 "허용"</b>입니다. 허용을 전부 깔아 두고 <b>어기는 칸만 깎는 편</b>이,
+  0으로 깔고 허용할 칸을 하나하나 켜는 것보다 훨씬 짧습니다 — 깎는 일은 <span class="inline">tril</span>이 이미 함수로 만들어 놨으니까요.
+  <b class="hlt">"재료를 통째로 깔고 조각하기"</b>가 텐서 코드의 흔한 패턴입니다.</div>
+
+  <table>
+    <tr><th>조각</th><th>하는 일</th><th>빼먹으면</th></tr>
+    <tr><td><span class="inline">torch.ones(L, L)</span></td><td>L×L 크기의 전부 1인 표(재료)</td><td>깎아낼 재료 자체가 없음</td></tr>
+    <tr><td><span class="inline">device=device</span></td><td>마스크를 <b>점수 텐서와 같은 장치</b>(CPU/GPU)에 만듦</td><td>GPU 학습 시 장치 불일치 오류</td></tr>
+    <tr><td><span class="inline">.bool()</span></td><td>1./0. 실수를 True/False로</td><td><span class="inline">&amp;</span> 연산·마스킹이 의도대로 안 됨</td></tr>
+    <tr><td><span class="inline">.unsqueeze(0)</span> ×2</td><td>앞에 축 두 개를 끼워 <span class="inline">(1,1,L,L)</span>로</td><td>어텐션 점수(4축)와 모양이 안 맞음 — <a href="#p4">4번 그림</a> 참고</td></tr>
+  </table>
+
+  <div class="callout warn"><span class="emoji">🕵️</span><b>같은 함수, 다른 쓰임:</b> 노트북 어텐션 체크포인트 셀에도
+  <span class="inline">torch.ones(1, 1, 2, 4)</span>가 나옵니다. Q와 K를 <b>일부러 전부 1로</b> 두면 모든 점수가 똑같아져
+  softmax 결과가 <b class="hlt">0.5씩 정확히 균등</b>해지죠 — <b>손으로 정답을 계산할 수 있는 가장 단순한 입력</b>을 만드는 용도입니다.
+  <span class="muted">(형제 함수: <span class="inline">torch.zeros</span> 전부 0 · <span class="inline">torch.full</span> 지정한 값 ·
+  <span class="inline">torch.ones_like(x)</span> x와 같은 모양으로 1 채우기)</span></div>
 </section>
 
 <!-- 4 -->
