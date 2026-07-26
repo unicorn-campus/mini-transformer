@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>reasoning.py 처리 과정 — 그림으로 따라가기</title>
+<style>
+  :root{
+    --bg:#0f172a; --panel:#1e293b; --panel2:#273449;
+    --ink:#e2e8f0; --sub:#94a3b8; --line:#334155;
+    --brand:#38bdf8; --brand2:#818cf8; --accent:#fbbf24;
+    --good:#34d399; --warn:#f472b6; --code:#0b1220;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:"Segoe UI","Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif;
+    line-height:1.8;font-size:17px}
+  a{color:var(--brand)}
+  .wrap{max-width:1000px;margin:0 auto;padding:0 20px 120px}
+
+  header{background:radial-gradient(1200px 500px at 20% -10%,rgba(129,140,248,.25),transparent 60%),
+    radial-gradient(1000px 500px at 90% 0%,rgba(56,189,248,.22),transparent 55%),var(--bg);
+    border-bottom:1px solid var(--line);padding:64px 20px 48px}
+  header .wrap{padding-bottom:0}
+  .kicker{color:var(--brand2);font-weight:700;letter-spacing:.14em;font-size:13px;text-transform:uppercase}
+  h1{font-size:clamp(28px,5vw,44px);line-height:1.22;margin:.35em 0 .3em;font-weight:800}
+  h1 .hl{background:linear-gradient(90deg,var(--brand2),var(--brand));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .lead{font-size:19px;color:var(--sub);max-width:760px}
+
+  .toc{position:sticky;top:0;z-index:5;background:rgba(15,23,42,.88);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+  .toc .wrap{display:flex;gap:6px;flex-wrap:wrap;padding:10px 20px;overflow-x:auto}
+  .toc a{color:var(--sub);text-decoration:none;font-size:13px;padding:6px 10px;border-radius:8px;white-space:nowrap}
+  .toc a:hover{background:var(--panel);color:#fff}
+
+  section{scroll-margin-top:96px}
+  .part{margin-top:72px;padding-top:26px;border-top:2px solid var(--line)}
+  .part .badge{display:inline-block;background:linear-gradient(135deg,var(--brand2),var(--brand));
+    color:#06121f;font-weight:900;font-size:12px;letter-spacing:.12em;padding:5px 12px;border-radius:999px}
+  .part h2{font-size:clamp(24px,3.6vw,32px);margin:.4em 0 .1em;font-weight:800}
+  .part p.sub{color:var(--sub);margin:.2em 0 0;font-size:16px}
+
+  .step{margin-top:44px}
+  .step h3{font-size:20px;margin:0 0 4px;font-weight:800;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+  .step h3 .no{display:inline-flex;align-items:center;justify-content:center;min-width:34px;height:34px;padding:0 8px;
+    border-radius:10px;background:var(--panel2);border:1px solid var(--line);color:var(--accent);font-size:14px;font-weight:900}
+  .step h3 .where{font-size:13px;color:var(--sub);font-weight:600}
+  .step h3 .reuse{font-size:11px;font-weight:900;letter-spacing:.06em;color:#06121f;
+    background:var(--good);border-radius:6px;padding:2px 7px}
+
+  figure{margin:14px 0 0}
+  figure img{width:100%;display:block;border:1px solid var(--line);border-radius:14px;background:var(--code)}
+  figcaption{font-size:14.5px;color:var(--sub);margin-top:10px;line-height:1.7}
+  figcaption b{color:#fff}
+
+  pre{background:var(--code);border:1px solid var(--line);border-radius:12px;padding:14px 16px;overflow:auto;
+    font-size:13.5px;line-height:1.65;margin:10px 0 0}
+  code{font-family:"Consolas","D2Coding",monospace}
+  pre code{color:#cbd5e1}
+  .cmt{color:#64748b}.kw{color:#f472b6}.fn{color:#38bdf8}.num2{color:#fbbf24}.str{color:#34d399}
+
+  .inline{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:1px 7px;
+    font-family:"Consolas","D2Coding",monospace;font-size:14px;color:#fde68a}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:20px 22px;margin:18px 0}
+  .callout{border-left:4px solid var(--brand2);background:var(--panel2);border-radius:0 12px 12px 0;padding:12px 16px;margin:14px 0}
+  .callout.warn{border-color:var(--warn)} .callout.good{border-color:var(--good)}
+  .callout b{color:#fff}
+  .emoji{font-size:19px;margin-right:6px}
+
+  .map{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:18px 0}
+  @media(max-width:760px){.map{grid-template-columns:1fr}}
+  .map .m{background:var(--panel2);border:1px solid var(--line);border-radius:14px;padding:14px 16px}
+  .map .m .t{font-weight:800;color:#fff;font-size:15px;margin-bottom:4px}
+  .map .m .d{font-size:13.5px;color:var(--sub);line-height:1.6}
+
+  .tblwrap{overflow-x:auto}
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:14.5px}
+  th,td{border:1px solid var(--line);padding:8px 11px;text-align:left}
+  th{background:var(--panel2);color:#fff}
+  td.n{color:var(--accent);font-family:"Consolas","D2Coding",monospace;white-space:nowrap}
+  td.hot{color:#06121f;background:var(--accent);font-weight:900;
+    font-family:"Consolas","D2Coding",monospace;white-space:nowrap}
+
+  footer{margin-top:80px;border-top:1px solid var(--line);padding-top:24px;color:var(--sub);font-size:14px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="kicker">Mini-Transformer · hands-on</div>
+    <h1><span class="hl">reasoning.py</span> 처리 과정<br>그림 12장으로 따라가기</h1>
+    <p class="lead">학습이 끝난 모델로 <b>실제로 답을 만드는 쪽</b>입니다.
+    <span class="inline">training.py</span> 가 남긴 파일 하나를 읽어, <span class="inline">&lt;sos&gt;</span> 부터
+    한 단어씩 이어 붙여 <b>"비가 올 것 같아"</b> 를 완성하고, 모델이 질문의 어느 단어를 봤는지 히트맵으로 확인합니다.
+    그림 속 모든 숫자는 <b>실제로 돌려 얻은 값</b>입니다.</p>
+  </div>
+</header>
+
+<nav class="toc"><div class="wrap">
+  <a href="#howto">읽는 법</a>
+  <a href="#p1">1부 큰 그림</a>
+  <a href="#p2">2부 불러오기</a>
+  <a href="#p3">3부 답 만들기</a>
+  <a href="#p4">4부 히트맵</a>
+  <a href="#p5">5부 대조</a>
+  <a href="#p6">6부 학습과 비교</a>
+  <a href="#recap">한 장 요약</a>
+</div></nav>
+
+<div class="wrap">
+
+<!-- ══════════════════ 읽는 법 ══════════════════ -->
+<section id="howto" style="margin-top:48px">
+  <div class="card">
+    <h3 style="margin:0 0 10px;font-size:19px">이 페이지 읽는 법</h3>
+    <div class="map">
+      <div class="m"><div class="t">① 위에서 아래로 그림만</div>
+        <div class="d">1부 → 6부 순서대로 그림만 봐도 전체 흐름이 이어집니다.</div></div>
+      <div class="m"><div class="t">② <span style="color:#34d399">재사용</span> 배지가 붙은 그림</div>
+        <div class="d">추론은 학습과 <b>같은 부품</b>을 씁니다. 그래서 학습 편·부품 편의 그림을 그대로 다시 씁니다.</div></div>
+      <div class="m"><div class="t">③ 먼저 학습 편을 보면 좋습니다</div>
+        <div class="d"><a href="training.html">training.py 처리 과정</a> 을 먼저 보면 이 페이지가 훨씬 쉽습니다.</div></div>
+    </div>
+    <div class="callout"><span class="emoji">🔗</span><b>두 파일의 관계 한 줄:</b>
+      <span class="inline">training.py</span> 가 <span class="inline">mini_transformer.pt</span> 를 <b>쓰고</b>,
+      <span class="inline">reasoning.py</span> 가 그 파일을 <b>읽습니다</b>.
+      그래서 <b>실행 순서를 반드시 지켜야</b> 합니다.</div>
+  </div>
+</section>
+
+<!-- ══════════════════ 1부 ══════════════════ -->
+<section id="p1" class="part">
+  <span class="badge">PART 1</span>
+  <h2>큰 그림 — 저장된 것을 어떻게 쓰나</h2>
+  <p class="sub">가중치는 하나도 바뀌지 않습니다. 쓰는 방법만 다릅니다.</p>
+
+  <div class="step">
+    <h3><span class="no">01</span> reasoning.py 의 세 걸음 <span class="where">reasoning.py · main()</span></h3>
+<pre><code><span class="kw">def</span> <span class="fn">main</span>():
+    <span class="fn">setup_korean_font</span>()                           <span class="cmt"># 히트맵 축 한글 깨짐 방지</span>
+    model, src_vocab, tgt_vocab = <span class="fn">load_model</span>()
+    <span class="cmt"># ── 5단계: 답을 한 단어씩 만들어 보기 ──</span>
+    <span class="cmt"># ── 6단계: 어텐션 히트맵 ──</span>
+    <span class="cmt"># ── 7단계: 키워드를 바꿔 답 비교하기 ──</span></code></pre>
+    <figure>
+      <img src="images/rs-01-overview.webp"
+           alt="reasoning.py 가 불러오기, 답 만들기, 히트맵 저장, 대조 네 걸음으로 이루어지고, training.py 가 만든 mini_transformer.pt 를 읽어 쓴다는 것을 보여주는 그림">
+      <figcaption><b>0번 불러오기가 먼저입니다.</b> 나머지 세 걸음은 모두 그 모델을 쓰는 일입니다.<br>
+      오른쪽 두 카드를 보세요 — <span class="inline">training.py</span> 는 <b>가중치를 바꾸고</b>,
+      <span class="inline">reasoning.py</span> 는 <b>바뀐 가중치를 그대로 씁니다</b>.
+      그래서 <span class="inline">mini_transformer.pt</span> 가 없으면
+      <span class="inline">FileNotFoundError</span> 로 "먼저 <span class="inline">python training.py</span> 를 실행하세요"라고 알려 줍니다.</figcaption>
+    </figure>
+  </div>
+
+  <div class="step">
+    <h3><span class="no">02</span> main() 에서 아래로 내려가는 호출 지도 <span class="where">두 파일 전체</span></h3>
+<pre><code><span class="kw">from</span> mini_transformer <span class="kw">import</span> (
+    Transformer, answer, setup_korean_font, show_attention, tokenize,
+)</code></pre>
+    <figure>
+      <img src="images/rs-02-callmap.webp"
+           alt="main() 이 setup_korean_font, load_model, answer, show_attention 를 직접 부르고, 그 안쪽에서 torch.load, load_state_dict, model.encode, model.decode_step, tokenize 가 불리며, 가장 아래에는 인코더·디코더·멀티헤드 어텐션·어텐션 공식·미래 가림 마스크가 들어 있음을 보여주는 트리 그림">
+      <figcaption><b>학습 편의 호출 지도와 나란히 놓고 보세요.</b>
+      맨 오른쪽 점선 상자의 인코더·디코더·어텐션은 <b>학습 때 쓴 것과 같은 부품</b>입니다 —
+      달라진 것은 <span class="inline">forward</span> 대신 <span class="inline">encode</span> 와
+      <span class="inline">decode_step</span> 을 <b>나눠 부른다</b>는 점, 그리고 답 마스크가
+      <span class="inline">make_decoder_mask</span> 에서 <b><span class="inline">make_causal_mask</span> 하나로</b>
+      줄어든 점입니다.<br>
+      <b>호출 횟수가 다른 것에 주목하세요:</b> <span class="inline">model.encode</span> 는 <b>1회</b>,
+      <span class="inline">model.decode_step</span> 은 <b>5회</b>. 질문은 안 바뀌지만 답은 한 단어씩 자라니까요.</figcaption>
+    </figure>
+  </div>
+
+  <div class="step">
+    <h3><span class="no">03</span> 문 세 개는 같은 길을 나눠 놓은 것 <span class="where">Transformer · forward / encode / decode_step</span>
+      <span class="reuse">재사용</span></h3>
+<pre><code><span class="kw">def</span> <span class="fn">forward</span>(self, src, tgt, src_mask, tgt_mask):        <span class="cmt"># 학습용 — 한 번에 전부</span>
+    <span class="kw">return</span> self.<span class="fn">out</span>(self.<span class="fn">decoder</span>(tgt, self.<span class="fn">encoder</span>(src, src_mask), tgt_mask, src_mask))
+
+<span class="kw">def</span> <span class="fn">encode</span>(self, src, src_mask):                       <span class="cmt"># 추론용 1회</span>
+    <span class="kw">return</span> self.<span class="fn">encoder</span>(src, src_mask)
+
+<span class="kw">def</span> <span class="fn">decode_step</span>(self, tgt, enc, tgt_mask, src_mask):    <span class="cmt"># 추론용 반복</span>
+    <span class="kw">return</span> self.<span class="fn">out</span>(self.<span class="fn">decoder</span>(tgt, enc, tgt_mask, src_mask))</code></pre>
+    <figure>
+      <img src="../../explain/images/tf-three-doors.webp"
+           alt="질문에서 인코더, 인코딩된 질문, 디코더, 답 표현, 출력층, 단어 점수로 이어지는 한 줄기 길 위에, 학습용 forward 는 전체를 한 번에 감싸고 추론용 encode 는 앞 절반을 한 번, decode_step 은 뒤 절반을 다섯 번 쓰는 것을 괄호로 표시한 그림">
+      <figcaption><b>배관은 하나입니다.</b> 학습은 그 배관을 통째로 한 번 쓰고(<span class="inline">forward</span>),
+      추론은 <b>둘로 잘라</b> 앞은 한 번(<span class="inline">encode</span>), 뒤는 단어마다 한 번씩(<span class="inline">decode_step</span>) 씁니다.<br>
+      <b>두 경로의 결과는 완전히 같습니다</b>(최대 차이 0.00) — 나눠 쓰는 이유는 결과를 바꾸려는 게 아니라,
+      <b>질문 인코딩을 5번 반복하지 않으려는 것</b>입니다.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ══════════════════ 2부 ══════════════════ -->
+<section id="p2" class="part">
+  <span class="badge">PART 2</span>
+  <h2>불러오기 — 파일 하나에서 모델 되살리기</h2>
+  <p class="sub">가중치·단어장·<span class="inline">max_len</span> 이 셋 다 맞아야 되살아납니다.</p>
+
+  <div class="step">
+    <h3><span class="no">04</span> 저장한 것을 거꾸로 풀기 <span class="where">reasoning.py · load_model()</span></h3>
+<pre><code>ckpt = torch.<span class="fn">load</span>(ckpt_path, map_location=<span class="str">"cpu"</span>, weights_only=<span class="kw">False</span>)
+src_vocab, tgt_vocab = ckpt[<span class="str">"src_vocab"</span>], ckpt[<span class="str">"tgt_vocab"</span>]
+model = <span class="fn">Transformer</span>(<span class="fn">len</span>(src_vocab), <span class="fn">len</span>(tgt_vocab), max_len=ckpt[<span class="str">"max_len"</span>])
+model.<span class="fn">load_state_dict</span>(ckpt[<span class="str">"model_state"</span>])
+model.<span class="fn">eval</span>()                                  <span class="cmt"># 드롭아웃 끔 → 답이 매번 같음</span></code></pre>
+    <figure>
+      <img src="images/rs-03-load.webp"
+           alt="mini_transformer.pt 안의 다섯 키가 torch.load 로 읽힌 뒤 같은 모양의 빈 모델 만들기, 학습된 숫자 채워 넣기, eval 모드로 바꾸기 세 단계를 거쳐 모델이 되살아나는 것을 보여주는 그림">
+      <figcaption><b><span class="inline">model.eval()</span> 이 마지막에 오는 것이 중요합니다.</b>
+      학습 때 켜 두었던 드롭아웃을 끄는 스위치인데, 이걸 빼면 <b>같은 질문에 답이 매번 달라집니다</b>.<br>
+      <span class="inline">weights_only=False</span> 가 필요한 이유는 저장물 안에
+      <b>우리가 만든 <span class="inline">Vocab</span> 객체</b>가 들어 있기 때문입니다(우리가 만든 파일이라 안전합니다).</figcaption>
+    </figure>
+  </div>
+
+  <div class="step">
+    <h3><span class="no">05</span> 저장하는 쪽과 나란히 보기 <span class="where">training.py · torch.save</span>
+      <span class="reuse">재사용</span></h3>
+    <figure>
+      <img src="images/tr-17-save.webp"
+           alt="torch.save 가 model_state, src_vocab, tgt_vocab, max_len, final_loss 다섯 가지를 mini_transformer.pt 로 묶고 reasoning.py 가 그 파일을 읽는다는 것을 보여주는 그림">
+      <figcaption><b>04 와 화살표 방향만 반대입니다.</b> 학습 편에서 본 이 그림의 오른쪽 끝이
+      바로 이 페이지의 시작점입니다.<br>
+      <b>왜 단어장까지 같이 저장했는지</b>가 여기서 드러납니다 — 번호 체계가 한 칸이라도 어긋나면
+      같은 가중치라도 완전히 다른 답이 나옵니다. <span class="inline">max_len</span> 도 마찬가지로,
+      값이 다르면 위치인코딩 버퍼 모양이 안 맞아 <span class="inline">load_state_dict</span> 자체가 실패합니다.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ══════════════════ 3부 ══════════════════ -->
+<section id="p3" class="part">
+  <span class="badge">PART 3</span>
+  <h2>답 만들기 — <span class="inline">&lt;sos&gt;</span> 부터 끝말잇기</h2>
+  <p class="sub">질문은 한 번만 읽고, 답은 한 단어씩 자라납니다. 최대 20걸음이지만 5걸음에 끝납니다.</p>
+
+  <div class="step">
+    <h3><span class="no">06</span> 다섯 걸음에 답이 자란다 <span class="where">mini_transformer.py · answer()</span>
+      <span class="reuse">재사용</span></h3>
+<pre><code><span class="kw">@torch</span>.no_grad()
+<span class="kw">def</span> <span class="fn">answer</span>(model, sv, tv, question, max_len=<span class="num2">20</span>):
+    model.<span class="fn">eval</span>()
+    src = torch.<span class="fn">tensor</span>([sv.<span class="fn">encode</span>(question, add_special=<span class="kw">False</span>)])   <span class="cmt"># (1, 5)</span>
+    src_mask = <span class="fn">make_padding_mask</span>(src, sv.pad_id)                    <span class="cmt"># (1, 1, 1, 5)</span>
+    enc = model.<span class="fn">encode</span>(src, src_mask)                               <span class="cmt"># (1, 5, 64) — 딱 한 번</span>
+    gen, steps = [tv.sos_id], []
+    <span class="kw">for</span> _ <span class="kw">in</span> <span class="fn">range</span>(max_len):
+        tgt = torch.<span class="fn">tensor</span>([gen])                                    <span class="cmt"># (1, 현재길이)</span>
+        tgt_mask = <span class="fn">make_causal_mask</span>(tgt.<span class="fn">size</span>(<span class="num2">1</span>), tgt.device)          <span class="cmt"># 패딩 마스크는 불필요</span>
+        logits = model.<span class="fn">decode_step</span>(tgt, enc, tgt_mask, src_mask)
+        nxt = logits[<span class="num2">0</span>, -<span class="num2">1</span>].<span class="fn">argmax</span>().<span class="fn">item</span>()                          <span class="cmt"># 마지막 칸의 1등</span>
+        gen.<span class="fn">append</span>(nxt)
+        <span class="kw">if</span> nxt == tv.eos_id: <span class="kw">break</span>                                    <span class="cmt"># 여기서 멈춤</span></code></pre>
+    <figure>
+      <img src="../../explain/images/greedy-steps.webp"
+           alt="sos 하나로 시작해 비가 25.95점, 올 24.80점, 것 27.13점, 같아 31.23점, eos 36.72점을 차례로 뽑아 다섯 걸음에 답이 완성되고 eos 에서 멈추는 과정을 보여주는 그림">
+      <figcaption><b>왼쪽 파란 띠 — 질문 인코딩은 여기서 딱 한 번입니다.</b>
+      다섯 걸음 내내 같은 <span class="inline">enc</span> 를 재사용합니다.<br>
+      <b>매 걸음 마지막 칸만 읽습니다</b>(<span class="inline">logits[0, -1]</span>).
+      앞쪽 칸들은 이미 확정된 단어의 점수라 볼 필요가 없죠. 후보 18개 중 <b>1등만</b> 고르는 것이 greedy 입니다.<br>
+      <span class="muted">1등과 2등 점수 차가 큽니다 — 1걸음에서 '비가' 25.95 vs '아침이' 13.78.
+      400에폭을 돌린 결과라 확률로 보면 사실상 1.0 입니다.</span></figcaption>
+    </figure>
+
+    <h3 style="font-size:17px;margin:26px 0 6px">걸음마다 텐서가 한 칸씩 자란다 (실측)</h3>
+    <div class="tblwrap">
+    <table>
+      <tr><th>걸음</th><th><span class="inline">tgt</span></th><th>마스크</th><th>True</th>
+          <th><span class="inline">logits</span></th><th>1등</th><th>점수</th><th>2등</th><th>점수</th></tr>
+      <tr><td>1</td><td class="n">(1, 1)</td><td class="n">(1,1,1,1)</td><td class="n">1</td><td class="n">(1, 1, 18)</td><td>비가</td><td class="n">25.95</td><td>아침이</td><td class="n">13.78</td></tr>
+      <tr><td>2</td><td class="n">(1, 2)</td><td class="n">(1,1,2,2)</td><td class="n">3</td><td class="n">(1, 2, 18)</td><td>올</td><td class="n">24.80</td><td>그쳤나</td><td class="n">12.91</td></tr>
+      <tr><td>3</td><td class="n">(1, 3)</td><td class="n">(1,1,3,3)</td><td class="n">6</td><td class="n">(1, 3, 18)</td><td>것</td><td class="n">27.13</td><td>올</td><td class="n">16.09</td></tr>
+      <tr><td>4</td><td class="n">(1, 4)</td><td class="n">(1,1,4,4)</td><td class="n">10</td><td class="n">(1, 4, 18)</td><td>같아</td><td class="n">31.23</td><td>&lt;eos&gt;</td><td class="n">18.65</td></tr>
+      <tr><td>5</td><td class="n">(1, 5)</td><td class="n">(1,1,5,5)</td><td class="n">15</td><td class="n">(1, 5, 18)</td><td>&lt;eos&gt;</td><td class="n">36.72</td><td>같아</td><td class="n">24.46</td></tr>
+    </table>
+    </div>
+    <div class="callout warn"><span class="emoji">⚠️</span><b>학습과 다른 점 두 가지가 이 표에 있습니다.</b>
+    첫째, 배치축이 <b>6 이 아니라 1</b> 입니다 — 한 문장씩 처리하니까요.
+    둘째, 마스크가 <span class="inline">make_decoder_mask</span> 가 아니라
+    <b><span class="inline">make_causal_mask</span> 뿐</b>입니다 —
+    필요한 길이만 키워 가므로 <span class="inline">&lt;pad&gt;</span> 가 끼어들 일이 아예 없습니다.</div>
+    <div class="callout"><span class="emoji">🐢</span><b>매 걸음 처음부터 다시 계산합니다.</b>
+    3걸음째에도 <span class="inline">&lt;sos&gt; 비가 올</span> 전체를 통째로 다시 통과시킵니다.
+    실무 모델은 <b>KV 캐시</b>로 이 낭비를 없애지만, 여기서는 코드를 읽기 쉽게 두려고 일부러 단순하게 두었습니다.</div>
+  </div>
+
+  <div class="step">
+    <h3><span class="no">07</span> decode_step 안쪽은 학습과 똑같다 <span class="where">Decoder · DecoderLayer</span>
+      <span class="reuse">재사용</span></h3>
+    <figure>
+      <img src="images/tr-13-decoder.webp"
+           alt="디코더가 임베딩, √64 곱하기, 위치 인코딩, 디코더 층 두 겹으로 이루어지고, 디코더 층 하나를 확대하면 마스크드 셀프 어텐션, 크로스 어텐션, FFN 세 하위층에 각각 원본 더하기와 정규화가 붙는 구조를 보여주는 그림">
+      <figcaption><b>추론이라고 해서 새 부품이 생기지 않습니다.</b> 이 그림은 학습 편에서 본 것과 같은 그림입니다.<br>
+      다만 <b>들어가는 값의 모양이 다릅니다</b> — 학습에서는 답이 <span class="inline">(6, 5)</span> 로 한꺼번에
+      들어갔지만, 추론에서는 <span class="inline">(1, 1)</span> → <span class="inline">(1, 5)</span> 로 한 칸씩 자랍니다.<br>
+      <b>크로스 어텐션의 <span class="inline">enc</span> 는 그 5걸음 동안 단 한 번도 바뀌지 않습니다</b> —
+      3부 첫 그림에서 인코딩을 한 번만 하는 이유가 바로 이것입니다.</figcaption>
+    </figure>
+  </div>
+
+  <div class="step">
+    <h3><span class="no">08</span> 그 안의 어텐션도 그대로 <span class="where">MultiHeadAttention · scaled_dot_product_attention</span>
+      <span class="reuse">재사용</span></h3>
+    <figure>
+      <img src="images/tr-14-attention.webp"
+           alt="입력 (6,5,64) 이 wq wk wv 로 변환되고 split 으로 헤드 4개로 나뉘었다가 merge 로 합쳐지고 wo 로 섞이는 흐름, 그리고 그 안의 어텐션 공식 다섯 단계를 보여주는 그림">
+      <figcaption><b>여기서 계산되는 비율표가 4부 히트맵의 재료입니다.</b>
+      ④ <span class="inline">softmax</span> 가 만드는 "합이 1인 비율"을 꺼내서 색으로 칠하면 히트맵이 됩니다.<br>
+      <span class="muted">그림의 shape 은 학습 기준 <span class="inline">(6, …)</span> 입니다.
+      추론에서는 배치축이 1 이므로 <span class="inline">(1, 4, 5, 16)</span> 처럼 읽으시면 됩니다.</span><br>
+      <b>추론에서는 드롭아웃이 꺼져 있어</b>(<span class="inline">eval()</span>) 비율표의
+      <b>행 합이 정확히 1.0</b> 이 됩니다 — 학습 모드로 히트맵을 그리면 이 합이 1 이 안 됩니다.</figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ══════════════════ 4부 ══════════════════ -->
+<section id="p4" class="part">
+  <span class="badge">PART 4</span>
+  <h2>히트맵 — 모델이 어디를 봤나</h2>
+  <p class="sub">이 페이지의 결론입니다. '먹구름이' 열이 가장 밝으면 성공입니다.</p>
+
+  <div class="step">
+    <h3><span class="no">09</span> 왜 마지막에 한 번 더 통과시키나 <span class="where">mini_transformer.py · answer() 끝부분</span>
+      <span class="reuse">재사용</span></h3>
+<pre><code><span class="cmt"># 완성된 답 전체를 한 번 더 통과시켜 히트맵 세로축을 채웁니다</span>
+tgt = torch.<span class="fn">tensor</span>([gen]); tgt_mask = <span class="fn">make_causal_mask</span>(tgt.<span class="fn">size</span>(<span class="num2">1</span>), tgt.device)
+model.<span class="fn">decode_step</span>(tgt, enc, tgt_mask, src_mask)       <span class="cmt"># (1, 6) / (1, 1, 6, 6)</span>
+cross = model.decoder.layers[-<span class="num2">1</span>].cross_attn.last_attn_weights[<span class="num2">0</span>].<span class="fn">mean</span>(<span class="num2">0</span>)</code></pre>
+    <figure>
+      <img src="../../explain/images/greedy-extra-pass.webp"
+           alt="루프가 끝난 직후에는 마지막 eos 줄이 비어 있고, 완성된 답으로 한 번 더 통과시키면 여섯 줄이 모두 채워지는 것을 좌우로 비교한 그림">
+      <figcaption><b>단어를 더 만드는 게 아니라, 히트맵 재료를 채우는 것입니다.</b>
+      마지막 걸음의 입력은 <span class="inline">(1, 5)</span> 였으므로 비율표도 5줄뿐입니다.
+      완성된 답 6개를 넣어 <span class="inline">(1, 6)</span> 으로 한 번 더 통과시키면 6줄이 다 찹니다.<br>
+      <b>헤드 4개의 비율표를 평균 냅니다</b> — 원본 <span class="inline">(1, 4, 6, 5)</span> 에서
+      <span class="inline">.mean(0)</span> 으로 헤드축을 접어 <span class="inline">(6, 5)</span> 를 얻습니다.
+      가로 5칸은 질문 5단어, 세로 6칸은 답 6칸입니다.</figcaption>
+    </figure>
+  </div>
+
+  <div class="step">
+    <h3><span class="no">10</span> 네 줄 모두 '먹구름이' 를 봤다 <span class="where">mini_transformer.py · show_attention()</span></h3>
+<pre><code>w = cross[:<span class="fn">len</span>(ans_toks), :<span class="fn">len</span>(qs)].<span class="fn">numpy</span>()        <span class="cmt"># (4, 5) 로 잘라내기</span>
+plt.<span class="fn">imshow</span>(w, aspect=<span class="str">"auto"</span>, cmap=<span class="str">"viridis"</span>)         <span class="cmt"># 낮음=보라, 높음=노랑</span>
+<span class="cmt"># reasoning.py 의 검산 — 어느 질문 토큰을 가장 크게 봤나</span>
+top = cross[: <span class="fn">len</span>(qs), : <span class="fn">len</span>(qs)].<span class="fn">mean</span>(<span class="num2">0</span>).<span class="fn">argmax</span>().<span class="fn">item</span>()</code></pre>
+    <figure>
+      <img src="images/rs-04-heatmap.webp"
+           alt="답 토큰 네 줄과 질문 토큰 다섯 열로 이루어진 격자에서 먹구름이 열이 0.593, 0.639, 0.457, 0.467 로 네 줄 모두 가장 큰 값을 가지며, 열 평균 0.490 은 균등한 경우 0.2 의 약 2.5배임을 보여주는 그림">
+      <figcaption><b>이 숫자가 이 예제 전체의 결론입니다.</b>
+      "하늘에 <b>먹구름이</b> 보이면 뭐가 생각나"에서 답 '비가 올 것 같아'를 만드는 동안,
+      네 단어 모두 <b>'먹구름이'</b> 를 가장 크게 봤습니다.<br>
+      <b>균등하게 봤다면 1/5 = 0.2 일 텐데 0.490 입니다</b> — 약 <b>2.5배</b>.
+      특히 '올' 줄이 <b>0.639</b> 로 가장 집중했습니다.<br>
+      <span class="muted">각 행의 합은 정확히 1.0 입니다. 세로축 라벨은 "그 단어를 만들 때"로 읽으세요 —
+      첫 줄은 <span class="inline">&lt;sos&gt;</span> 자리에서 '비가'를 뽑을 때 쓴 비율입니다.</span></figcaption>
+    </figure>
+
+    <div class="tblwrap">
+    <table>
+      <tr><th>답 토큰 ↓ / 질문 토큰 →</th><th>하늘에</th><th>먹구름이</th><th>보이면</th><th>뭐가</th><th>생각나</th></tr>
+      <tr><td>비가</td><td class="n">0.107</td><td class="hot">0.593</td><td class="n">0.126</td><td class="n">0.094</td><td class="n">0.080</td></tr>
+      <tr><td>올</td><td class="n">0.080</td><td class="hot">0.639</td><td class="n">0.126</td><td class="n">0.068</td><td class="n">0.087</td></tr>
+      <tr><td>것</td><td class="n">0.123</td><td class="hot">0.457</td><td class="n">0.174</td><td class="n">0.098</td><td class="n">0.148</td></tr>
+      <tr><td>같아</td><td class="n">0.140</td><td class="hot">0.467</td><td class="n">0.159</td><td class="n">0.110</td><td class="n">0.125</td></tr>
+      <tr><th>열 평균 (검산)</th><td class="n">0.121</td><td class="hot">0.490</td><td class="n">0.160</td><td class="n">0.103</td><td class="n">0.125</td></tr>
+    </table>
+    </div>
+    <div class="callout"><span class="emoji">🔍</span><b>코드를 꼼꼼히 읽으신 분을 위한 한 줄:</b>
+    검산 줄의 <span class="inline">cross[: len(qs), : len(qs)]</span> 는 세로축까지
+    <b>질문 길이</b>로 자릅니다. 이 예제에서는 질문 5단어와 생성 5걸음이 <b>우연히 같아서</b> 문제가 없지만,
+    엄밀하게는 세로축은 답 길이로 자르는 것이 맞습니다.</div>
+  </div>
+</section>
+
+<!-- ══════════════════ 5부 ══════════════════ -->
+<section id="p5" class="part">
+  <span class="badge">PART 5</span>
+  <h2>대조 — 정말 그 단어를 보고 있나</h2>
+  <p class="sub">히트맵이 밝은 것만으로는 부족합니다. 단어를 바꿔 답이 따라 바뀌는지 확인합니다.</p>
+
+  <div class="step">
+    <h3><span class="no">11</span> 한 단어를 바꾸면 답이 바뀐다 <span class="where">reasoning.py · CONTRAST_QUESTIONS</span></h3>
+<pre><code><span class="kw">for</span> q <span class="kw">in</span> CONTRAST_QUESTIONS:
+    _, a, _ = <span class="fn">answer</span>(model, src_vocab, tgt_vocab, q)   <span class="cmt"># 답만 쓰고 나머지는 버림</span>
+    <span class="fn">print</span>(<span class="str">f"  {tokenize(q)[1]:&lt;6} → {a}"</span>)              <span class="cmt"># 두 번째 토큰 = 바뀌는 단어</span></code></pre>
+    <figure>
+      <img src="images/rs-05-contrast.webp"
+           alt="하늘에 무엇이 보이면 뭐가 생각나 라는 같은 문장 틀에서 대상 단어만 먹구름이, 별이, 해가 로 바꾸면 답이 비가 올 것 같아, 밤이 깊었나 봐, 아침이 밝았구나 로 각각 달라지는 것을 보여주는 그림">
+      <figcaption><b>앞뒤 네 단어(<span class="inline">하늘에 … 보이면 뭐가 생각나</span>)는 완전히 똑같습니다.</b>
+      바뀐 것은 두 번째 단어 하나뿐인데 답이 통째로 달라졌습니다.<br>
+      <b>히트맵 + 대조, 두 증거가 같은 곳을 가리킵니다</b> —
+      "모델이 그 한 단어를 보고 답을 고른다"는 것을 <b>눈으로도(4부) 결과로도(5부)</b> 확인한 것입니다.<br>
+      <span class="muted">그림의 <span class="inline">○○</span> 상자는 <b>조사까지 포함한 한 단어</b> 자리로 읽으세요 —
+      아래 노란 알약이 '먹구름이'·'별이'·'해가'처럼 <span class="inline">tokenize()</span> 가
+      실제로 만드는 토큰 그대로입니다.</span></figcaption>
+    </figure>
+  </div>
+</section>
+
+<!-- ══════════════════ 6부 ══════════════════ -->
+<section id="p6" class="part">
+  <span class="badge">PART 6</span>
+  <h2>학습과 추론 — 같은 모델, 다른 사용법</h2>
+  <p class="sub">두 페이지를 다 본 뒤 이 그림 하나로 정리하시면 됩니다.</p>
+
+  <div class="step">
+    <h3><span class="no">12</span> 여덟 가지가 다르다 <span class="where">training.py ↔ reasoning.py</span></h3>
+    <figure>
+      <img src="images/rs-06-train-vs-infer.webp"
+           alt="학습과 추론을 모드, 정답 제공 방식, 모델 호출 문, 배치 크기, 답 마스크, 기울기, 반복 횟수, 결과 여덟 항목으로 좌우 나란히 비교한 그림">
+      <figcaption><b>가중치는 하나, 쓰는 방법이 둘입니다.</b>
+      왼쪽 여덟 줄과 오른쪽 여덟 줄을 같은 높이에서 비교해 보세요.<br>
+      <b>가장 큰 차이는 두 번째 줄</b>입니다 — 학습은 <b>정답을 보여 주고</b> 다음 단어를 맞히게 하지만
+      (티처 포싱), 추론은 정답이 없으니 <b>자기가 만든 단어를 다시 넣습니다</b>(자기회귀).
+      그래서 학습은 한 번에 끝나고, 추론은 단어 수만큼 반복해야 합니다.</figcaption>
+    </figure>
+
+    <div class="tblwrap">
+    <table>
+      <tr><th>항목</th><th>학습 <span class="inline">training.py</span></th><th>추론 <span class="inline">reasoning.py</span></th></tr>
+      <tr><td>모드</td><td class="n">model.train()</td><td class="n">model.eval()</td></tr>
+      <tr><td>정답 제공</td><td>티처 포싱 — 정답 전체를 한 번에</td><td>자기회귀 — 자기가 만든 단어를 다시</td></tr>
+      <tr><td>모델 호출 문</td><td class="n">forward ×1</td><td class="n">encode ×1 + decode_step ×5</td></tr>
+      <tr><td>배치</td><td class="n">(6, 5) — 6문장</td><td class="n">(1, 5) — 1문장</td></tr>
+      <tr><td>답 마스크</td><td class="n">make_decoder_mask</td><td class="n">make_causal_mask</td></tr>
+      <tr><td>기울기</td><td class="n">loss.backward()</td><td class="n">@torch.no_grad()</td></tr>
+      <tr><td>반복</td><td class="n">400에폭</td><td class="n">5걸음</td></tr>
+      <tr><td>결과</td><td>가중치가 바뀜</td><td>가중치는 그대로, 답만 나옴</td></tr>
+    </table>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════ 요약 ══════════════════ -->
+<section id="recap" class="part">
+  <span class="badge">RECAP</span>
+  <h2>한 장 요약</h2>
+
+  <div class="tblwrap">
+  <table>
+    <tr><th>단계</th><th>코드</th><th>결과 (실측)</th></tr>
+    <tr><td>불러오기</td><td><span class="inline">torch.load(...)</span></td><td class="n">키 5개 · 최종 loss 0.0035</td></tr>
+    <tr><td>모델 복원</td><td><span class="inline">Transformer(14, 18, max_len=22)</span></td><td class="n">가중치 항목 89개</td></tr>
+    <tr><td>모드 전환</td><td><span class="inline">model.eval()</span></td><td class="n">드롭아웃 끔 → 결정적</td></tr>
+    <tr><td>질문 인코딩</td><td><span class="inline">model.encode(...)</span></td><td class="n">(1, 5, 64) · 1회만</td></tr>
+    <tr><td>답 생성</td><td><span class="inline">model.decode_step(...)</span></td><td class="n">5회 (최대 20)</td></tr>
+    <tr><td>완성된 답</td><td><span class="inline">tv.decode(gen)</span></td><td class="n">비가 올 것 같아</td></tr>
+    <tr><td>히트맵 재료</td><td><span class="inline">last_attn_weights[0].mean(0)</span></td><td class="n">(1,4,6,5) → (6, 5)</td></tr>
+    <tr><td>가장 본 단어</td><td><span class="inline">mean(0).argmax()</span></td><td class="n">먹구름이 · 0.490</td></tr>
+    <tr><td>대조</td><td><span class="inline">answer(...)</span> ×3</td><td class="n">답 3개 모두 다름</td></tr>
+  </table>
+  </div>
+
+  <div class="callout good"><span class="emoji">🌧️</span><b>한 문장으로:</b>
+  파일 하나에서 모델과 단어장을 되살려 <span class="inline">eval()</span> 로 바꾸고,
+  질문을 <b>한 번만</b> 인코딩한 뒤 <span class="inline">&lt;sos&gt;</span> 부터 <b>5걸음</b> 끝말잇기로
+  "비가 올 것 같아"를 만들고, 그 동안 모델이 <b>'먹구름이'를 0.490(균등의 2.5배)</b> 로 봤다는 것을
+  히트맵과 대조 두 방법으로 확인합니다.</div>
+</section>
+
+<footer>
+  <p><b>대상 코드</b> · <span class="inline">hands-on/mini-transformer/reasoning.py</span> ·
+  <span class="inline">hands-on/mini-transformer/mini_transformer.py</span></p>
+  <p><b>먼저 볼 페이지</b> · <a href="training.html">training.py 처리 과정 — 그림 17장으로 따라가기</a></p>
+  <p><b>부품별 자세한 원리</b>는 <span class="inline">explain/</span> 폴더의 개별 페이지를 보세요 —
+  특히 <span class="inline">greedy-decoding.html</span> 과 <span class="inline">attention.html</span>.</p>
+  <p class="muted"><span style="color:#34d399;font-weight:800">재사용</span> 배지가 붙은 그림 6장은
+  학습 편(<span class="inline">tr-*</span>)과 부품 편(<span class="inline">explain/images/</span>)에서 그대로 가져온 것입니다 —
+  추론이 학습과 <b>같은 부품을 쓴다</b>는 것을 그림으로도 보이려는 의도입니다.</p>
+  <p class="muted">그림 속 모든 수치는 로컬에서 <span class="inline">python training.py</span> →
+  <span class="inline">python reasoning.py</span> 를 실제로 실행해 얻은 값입니다.</p>
+</footer>
+
+</div>
+</body>
+</html>
