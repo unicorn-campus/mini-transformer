@@ -131,17 +131,22 @@
 
   <div class="step">
     <h3><span class="no">01</span> training.py 의 다섯 걸음 <span class="where">training.py · main()</span></h3>
-<pre><code><span class="kw">def</span> <span class="fn">main</span>():
-    <span class="cmt"># 1단계  DATA 6쌍 확인</span>
-    <span class="cmt"># 2단계  질문/답 단어장 만들기</span>
-    <span class="cmt"># 4단계  배치 → 모델 → 400에폭 학습 → 체크포인트 저장</span></code></pre>
+<pre><code><span class="cmt"># training.py · main() 안의 구획 주석 (실제 코드 그대로)</span>
+<span class="kw">def</span> <span class="fn">main</span>():
+    <span class="cmt"># ── 1단계: 데이터 확인 ────────────────────────</span>
+    <span class="cmt"># ── 2단계: 단어장 만들기 ──────────────────────</span>
+    <span class="cmt"># ── 4단계: 모델 만들고 학습하기 ───────────────</span>
+    <span class="cmt"># ── 저장 ──────────────────────────────────────</span></code></pre>
     <figure>
       <img src="images/tr-01-overview.webp"
            alt="training.py 의 main() 이 데이터 확인, 단어장 만들기, 준비, 400번 반복, 저장 다섯 단계로 이루어지고, 부품은 mini_transformer.py 에서 빌려 쓴다는 것을 보여주는 그림">
       <figcaption><b>왼쪽 다섯 걸음이 <span class="inline">main()</span> 전부입니다.</b>
       오른쪽을 보면 <span class="inline">training.py</span> 는 <b>순서만 정하고</b>, 실제 부품은 모두
       <span class="inline">mini_transformer.py</span> 에서 빌려 씁니다.
-      그래서 두 파일을 나란히 놓고 읽어야 합니다.</figcaption>
+      그래서 두 파일을 나란히 놓고 읽어야 합니다.<br>
+      <span class="muted">코드 주석의 단계 번호는 원본 노트북 셀 번호를 따른 것입니다 —
+      <b>3단계(부품 정의)는 <span class="inline">mini_transformer.py</span> 쪽에 있어서 번호가 건너뜁니다.</b>
+      그림의 ③준비·④400번 반복은 코드의 '4단계' 한 덩어리를 둘로 나눠 그린 것입니다.</span></figcaption>
     </figure>
   </div>
 
@@ -156,7 +161,8 @@
            alt="main() 에서 Vocab, build_batches, Transformer, make_decoder_mask 를 직접 부르고, 그 안쪽에서 tokenize, pad_sequence, Encoder, Decoder, 마스크 함수들이 불리며, 가장 아래에는 인코더 층·디코더 층·멀티헤드 어텐션·어텐션 공식·FFN·위치 인코딩이 들어 있음을 네 단계로 보여주는 트리 그림">
       <figcaption><b>이 그림이 이 페이지의 목차입니다.</b>
       왼쪽 <span class="inline">main()</span> 에서 출발해 오른쪽으로 갈수록 계산이 잘게 쪼개집니다.
-      맨 오른쪽 점선 상자 안의 부품들이 <b>4부에서 하나씩 열어 볼 대상</b>입니다.<br>
+      맨 오른쪽 점선 상자 안의 부품들이 <b>4부에서 열어 볼 대상</b>입니다 —
+      인코더 층·디코더 층·어텐션은 각각 한 단계씩 쓰고, <b>FFN 과 위치 인코딩은 12·13 그림 안에서 함께</b> 봅니다.<br>
       <span class="inline">make_padding_mask</span> 는 <b>두 곳에서 불립니다</b> —
       <span class="inline">main()</span> 이 질문 마스크를 만들 때 직접 한 번,
       그리고 <span class="inline">make_decoder_mask</span> 안에서 또 한 번.</figcaption>
@@ -182,7 +188,10 @@
            alt="질문 문장 틀은 하늘에 무엇이 보이면 뭐가 생각나 로 모두 같고 대상 단어만 먹구름이 별이 해가 무지개가 눈송이가 노을이 로 바뀌며, 각각의 답이 짝지어진 그림">
       <figcaption><b>문장 틀은 여섯 개가 똑같고, 대상 단어 하나만 다릅니다.</b>
       답을 가르는 단서가 오직 그 한 단어뿐이라, 모델이 <b>반드시 거기에 주목하게</b> 됩니다.
-      학습이 끝난 뒤 어텐션 히트맵이 예쁘게 나오는 이유가 이 설계에 있습니다.</figcaption>
+      학습이 끝난 뒤 어텐션 히트맵이 예쁘게 나오는 이유가 이 설계에 있습니다.<br>
+      <span class="muted">토큰은 공백으로만 자르므로 <b>조사까지 붙은 '먹구름이' 가 통째로 한 단어</b>입니다
+      (다음 그림에서 6번을 받습니다). 그림의 <span class="inline">○○</span> 자리에는
+      '먹구름이'·'해가'처럼 조사가 붙은 형태가 그대로 들어갑니다.</span></figcaption>
     </figure>
   </div>
 
@@ -220,7 +229,9 @@ tgt = <span class="fn">pad_sequence</span>(tgt, batch_first=<span class="kw">Tru
       질문은 통째로 읽기만 하니 시작·끝 신호가 필요 없고, 답은 <b>생성을 시작할 신호와 멈출 신호</b>가 필요합니다.<br>
       <b>패딩은 답 쪽에서만 생깁니다.</b> 질문은 여섯 개가 모두 5단어라 채울 게 아예 없고,
       답은 4·5·6칸으로 들쭉날쭉해서 <b>36칸 중 8칸이 빈칸</b>이 됩니다.
-      이 8칸이 곧 3부에서 <span class="inline">ignore_index</span> 가 채점에서 빼는 칸입니다.</figcaption>
+      이 8칸이 곧 3부에서 <span class="inline">ignore_index</span> 가 채점에서 빼는 칸입니다.<br>
+      <span class="muted">📌 <b>용어 하나만 기억하세요 — 빈칸 = 패딩 = <span class="inline">&lt;pad&gt;</span> = 0번, 모두 같은 것입니다.</b>
+      이후 그림들이 이 셋을 섞어 쓰지만 전부 이 8칸(과 그 뒤의 5칸짜리 판) 이야기입니다.</span></figcaption>
     </figure>
   </div>
 </section>
@@ -257,7 +268,10 @@ crit = nn.<span class="fn">CrossEntropyLoss</span>(ignore_index=tgt_vocab.pad_id
       <figcaption><b>손실 함수는 "얼마나 틀렸나"를 숫자 하나로 만들고, 옵티마이저는 그 숫자를 줄이는 방향으로 가중치를 움직입니다.</b><br>
       <span class="inline">ignore_index</span> 가 실제로 일하고 있다는 증거는 나눗셈으로 확인됩니다 —
       칸별 loss 합 <b>1060.5466 ÷ 22칸 = 48.2067</b> 로 1회차 loss 와 소수점까지 일치합니다.
-      30칸으로 나누면 35.3516 이 되어 값이 어긋납니다.</figcaption>
+      30칸으로 나누면 35.3516 이 되어 값이 어긋납니다.<br>
+      <span class="muted">⚠️ <b>"앞 그림은 36칸이었는데 왜 30칸인가"</b> 싶으실 겁니다.
+      이 격자는 답 원본 <span class="inline">(6, 6)</span> 이 아니라, <b>바로 다음 그림에서 만들
+      <span class="inline">dec_tgt (6, 5)</span></b> 입니다. 6칸이 5칸으로 줄어드는 이유는 08 에서 봅니다.</span></figcaption>
     </figure>
   </div>
 
@@ -292,7 +306,10 @@ crit = nn.<span class="fn">CrossEntropyLoss</span>(ignore_index=tgt_vocab.pad_id
       <figcaption><b>질문 마스크의 True 비율이 100% 인 것은 마스크를 안 쓰는 게 아니라, 가릴 것이 없는 것입니다.</b>
       질문 여섯 개가 모두 5단어라 패딩이 아예 없으니까요.<br>
       <b>가릴 자리는 <span class="inline">0</span> 이 아니라 <span class="inline">-inf</span> 로 덮어씁니다.</b>
-      0 으로 바꾸면 <span class="inline">exp(0)=1</span> 이라 오히려 큰 비율을 받아 버립니다.</figcaption>
+      0 으로 바꾸면 <span class="inline">exp(0)=1</span> 이라 오히려 큰 비율을 받아 버립니다.<br>
+      <span class="muted">오른쪽 삼각형 격자는 <b>6문장 중 한 문장(빈칸이 없는 첫 문장)</b> 의 모습이라
+      True 가 <b>1+2+3+4+5 = 15개</b> 입니다. 6문장을 합치면 15+15+14+15+14+14 = <b>87개</b> —
+      빈칸이 있는 문장은 15개에서 1개씩 더 깎입니다.</span></figcaption>
     </figure>
   </div>
 </section>
@@ -317,7 +334,10 @@ crit = nn.<span class="fn">CrossEntropyLoss</span>(ignore_index=tgt_vocab.pad_id
       특히 <span class="inline">src_mask</span> 가 <b>루프 밖에</b> 있는 이유를 눈으로 확인하세요 —
       질문은 400번 내내 바뀌지 않으니 다시 만들 이유가 없습니다.<br>
       <span class="inline">tgt_mask</span> 도 사실 <span class="inline">dec_in</span> 이 안 바뀌니 밖으로 빼도 되지만,
-      "답 쪽 마스크는 답 길이에 따라 달라진다"를 드러내려고 안에 두었습니다.</figcaption>
+      "답 쪽 마스크는 답 길이에 따라 달라진다"를 드러내려고 안에 두었습니다.<br>
+      <span class="muted">"네 줄" 중 번호가 붙은 <b>①예측 ②비교 ③수정</b> 이 학습의 본체이고,
+      맨 위 답 마스크 만들기는 그 준비입니다. 왼쪽 목록의 <b>손실 함수와 옵티마이저는 짝</b>이라
+      둘 다 루프 밖에서 한 번만 만들어 400번 내내 재사용합니다.</span></figcaption>
     </figure>
   </div>
 
@@ -364,11 +384,13 @@ x = self.<span class="fn">n2</span>(x + self.<span class="fn">drop</span>(self.<
 x = self.<span class="fn">n3</span>(x + self.<span class="fn">drop</span>(self.<span class="fn">ffn</span>(x)))                              <span class="cmt"># ③ 혼자 곱씹기</span></code></pre>
     <figure>
       <img src="images/tr-13-decoder.webp"
-           alt="디코더가 임베딩, √64 곱하기, 위치 인코딩, 디코더 층 두 겹으로 이루어지고, 디코더 층 하나를 확대하면 마스크드 셀프 어텐션, 크로스 어텐션, FFN 세 하위층에 각각 잔차와 정규화가 붙는 구조를 보여주는 그림">
+           alt="디코더가 임베딩, √64 곱하기, 위치 인코딩, 디코더 층 두 겹으로 이루어지고, 디코더 층 하나를 확대하면 마스크드 셀프 어텐션, 크로스 어텐션, FFN 세 하위층에 각각 원본 더하기 곡선 화살표와 정규화가 붙는 구조를 보여주는 그림">
       <figcaption><b>인코더와 다른 점은 ② 하나뿐입니다.</b>
       크로스 어텐션은 이 모델에서 <b>Q 와 K·V 의 길이가 다른 유일한 곳</b>입니다 —
       Q 는 답, K·V 는 질문 인코딩.<br>
-      <span class="inline">enc</span> 는 <b>두 층에 똑같은 값</b>이 그대로 들어갑니다. 읽기 전용 참고자료인 셈이죠.</figcaption>
+      <span class="inline">enc</span> 는 <b>두 층에 똑같은 값</b>이 그대로 들어갑니다. 읽기 전용 참고자료인 셈이죠.<br>
+      <span class="muted">확대 카드 왼쪽의 <b>노란 곡선 화살표 세 개는 앞 그림(12)의 "+ 원본 더하기"</b> 와 같은 것입니다 —
+      하위층을 건너뛰어 입력을 그대로 더해 주는 지름길입니다.</span></figcaption>
     </figure>
   </div>
 
@@ -455,7 +477,8 @@ opt.<span class="fn">step</span>()       <span class="cmt"># 그 반대 방향�
       단어장을 함께 저장해야 추론에서 <b>같은 번호 체계</b>를 쓸 수 있고,
       <span class="inline">max_len</span> 을 저장해야 모델 생성 인자가 같아져 <span class="inline">state_dict</span> 모양이 맞습니다.<br>
       이 파일을 읽는 쪽이 <span class="inline">reasoning.py</span> 입니다 — 거기서 <span class="inline">answer()</span> 로
-      <span class="inline">&lt;sos&gt;</span> 부터 한 단어씩 이어 붙이는 끝말잇기가 시작됩니다.</figcaption>
+      <span class="inline">&lt;sos&gt;</span> 부터 한 단어씩 이어 붙이는 끝말잇기가 시작됩니다.<br>
+      <b>👉 다음 페이지: <a href="reasoning.html">reasoning.py 처리 과정 — 그림 12장으로 따라가기</a></b></figcaption>
     </figure>
   </div>
 </section>
@@ -491,6 +514,7 @@ opt.<span class="fn">step</span>()       <span class="cmt"># 그 반대 방향�
 <footer>
   <p><b>대상 코드</b> · <span class="inline">hands-on/mini-transformer/training.py</span> ·
   <span class="inline">hands-on/mini-transformer/mini_transformer.py</span></p>
+  <p><b>이어서 볼 페이지</b> · <a href="reasoning.html">reasoning.py 처리 과정 — 그림 12장으로 따라가기</a></p>
   <p><b>부품별 자세한 원리</b>는 <span class="inline">explain/</span> 폴더의 개별 페이지를 보세요 —
   단어장 · 위치 인코딩 · 어텐션 · 멀티헤드 · FFN · 인코더 · 디코더 · 마스킹 · 학습 · 그리디 디코딩.</p>
   <p class="muted">그림 속 모든 수치는 로컬에서 <span class="inline">training.py</span> 와 동일한 시드(42)로
