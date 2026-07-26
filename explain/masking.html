@@ -93,6 +93,11 @@
   th,td{border:1px solid var(--line);padding:9px 12px;text-align:left}
   th{background:var(--panel2);color:#fff}
 
+  figure{margin:20px 0}
+  figure img{width:100%;display:block;border:1px solid var(--line);border-radius:14px;background:var(--code)}
+  figcaption{font-size:13.5px;color:var(--sub);margin-top:8px;line-height:1.65}
+  figcaption b{color:#fff}
+
   footer{margin-top:80px;border-top:1px solid var(--line);padding-top:24px;color:var(--sub);font-size:14px}
   .toc{position:sticky;top:0;z-index:5;background:rgba(15,23,42,.85);backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
   .toc .wrap{display:flex;gap:6px;flex-wrap:wrap;padding:10px 20px;overflow-x:auto}
@@ -212,6 +217,36 @@
   </table>
   <div class="callout good"><span class="emoji">💡</span><span class="inline">&</span> 하나로 두 규칙이 합쳐지는 게 핵심입니다.
   둘 다 True(볼 수 있음)여야만 최종 결과도 True — <b>빈칸도 아니고, 미래도 아닌 자리만</b> 열립니다.</div>
+
+  <h3>그림으로 보기 — <span class="inline">unsqueeze</span>가 왜 두 번인가</h3>
+  <p>초심자가 가장 많이 막히는 줄입니다. <b>모양이 안 맞는다</b>는 말을 크기로 보면 바로 납득됩니다.</p>
+  <figure>
+    <img src="https://raw.githubusercontent.com/unicorn-campus/mini-transformer/main/explain/images/mask-unsqueeze.webp"
+         alt="(6,5) 표에 축을 한 번 끼우면 (6,1,5)로 축이 하나 부족해 어텐션 점수와 맞지 않고, 두 번 끼워 (6,1,1,5)가 되어야 맞는다는 것을 3단으로 보여 주는 그림">
+    <figcaption><b>맞춰야 하는 상대가 오른쪽 노란 카드입니다.</b>
+    어텐션 점수는 축이 <b class="hlt">네 개</b>(문장·헤드·보려는 쪽·보이는 쪽)인데,
+    <span class="inline">seq != pad_id</span> 결과는 축이 <b>두 개</b>(6, 5)뿐입니다.<br>
+    그래서 빈 축을 <b>두 개</b> 끼워 <span class="inline">(6, 1, 1, 5)</span>로 만듭니다. 한 번만 끼우면 <span class="inline">(6, 1, 5)</span>로
+    <b>여전히 하나가 부족</b>하죠.<br>
+    <b class="hlt">끼운 1의 정체는 "여기는 전부 공통"</b>입니다. 패딩 자리는 어느 헤드에서 보든, 어느 단어가 보든 똑같이 빈칸이니
+    한 벌만 만들어 두면 <b>헤드 4개·줄 5개 전체에 자동으로 늘어나 적용</b>됩니다(브로드캐스팅).</figcaption>
+  </figure>
+
+  <h3>그림으로 보기 — <span class="inline">&amp;</span> 한 글자가 표를 어떻게 바꾸나</h3>
+  <p>답 <b class="hlt">"아침이 밝았구나"</b>는 짧아서 <span class="inline">&lt;pad&gt;</span>가 한 칸 붙습니다. 그때 무슨 일이 벌어지는지 보세요.</p>
+  <figure>
+    <img src="https://raw.githubusercontent.com/unicorn-campus/mini-transformer/main/explain/images/mask-and.webp"
+         alt="빈칸 가림 마스크와 미래 가림 삼각형 마스크를 앤드 연산으로 합치면 삼각형에서 마지막 열이 추가로 닫히는 것을 세 격자로 비교한 그림">
+    <figcaption><b>왼쪽 두 장을 겹쳐서 오른쪽 한 장을 만듭니다.</b>
+    <b>빈칸 가림</b>은 마지막 열을 <b>세로로 통째</b> 닫고(그 자리가 <span class="inline">&lt;pad&gt;</span>니까),
+    <b>미래 가림</b>은 <b>삼각형</b>으로 닫습니다(자기 자리 뒤는 못 보니까).<br>
+    <b class="hlt">분홍 테두리 칸이 이 그림의 핵심입니다.</b>
+    삼각형 규칙만 있었다면 마지막 줄의 마지막 칸은 <b>열려야</b> 합니다. 하지만 그 자리가 빈칸이라 <b>닫힙니다</b> —
+    이것이 두 규칙을 <span class="inline">&amp;</span>로 합친 결과예요.<br>
+    그래서 열린 칸 수가 <b>빈칸 없는 문장 15개</b>에서 <b class="hlt">빈칸 있는 문장 14개</b>로 하나 줄어듭니다.
+    <span class="muted">(추론 때는 <span class="inline">make_decoder_mask</span>를 쓰지 않습니다. 한 문장씩 필요한 길이만
+    키워 가므로 애초에 <span class="inline">&lt;pad&gt;</span>가 끼어들 일이 없어 삼각형 마스크만으로 충분합니다.)</span></figcaption>
+  </figure>
 </section>
 
 <!-- 5 -->
