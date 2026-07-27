@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """추론 수행 — `example-explain.ipynb` 의 5·6·7단계를 스크립트로 옮긴 것.
 
-📖 상세 설명: https://htmlpreview.github.io/?https://github.com/unicorn-campus/mini-transformer/blob/main/explain/greedy-decoding.html
+📖 상세 설명: https://htmlpreview.github.io/?https://github.com/unicorn-campus/mini-transformer/blob/main/hands-on/mini-transformer/reasoning.html
 
 하는 일
     5단계  질문 하나를 넣어 답을 한 단어씩 만드는 과정을 출력

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """모델 훈련 — `example-explain.ipynb` 의 1·2·4단계를 스크립트로 옮긴 것.
 
-📖 상세 설명: https://htmlpreview.github.io/?https://github.com/unicorn-campus/mini-transformer/blob/main/explain/training-loop.html
+📖 상세 설명: https://htmlpreview.github.io/?https://github.com/unicorn-campus/mini-transformer/blob/main/hands-on/mini-transformer/training.html
 
 [한 줄 요약] 눈 감고 다트 던지기 연습입니다. 던지고, 얼마나 빗나갔는지 듣고, 팔 각도를 조금 고칩니다.
 
