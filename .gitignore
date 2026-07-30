@@ -8,3 +8,6 @@ __pycache__/
 *.pt
 attention_heatmap.png
 gate_heatmap.png
+
+# 도구가 생성하는 세션·상태 파일
+.omc/
