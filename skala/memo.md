@@ -266,3 +266,61 @@
 > 참고: 지금 설명한 구조는 원논문의 Encoder-Decoder입니다.
 > GPT·Claude 같은 실제 LLM은 **Decoder만 사용**하고, Cross-Attention 없이
 > 프롬프트와 생성 토큰이 하나의 스택을 함께 통과합니다.
+
+---
+
+## 생성형 AI가 가져온 변화
+- 진정한 효과를 얻으려면 업무 프로세스 혁신이 병행 되어야 함
+- AI는 단순 반복적 업무를 대체해 인간이 창의적이고 전략적 업무에 집중하게 함
+- AI를 깊게 쓴다는 건 업무 처리 속도 향상뿐 아니라 다양한 분야로 스펙트럼을 넓힌다는 의미 
+  - 진짜 T자형 인재
+  - AI와 게임 전문가 데미스 허사비스가 단백질 구조 연구로 노벨화학상 수상
+- 개발자는 SHIFT Left(기획->설계->개발->배포 사이클에서 왼쪽으로)하여 기획과 설계 역량을 키워야 함
+- 성장중인 역할
+  - AI Solution Architect: 업무 프로세스에 AI 적용을 설계하는 아키텍트
+  - FDE(Forward Deployed Engineer: 전방 배치 엔지니어): AI를 업무에 실제 적용하는 엔지니어. AI솔루션 아키텍트가 설계한것에 기반하거나 직접 아키텍처 설계까지 수행 
+  - FDE = Biz Consultant + AI Engineer + Data Analyst 
+- 어떻게 취업 준비 ?
+  - FDE향 포트폴리오: 비즈니스 컨설턴트로서 문제 정의와 솔루션 도출 + Data 분석/구축(RAG) + AI 엔지니어로서 에이젼틱 워크플로우 설계한 경험을 포트폴리오에 넣자
+  - 비즈니스 도메인에 AI를 적용한 실적을 만들자
+  - AI에 데이터 활용 능력: RAG, GraphRAG
+  - AI Native 능력: AI를 기계가 아니라 동료로 인식하여 자연스럽게 같이 일하는 노우하우
+
+---
+
+## LLM Landscape
+- LLM 특징
+  - 매개변수 규모가 점점 커짐
+  - 모델 직접 구축보다는 사전학습된 모델을 파인튜닝
+  - 자연어 입력하여 수행
+  - 트랜스포머 아키텍처
+- 트렌드:
+  - 모델 자체의 성능은 큰 차별성이 없어짐. 하네스(비용, 성능, 보안을 위한 실행환경 구성)가 더 중요해짐.
+  - 중국 모델(문샷의 Kimi, 미니맥스의 minimax, 지푸의 GLM, Deepseek, 알리바바 Qwen 등)의 강력한 부상 
+  - 소버린 AI의 확장: 
+    - 국내 독파모(독자 파운데이션 모델) 구축 중: SK A.X K2, LG EXAONE, 업스테이지의 Solar, 모티프 
+    - DeepSeek 수준까지 따라옮(Top 10 정도)
+  - 추론 전용칩의 성장: 학습한 모델 이용해 빠른 추론 제공 -> Nvidia Groq LPU, Google TPU, 퓨리오사(한국)의 NPU
+  > 추론 전용칩을 회사마다 다르게 부름. TPU는 학습에도 사용
+  > LPU: Language Processing Unit
+  > TPU: Tensor Processing Unit
+  > NPU: Neural Processing Unit 
+- 대표 LLM: 
+  - Anthropic의 Claude: Haiku -> Sonnet -> Opus -> Mythos(연구버전)/Fable(대중버전)
+  - OpenAI의 GPT: Lunar -> Terran -> Solar
+  - Google의 Gemini: Nano -> Flash -> Pro -> Ultra
+- LLM Leader Board
+  - 스탠포드의 HELM: 공정성 강점/업데이트 느림. https://crfm.stanford.edu/helm/classic/latest/
+  - vellum: 상용최신모델 중심. https://www.vellum.ai/llm-leaderboard
+  - 허깅페이스: 오픈소스 중심. https://huggingface.co/open-llm-leaderboard
+  - 성능평가의 기준 변화: 가장 어려운 인간의 시험문제 풀이로 변경
+
+## 현대 LLM
+- RLHF(Reinforcement Learning from Human Feedback): 인간 피드백을 통한 강화 학습
+  - WHY: 정답 제공 + Human같은 감성적 표현
+  - HOW: 지도학습 -> Human 선호 점수화 -> 보상학습(Human 선호 점수가 높은 쪽 나오면 보상 많이 주게)
+  - 한계: Reward hacking(보상 추종으로 다양성 감소와 아첨 답변), 사람에 의한 편향, 비용 상승
+
+- RAG의 새로운 시도: RepRAG(REPresentaion For RAG)
+  - 기존 RAG (토큰 방식): 문서를 잘게 쪼개어 글자(토큰) 단위로 읽고 검색한 뒤 다시 LLM에 텍스트로 전달. 과정이 길고 의미가 흐려질 수 있음
+  - RepRAG (직접 이해하는 임베딩): 문서 조각(청크)을 LLM이 바로 알아듣는 벡터로 변환해 소통
